@@ -18,6 +18,7 @@ test('keeps source-planning and candidate-blind inputs free of later-stage claim
     expect(Object.hasOwn(schema.shape, 'fix')).toBeFalse();
     expect(Object.hasOwn(schema.shape, 'answerKey')).toBeFalse();
   }
+  expect(Object.hasOwn(PlanModelInputSchema.shape, 'inspectionRequirement')).toBeTrue();
 });
 
 test('allows candidate data only at the declared downstream handoff boundaries', () => {

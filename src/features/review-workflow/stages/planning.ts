@@ -4,14 +4,15 @@ import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-
 import type { DraftVectorInput } from '../../attack-planning/plan.js';
 import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
-import type { PlanModelInput } from '../agents/planning/contract.js';
+import type { PlanModelRequest } from '../agents/planning/contract.js';
+import { scopedInspectionRequirement } from '../tools/contract.js';
 import { runScopedModelStage } from './scoped-model-stage.js';
 
 /** Creates one source-inspected draft plan through the shared scoped lifecycle. */
 export async function runPlanningStage(input: {
   modelProvider: ModelProvider;
   filesystem: SourceRepository;
-  request: PlanModelInput;
+  request: PlanModelRequest;
   sessionId: string;
   modelName: string | undefined;
   harnessExecution: HarnessExecutionConfiguration;
@@ -41,6 +42,7 @@ export async function runPlanningStage(input: {
         ...input.request,
         sourcePaths: [...scope.sourcePaths],
         context: [...scope.context],
+        inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
       }),
     reduceRecoveredOutputs: (leaves) => ({
       vectors: mergeRecoveredDraftVectors(leaves.flatMap((leaf) => leaf.output.vectors)),

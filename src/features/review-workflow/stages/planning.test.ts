@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
 import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
-import { PlanModelInputSchema } from '../agents/planning/contract.js';
+import { PlanModelRequestSchema } from '../agents/planning/contract.js';
 import { runPlanningStage } from './planning.js';
 
 test('creates a source-inspected draft for an unknown-language source file', async () => {
@@ -54,7 +54,7 @@ test('creates a source-inspected draft for an unknown-language source file', asy
   const result = await runPlanningStage({
     modelProvider: provider,
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
-    request: PlanModelInputSchema.parse({
+    request: PlanModelRequestSchema.parse({
       targetFingerprint: 'a'.repeat(64),
       contextDigest: 'b'.repeat(64),
       targetDisplayName: 'unknown-language fixture',

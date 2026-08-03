@@ -26,6 +26,7 @@ import { investigationAgentInstructions } from '../../features/review-workflow/a
 import {
   PlanModelInputSchema,
   PlanModelOutputSchema,
+  PlanModelRequestSchema,
 } from '../../features/review-workflow/agents/planning/contract.js';
 import { planningAgentInstructions } from '../../features/review-workflow/agents/planning/instructions.js';
 import {
@@ -46,6 +47,7 @@ import {
   RepoReadToolInputSchema as ReadFileInputSchema,
   RepoReadToolOutputSchema as ReadFileOutputSchema,
   type ReviewRepositoryToolset,
+  scopedInspectionRequirement,
 } from '../../features/review-workflow/tools/contract.js';
 
 import { NoContentLogger } from './no-content-logger.js';
@@ -217,7 +219,7 @@ export function createSecurityReviewerHarnessWithExecution(
     }))
     .workflows(({ workflow }) => ({
       create_plan: workflow({
-        input: PlanModelInputSchema,
+        input: PlanModelRequestSchema,
         output: AttackPlanSchema,
         delegation: {
           agents: ['planner'],
@@ -232,7 +234,10 @@ export function createSecurityReviewerHarnessWithExecution(
             'security_reviewer.plan.duration',
             undefined,
             async () => {
-              const modelOutput = await context.agents.planner(context.input);
+              const modelOutput = await context.agents.planner({
+                ...context.input,
+                inspectionRequirement: scopedInspectionRequirement(context.input.sourcePaths),
+              });
               const plan = createPlan({
                 targetFingerprint: context.input.targetFingerprint,
                 contextDigest: context.input.contextDigest,

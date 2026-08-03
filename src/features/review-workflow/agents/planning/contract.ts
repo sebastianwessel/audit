@@ -5,10 +5,12 @@ import {
   InventorySummarySchema,
 } from '../../../attack-planning/plan.schema.js';
 import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
+import { ScopedInspectionRequirementSchema } from '../../tools/contract.js';
 
 const PlannerVectorSchema = DraftAttackVectorBaseSchema;
 
-export const PlanModelInputSchema = z.strictObject({
+/** Planner-owned request data before the scoped lifecycle projects its tool requirement. */
+export const PlanModelRequestSchema = z.strictObject({
   targetFingerprint: Sha256Schema,
   contextDigest: Sha256Schema,
   targetDisplayName: z.string().trim().min(1).max(160),
@@ -16,6 +18,11 @@ export const PlanModelInputSchema = z.strictObject({
   sourcePaths: z.array(RelativePathSchema).min(1),
   context: z.array(ContextDocumentSchema),
   createdAt: z.iso.datetime({ offset: true }),
+});
+
+/** Complete planner input visible to the model. */
+export const PlanModelInputSchema = PlanModelRequestSchema.extend({
+  inspectionRequirement: ScopedInspectionRequirementSchema,
 });
 
 export const PlanModelOutputSchema = z.strictObject({
@@ -28,5 +35,6 @@ export const PlanModelOutputSchema = z.strictObject({
     .min(1),
 });
 
+export type PlanModelRequest = z.infer<typeof PlanModelRequestSchema>;
 export type PlanModelInput = z.infer<typeof PlanModelInputSchema>;
 export type PlanModelOutput = z.infer<typeof PlanModelOutputSchema>;

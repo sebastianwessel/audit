@@ -4,6 +4,7 @@ import { candidateGroundingAgentInstructions } from './candidate-grounding/instr
 import { countercheckAgentInstructions } from './countercheck/instructions.js';
 import { evidenceMapAgentInstructions } from './evidence-map/instructions.js';
 import { investigationAgentInstructions } from './investigation/instructions.js';
+import { planningAgentInstructions } from './planning/instructions.js';
 import { scopedInspectionFirstActionInstruction } from './scoped-inspection-instructions.js';
 import { sourcePostureAgentInstructions } from './source-posture/instructions.js';
 import { verificationAgentInstructions } from './verification/instructions.js';
@@ -11,6 +12,7 @@ import { verificationAgentInstructions } from './verification/instructions.js';
 test('gives every source-deciding agent one shared mandatory first-action instruction', () => {
   for (const instructions of [
     evidenceMapAgentInstructions,
+    planningAgentInstructions,
     sourcePostureAgentInstructions,
     investigationAgentInstructions,
     candidateGroundingAgentInstructions,
