@@ -268,6 +268,15 @@ evaluator work root, exact-bound to the trial, sealed plan, target/context,
 provider/model/route, prompt protocol, and answer-key digest. This lets a
 resumed trial retain the diagnostic without ever persisting a discovery seed.
 
+### Plan 009-G — prevent prompt drift from widening stage inputs
+
+**Progress (2026-08-03):** initial schema-boundary regression coverage is
+implemented. It proves planning, neutral evidence mapping, and candidate-blind
+posture cannot acquire findings, hypotheses, priority, fixes, or answer keys;
+it also proves seeds and hypotheses enter only at the declared downstream
+handoff boundaries. These are schema-contract checks, not prompt snapshots or
+security heuristics.
+
 ## Release gate after the wave
 
 - `bun run check` passes without provider dispatch.
