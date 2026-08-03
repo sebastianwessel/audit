@@ -834,6 +834,68 @@ test('checkpoints every candidate-aware verifier transition without retaining mo
   expect(completed?.result).not.toHaveProperty('reason');
 });
 
+test('binds verifier overflow topology to the exact candidate-aware checkpoint', async () => {
+  const plan = approvedPlan();
+  const updates: CandidateAwareCheckpointUpdate[] = [];
+  await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-candidate-aware-overflow-01',
+    generatedAt: '2026-08-03T12:02:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(request.vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: groundSeeds,
+    verify: async (_request, stageContext) => {
+      await stageContext?.onContextOverflowTransition?.({
+        recoveryProtocolFingerprint: 'a'.repeat(64),
+        rootScopeFingerprint: 'b'.repeat(64),
+        event: {
+          childKey: 'root',
+          attempt: 1,
+          scopeFingerprint: 'c'.repeat(64),
+          state: 'overflowed',
+          errorCode: 'provider-context-overflow',
+        },
+      });
+      return {
+        decision: 'incomplete',
+        reason: 'The provider context window was exceeded.',
+        verifiedEvidence: null,
+        verifiedPlanObligations: [],
+        controlAssessment: null,
+        obligationReconciliations: [],
+        postureReconciliations: [],
+        terminalLane: 'stage-failed',
+      };
+    },
+    onCandidateAwareCheckpoint: async (update) => {
+      updates.push(update);
+    },
+  });
+  const overflowUpdate = updates.find((update) => update.contextOverflowTopology !== undefined);
+  expect(overflowUpdate).toMatchObject({
+    state: 'running',
+    contextOverflowTopology: {
+      recoveryProtocolFingerprint: 'a'.repeat(64),
+      rootScopeFingerprint: 'b'.repeat(64),
+      events: [{ ordinal: 1, childKey: 'root', state: 'overflowed' }],
+    },
+  });
+  expect(updates.at(-1)?.contextOverflowTopology).toEqual(overflowUpdate?.contextOverflowTopology);
+});
+
 test('grounds every discovery seed and rejects a changed vector or obligation binding', async () => {
   const plan = approvedPlan();
   const vector = plan.vectors[0];

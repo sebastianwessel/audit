@@ -548,11 +548,21 @@ export const PersistedCandidateAwareResultSchema = PersistedAuditVerificationRes
 });
 
 /**
+ * Candidate-bound overflow history. It is source-free and lives beside the
+ * exact verifier/countercheck work unit, not in a vector-wide shared ledger.
+ */
+export const CandidateAwareContextOverflowTopologySchema = z.strictObject({
+  recoveryProtocolFingerprint: Sha256Schema,
+  rootScopeFingerprint: Sha256Schema,
+  events: z.array(ContextOverflowTopologyEventSchema),
+});
+
+/**
  * One durable unit of verifier or countercheck work. The candidate digest binds
  * reuse to the exact canonical input without retaining a second candidate copy.
  */
 export const AuditCandidateAwareCheckpointSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   phase: z.enum(['verification', 'countercheck']),
   candidateGroundingProtocolFingerprint: Sha256Schema,
   candidateOrdinal: z.number().int().min(1),
@@ -560,6 +570,7 @@ export const AuditCandidateAwareCheckpointSchema = AuditCheckpointBindingSchema.
   state: z.enum(['pending', 'running', 'completed']),
   savedAt: IsoDateTimeSchema,
   result: PersistedCandidateAwareResultSchema.optional(),
+  contextOverflowTopology: CandidateAwareContextOverflowTopologySchema.optional(),
 }).superRefine((value, context) => {
   if (value.state === 'completed' && value.result === undefined) {
     context.addIssue({
@@ -763,6 +774,9 @@ export type AuditCandidateGroundingRecoveryLeaf = z.infer<
   typeof AuditCandidateGroundingRecoveryLeafSchema
 >;
 export type AuditCandidateAwareCheckpoint = z.infer<typeof AuditCandidateAwareCheckpointSchema>;
+export type CandidateAwareContextOverflowTopology = z.infer<
+  typeof CandidateAwareContextOverflowTopologySchema
+>;
 export type AuditCandidateGroundingDraft = z.infer<typeof AuditCandidateGroundingDraftSchema>;
 export type AuditEvidenceMapDraft = z.infer<typeof AuditEvidenceMapDraftSchema>;
 export type AuditSourcePostureDraft = z.infer<typeof AuditSourcePostureDraftSchema>;

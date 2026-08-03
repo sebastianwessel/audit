@@ -5,6 +5,10 @@ import type { AttackPlan, ProposedFinding } from '../attack-planning/plan.schema
 import { hasExactPlanObligations } from '../attack-planning/plan.schema.js';
 import { hasSuccessfulScopedSourceInspection } from '../model-operations/model-operations.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
+import type {
+  ContextOverflowTopology,
+  ContextOverflowTopologyEvent,
+} from '../review-workflow/runtime/context-overflow.js';
 import { createFindingAdmissionFunnel, emptyFindingAdmissionFunnel } from './admission/funnel.js';
 import {
   type AuditCandidateAwareCheckpoint,
@@ -23,6 +27,7 @@ import {
   type AuditSourcePostureRecoveryLeaf,
   type AuditVectorResult,
   AuditVectorResultSchema,
+  type CandidateAwareContextOverflowTopology,
   CandidateIntegrityRejectionLedgerSchema,
   DiscoveryIntegrityRejectionLedgerSchema,
   MaxParallelVectorsSchema,
@@ -151,11 +156,23 @@ export type AuditVerificationResultWithObservation = Readonly<{
 
 export type AuditVerifier = (
   request: AuditVerificationRequest,
+  context?: CandidateAwareModelStageContext,
 ) => Promise<AuditVerificationResultWithObservation>;
 
 export type AuditCounterchecker = (
   request: AuditCountercheckRequest,
+  context?: CandidateAwareModelStageContext,
 ) => Promise<AuditVerificationResultWithObservation>;
+
+/** Exact candidate-bound recovery state for one verifier or countercheck dispatch. */
+export type CandidateAwareModelStageContext = Readonly<{
+  priorContextOverflowTopology?: ContextOverflowTopology;
+  onContextOverflowTransition?: (input: {
+    recoveryProtocolFingerprint: string;
+    rootScopeFingerprint: string;
+    event: ContextOverflowTopologyEvent;
+  }) => Promise<void>;
+}>;
 
 export type CandidateAwareCheckpointUpdate = Readonly<{
   vectorId: string;
@@ -164,6 +181,7 @@ export type CandidateAwareCheckpointUpdate = Readonly<{
   candidate: VerifiableHypothesis;
   state: AuditCandidateAwareCheckpoint['state'];
   result?: PersistedCandidateAwareResult;
+  contextOverflowTopology?: CandidateAwareContextOverflowTopology;
 }>;
 
 /** Source-free recovery context passed only to a scoped reducible model stage. */
@@ -695,7 +713,7 @@ async function executeVector(
           phase: 'verification',
           candidateOrdinal: index + 1,
           hypothesis,
-          execute: async () => {
+          execute: async (stageContext) => {
             const verificationId = `verification-${vector.vectorId}-${index + 1}`;
             const request = AuditVerificationRequestSchema.parse({
               verificationId,
@@ -705,7 +723,7 @@ async function executeVector(
               hypothesis,
               availableSourcePaths: scopedSources.map((source) => source.path),
             });
-            return input.verify(request);
+            return input.verify(request, stageContext);
           },
         });
       }),
@@ -772,7 +790,7 @@ async function executeVector(
                 phase: 'countercheck',
                 candidateOrdinal: index + 1,
                 hypothesis,
-                execute: async () => {
+                execute: async (stageContext) => {
                   const countercheckId = `countercheck-${vector.vectorId}-${index + 1}`;
                   const request = AuditCountercheckRequestSchema.parse({
                     countercheckId,
@@ -782,7 +800,7 @@ async function executeVector(
                     hypothesis,
                     availableSourcePaths: scopedSources.map((source) => source.path),
                   });
-                  return countercheck(request);
+                  return countercheck(request, stageContext);
                 },
               });
             }),
@@ -1671,17 +1689,23 @@ async function runCandidateAwareStage(input: {
   phase: AuditCandidateAwareCheckpoint['phase'];
   candidateOrdinal: number;
   hypothesis: VerifiableHypothesis;
-  execute: () => Promise<AuditVerificationResultWithObservation>;
+  execute: (
+    context: CandidateAwareModelStageContext,
+  ) => Promise<AuditVerificationResultWithObservation>;
 }): Promise<NormalizedCandidateAwareResult> {
-  const prior = reusableCandidateAwareResult({
+  const priorCheckpoint = candidateAwareCheckpoint({
     checkpoints: input.input.priorCandidateAwareCheckpoints ?? [],
     vectorId: input.vector.vectorId,
     phase: input.phase,
     candidateOrdinal: input.candidateOrdinal,
     hypothesis: input.hypothesis,
+  });
+  const prior = reusableCandidateAwareResult({
+    checkpoint: priorCheckpoint,
     retryUnfinished: input.input.retryUnfinished ?? false,
   });
   if (prior !== undefined) return prior;
+  let contextOverflowTopology = priorCheckpoint?.contextOverflowTopology;
   const update = async (
     state: AuditCandidateAwareCheckpoint['state'],
     result?: PersistedCandidateAwareResult,
@@ -1693,13 +1717,30 @@ async function runCandidateAwareStage(input: {
       candidate: input.hypothesis,
       state,
       ...(result === undefined ? {} : { result }),
+      ...(contextOverflowTopology === undefined ? {} : { contextOverflowTopology }),
     });
   await update('pending');
   return input.candidateAwareDispatchPool.run(async () => {
     await update('running');
     let result: NormalizedCandidateAwareResult;
     try {
-      result = normalizeCandidateAwareResult(await input.execute());
+      result = normalizeCandidateAwareResult(
+        await input.execute({
+          ...(contextOverflowTopology === undefined
+            ? {}
+            : {
+                priorContextOverflowTopology:
+                  runtimeContextOverflowTopology(contextOverflowTopology),
+              }),
+          onContextOverflowTransition: async (transition) => {
+            contextOverflowTopology = appendCandidateAwareContextOverflowEvent(
+              contextOverflowTopology,
+              transition,
+            );
+            await update('running');
+          },
+        }),
+      );
     } catch (error) {
       if (isProviderCancelled(error)) {
         input.candidateAwareDispatchPool.cancel(error);
@@ -1722,23 +1763,10 @@ async function runCandidateAwareStage(input: {
 
 /** Restores only an exact terminal result; its original model rationale stays discarded. */
 function reusableCandidateAwareResult(input: {
-  checkpoints: readonly AuditCandidateAwareCheckpoint[];
-  vectorId: string;
-  phase: AuditCandidateAwareCheckpoint['phase'];
-  candidateOrdinal: number;
-  hypothesis: VerifiableHypothesis;
+  checkpoint: AuditCandidateAwareCheckpoint | undefined;
   retryUnfinished: boolean;
 }): NormalizedCandidateAwareResult | undefined {
-  const candidateFingerprint = candidateAwareFingerprint(input.hypothesis);
-  const checkpoint = input.checkpoints.find(
-    (candidate) =>
-      candidate.vectorId === input.vectorId &&
-      candidate.phase === input.phase &&
-      candidate.candidateOrdinal === input.candidateOrdinal &&
-      candidate.candidateFingerprint === candidateFingerprint &&
-      candidate.state === 'completed' &&
-      candidate.result !== undefined,
-  );
+  const checkpoint = input.checkpoint;
   if (
     checkpoint?.result === undefined ||
     (input.retryUnfinished && checkpoint.result.decision === 'incomplete')
@@ -1747,6 +1775,65 @@ function reusableCandidateAwareResult(input: {
   return {
     ...checkpoint.result,
     reason: 'The exact persisted candidate-aware terminal result was reused.',
+  };
+}
+
+function candidateAwareCheckpoint(input: {
+  checkpoints: readonly AuditCandidateAwareCheckpoint[];
+  vectorId: string;
+  phase: AuditCandidateAwareCheckpoint['phase'];
+  candidateOrdinal: number;
+  hypothesis: VerifiableHypothesis;
+}): AuditCandidateAwareCheckpoint | undefined {
+  const candidateFingerprint = candidateAwareFingerprint(input.hypothesis);
+  return input.checkpoints.find(
+    (candidate) =>
+      candidate.vectorId === input.vectorId &&
+      candidate.phase === input.phase &&
+      candidate.candidateOrdinal === input.candidateOrdinal &&
+      candidate.candidateFingerprint === candidateFingerprint,
+  );
+}
+
+function runtimeContextOverflowTopology(
+  topology: CandidateAwareContextOverflowTopology,
+): ContextOverflowTopology {
+  return {
+    recoveryProtocolFingerprint: topology.recoveryProtocolFingerprint,
+    rootScopeFingerprint: topology.rootScopeFingerprint,
+    events: topology.events.map(({ ordinal: _ordinal, savedAt: _savedAt, ...event }) => event),
+  };
+}
+
+function appendCandidateAwareContextOverflowEvent(
+  previous: CandidateAwareContextOverflowTopology | undefined,
+  input: Readonly<{
+    recoveryProtocolFingerprint: string;
+    rootScopeFingerprint: string;
+    event: ContextOverflowTopologyEvent;
+  }>,
+): CandidateAwareContextOverflowTopology {
+  if (
+    previous !== undefined &&
+    (previous.recoveryProtocolFingerprint !== input.recoveryProtocolFingerprint ||
+      previous.rootScopeFingerprint !== input.rootScopeFingerprint)
+  ) {
+    throw new SecurityReviewerError(
+      'artifact-invalid',
+      'Candidate-aware context-overflow topology changed its exact recovery binding.',
+    );
+  }
+  return {
+    recoveryProtocolFingerprint: input.recoveryProtocolFingerprint,
+    rootScopeFingerprint: input.rootScopeFingerprint,
+    events: [
+      ...(previous?.events ?? []),
+      {
+        ordinal: (previous?.events.length ?? 0) + 1,
+        ...input.event,
+        savedAt: new Date().toISOString(),
+      },
+    ],
   };
 }
 

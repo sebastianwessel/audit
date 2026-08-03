@@ -12,7 +12,11 @@ import {
 import type { ModelRoute } from '../../model-operations/model-operations.schema.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
-import type { ContextRecoveryScope } from '../runtime/context-overflow.js';
+import type {
+  ContextOverflowTopology,
+  ContextOverflowTopologyEvent,
+  ContextRecoveryScope,
+} from '../runtime/context-overflow.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
 import { runScopedModelStage } from './scoped-model-stage.js';
 
@@ -30,6 +34,10 @@ export async function runVerificationStage(input: {
   modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   route?: ModelRoute;
+  overflowTopology?: Readonly<{
+    prior?: ContextOverflowTopology;
+    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
+  }>;
 }) {
   const stageResult = await runScopedModelStage({
     stage: 'verification',
@@ -46,7 +54,9 @@ export async function runVerificationStage(input: {
     modelPricing: input.modelPricing,
     modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
+    ...(input.overflowTopology === undefined ? {} : { overflowTopology: input.overflowTopology }),
     requireScopedSourceInspection: true,
+    allowScopeSplitting: false,
     invoke: (session, _attempt, scope: ContextRecoveryScope) =>
       session.workflows.verify_hypothesis.prompt({
         ...input.request,

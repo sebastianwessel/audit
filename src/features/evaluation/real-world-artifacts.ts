@@ -308,6 +308,9 @@ export function createEvaluationAuditCheckpointStore(input: {
         candidate: update.candidate,
         state: update.state,
         ...(update.result === undefined ? {} : { result: update.result }),
+        ...(update.contextOverflowTopology === undefined
+          ? {}
+          : { contextOverflowTopology: update.contextOverflowTopology }),
         savedAt: input.savedAt(),
       });
       await writeJsonArtifact(

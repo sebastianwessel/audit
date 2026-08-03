@@ -85,6 +85,8 @@ export async function runScopedModelStage<Result>(input: {
   emptyScopeOutput?: (scope: ContextRecoveryScope) => Result;
   /** Disables context-only splitting for stages without a lossless context merger. */
   allowContextSplitting?: boolean;
+  /** Disables all child splitting when no lossless stage reducer exists. */
+  allowScopeSplitting?: boolean;
   /**
    * Optional application-owned durable recovery topology. The shared stage
    * emits source-free transitions but never persists or interprets them.
@@ -240,6 +242,9 @@ export async function runScopedModelStage<Result>(input: {
       ...(input.allowContextSplitting === undefined
         ? {}
         : { allowContextSplitting: input.allowContextSplitting }),
+      ...(input.allowScopeSplitting === undefined
+        ? {}
+        : { allowScopeSplitting: input.allowScopeSplitting }),
       ...(input.overflowTopology === undefined
         ? {}
         : {

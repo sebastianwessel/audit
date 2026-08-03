@@ -7,7 +7,11 @@ import { FakeModelProvider } from '@purista/harness/testing';
 
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
 import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
-import type { ContextOverflowTopologyEvent } from '../runtime/context-overflow.js';
+import {
+  type ContextOverflowTopologyEvent,
+  contextOverflowRecoveryProtocolFingerprint,
+  contextRecoveryRootScopeFingerprint,
+} from '../runtime/context-overflow.js';
 
 import { runScopedModelStage } from './scoped-model-stage.js';
 
@@ -111,6 +115,75 @@ test('retries a transient stage invocation without expanding its approved scope'
     ['a.unknown', 'b.unknown'],
     ['a.unknown', 'b.unknown'],
   ]);
+});
+
+test('records a verifier overflow and does not redispatch a non-lossless split on resume', async () => {
+  const targetRoot = await createTarget();
+  const firstTopology: ContextOverflowTopologyEvent[] = [];
+  let firstCalls = 0;
+  const first = await runScopedModelStage<string>({
+    stage: 'verification',
+    route: 'primary',
+    stageId: 'verification-overflow-01',
+    modelProvider: new FakeModelProvider(),
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    availableSourcePaths: ['a.unknown', 'b.unknown'],
+    context: [],
+    sessionId: 'verification-overflow-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+    allowScopeSplitting: false,
+    overflowTopology: {
+      onTransition: async (event) => {
+        firstTopology.push(event);
+      },
+    },
+    invoke: async () => {
+      firstCalls += 1;
+      throw contextOverflow();
+    },
+  });
+  expect(first).toMatchObject({ status: 'failed', errorCode: 'provider-context-overflow' });
+  expect(firstCalls).toBe(1);
+  expect(firstTopology.map((event) => event.state)).toEqual(['pending', 'running', 'overflowed']);
+
+  let resumedCalls = 0;
+  const resumed = await runScopedModelStage<string>({
+    stage: 'verification',
+    route: 'primary',
+    stageId: 'verification-overflow-01',
+    modelProvider: new FakeModelProvider(),
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    availableSourcePaths: ['a.unknown', 'b.unknown'],
+    context: [],
+    sessionId: 'verification-overflow-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+    allowScopeSplitting: false,
+    overflowTopology: {
+      prior: {
+        recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
+        rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
+          sourcePaths: ['a.unknown', 'b.unknown'],
+          context: [],
+        }),
+        events: firstTopology,
+      },
+      onTransition: async () => undefined,
+    },
+    invoke: async () => {
+      resumedCalls += 1;
+      return 'unexpected';
+    },
+  });
+  expect(resumed).toMatchObject({ status: 'failed', errorCode: 'provider-context-overflow' });
+  expect(resumedCalls).toBe(0);
 });
 
 test('fails closed when a source-deciding planning stage returns without reading or searching source', async () => {

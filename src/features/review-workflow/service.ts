@@ -510,12 +510,30 @@ export function createReviewService(
             ? { groundings: result.output, modelObservation: result.modelObservation }
             : { groundings: { groundings: [] }, modelObservation: result.modelObservation };
         },
-        verify: (request) =>
-          runVerificationStage({
+        verify: (request, candidateContext) => {
+          const context = selectApplicableContext(inventory.context, request.availableSourcePaths);
+          const overflowTopology =
+            candidateContext === undefined
+              ? undefined
+              : {
+                  ...(candidateContext.priorContextOverflowTopology === undefined
+                    ? {}
+                    : { prior: candidateContext.priorContextOverflowTopology }),
+                  onTransition: async (event: ContextOverflowTopology['events'][number]) =>
+                    candidateContext.onContextOverflowTransition?.({
+                      recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
+                      rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
+                        sourcePaths: request.availableSourcePaths,
+                        context,
+                      }),
+                      event,
+                    }),
+                };
+          return runVerificationStage({
             modelProvider: verificationRoute?.modelProvider ?? modelProvider,
             filesystem: sourceSnapshot,
             request,
-            context: selectApplicableContext(inventory.context, request.availableSourcePaths),
+            context,
             sessionId: `${input.sessionId}-${request.verificationId}`,
             modelName: verificationRoute?.modelName ?? modelName,
             harnessExecution,
@@ -525,7 +543,9 @@ export function createReviewService(
             modelCostCeiling,
             cacheRoutingEnabled: verificationRoute?.cacheRoutingEnabled ?? cacheRoutingEnabled,
             route: verificationRoute?.route ?? 'primary',
-          }),
+            ...(overflowTopology === undefined ? {} : { overflowTopology }),
+          });
+        },
       });
       const modelStages = modelStagesForAudit(report.coverage);
       return {

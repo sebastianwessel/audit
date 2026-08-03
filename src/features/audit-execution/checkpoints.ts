@@ -23,6 +23,7 @@ import {
   type AuditVectorCheckpoint,
   AuditVectorCheckpointSchema,
   type AuditVectorResult,
+  type CandidateAwareContextOverflowTopology,
 } from './audit.schema.js';
 import { candidateAwareFingerprint } from './candidate-aware-identity.js';
 import type { VerifiableHypothesis } from './verification/contract.js';
@@ -288,13 +289,14 @@ export function createAuditCandidateAwareCheckpoint(input: {
   candidate: VerifiableHypothesis;
   state: AuditCandidateAwareCheckpoint['state'];
   result?: AuditCandidateAwareCheckpoint['result'];
+  contextOverflowTopology?: CandidateAwareContextOverflowTopology;
   savedAt: string;
 }): AuditCandidateAwareCheckpoint {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   if (input.candidate.vectorId !== binding.vectorId) throw incompatibleCheckpoint();
   return AuditCandidateAwareCheckpointSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     phase: input.phase,
     candidateGroundingProtocolFingerprint: input.candidateGroundingProtocolFingerprint,
     ...binding,
@@ -303,6 +305,9 @@ export function createAuditCandidateAwareCheckpoint(input: {
     state: input.state,
     savedAt: input.savedAt,
     ...(input.result === undefined ? {} : { result: input.result }),
+    ...(input.contextOverflowTopology === undefined
+      ? {}
+      : { contextOverflowTopology: input.contextOverflowTopology }),
   });
 }
 

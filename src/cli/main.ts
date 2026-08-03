@@ -868,12 +868,17 @@ function resumedModelStages(input: {
             (stage): stage is ModelStageObservation => stage !== undefined,
           ),
     ),
-    ...input.priorCandidateAwareCheckpoints.flatMap((checkpoint) =>
-      terminalVectorIds.has(checkpoint.vectorId) ||
-      checkpoint.result?.modelObservation === undefined
-        ? []
-        : [checkpoint.result.modelObservation],
-    ),
+    ...input.priorCandidateAwareCheckpoints.flatMap((checkpoint) => {
+      if (terminalVectorIds.has(checkpoint.vectorId)) return [];
+      if (checkpoint.result?.modelObservation !== undefined) {
+        return [checkpoint.result.modelObservation];
+      }
+      return (
+        checkpoint.contextOverflowTopology?.events.flatMap((event) =>
+          event.modelObservation === undefined ? [] : [event.modelObservation],
+        ) ?? []
+      );
+    }),
     ...reusableContextOverflowModelStages({
       ledgers: input.priorContextOverflowLedgers,
       terminalVectorResults: input.priorVectorResults,
@@ -1078,6 +1083,9 @@ async function writeAuditCandidateAwareCheckpoint(input: {
       candidate: input.update.candidate,
       state: input.update.state,
       ...(input.update.result === undefined ? {} : { result: input.update.result }),
+      ...(input.update.contextOverflowTopology === undefined
+        ? {}
+        : { contextOverflowTopology: input.update.contextOverflowTopology }),
       savedAt: new Date().toISOString(),
     }),
   );

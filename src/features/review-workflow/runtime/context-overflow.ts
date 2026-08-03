@@ -83,6 +83,8 @@ export type ContextOverflowRecoveryInput<Result> = Readonly<{
    * applicable context document to remain a single, lossless decision basis.
    */
   allowContextSplitting?: boolean;
+  /** Disables all child splitting when a stage has no lossless reducer. */
+  allowScopeSplitting?: boolean;
   onRecoveredFailure?: (error: unknown) => void;
   /** Exact prior topology may skip only a provider-confirmed overflowing parent. */
   priorTopology?: ContextOverflowTopology;
@@ -217,7 +219,8 @@ async function collectRecoveredLeaves<Result>(
       });
     }
   }
-  const partitions = await splitScope(scope, input);
+  const partitions =
+    input.allowScopeSplitting === false ? undefined : await splitScope(scope, input);
   if (partitions === undefined) {
     throw new SecurityReviewerError(
       'provider-context-overflow',
