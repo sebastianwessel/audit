@@ -144,9 +144,7 @@ export function traceTerminalCoverage(
         return (
           entry.completed &&
           vector !== undefined &&
-          expected.ranges.some((range) =>
-            vector.scopeGlobs.some((glob) => globMatches(range.path, glob)),
-          )
+          expected.ranges.some((range) => vectorScopesPath([vector], range.path))
         );
       }),
     'terminalCompleted',
@@ -224,13 +222,4 @@ function trace(
 
 function compareTrace(left: ExpectedEvidenceRoleTrace, right: ExpectedEvidenceRoleTrace): number {
   return `${left.findingId}\0${left.role}`.localeCompare(`${right.findingId}\0${right.role}`);
-}
-
-function globMatches(path: string, glob: string): boolean {
-  const expression = glob
-    .replace(/[|\\{}()[\]^$+?.]/gu, '\\$&')
-    .replaceAll('**/', '(?:.*/)?')
-    .replaceAll('**', '.*')
-    .replaceAll('*', '[^/]*');
-  return new RegExp(`^${expression}$`, 'u').test(path);
 }
