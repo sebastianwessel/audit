@@ -340,6 +340,13 @@ async function executeVector(
     };
   }
   const evidencePackage = buildInvestigationEvidencePackage(scopedSources, []);
+  let activeStage: AuditError['stage'] = 'evidence-mapping';
+  let retainedEvidenceMapObservation: ModelStageObservation | undefined;
+  let retainedSourcePostureObservation: ModelStageObservation | undefined;
+  let retainedInvestigationObservation: ModelStageObservation | undefined;
+  let retainedCandidateGroundingObservation: ModelStageObservation | undefined;
+  let retainedVerificationObservations: readonly ModelStageObservation[] = [];
+  let retainedCountercheckObservations: readonly ModelStageObservation[] = [];
   try {
     const mapRequest = {
       vector,
@@ -349,6 +356,7 @@ async function executeVector(
     const priorMapDraft = input.priorEvidenceMapDrafts?.find(
       (draft) => draft.vectorId === vector.vectorId,
     );
+    activeStage = 'evidence-mapping';
     const mapped =
       priorMapDraft === undefined
         ? input.mapEvidence === undefined
@@ -368,6 +376,7 @@ async function executeVector(
             evidenceMap: priorMapDraft.evidenceMap,
             modelObservation: priorMapDraft.modelObservation,
           };
+    retainedEvidenceMapObservation = mapped.modelObservation;
     if (mapped.modelObservation?.status === 'failed') {
       return failedEvidenceMapResult(
         vector,
@@ -419,6 +428,7 @@ async function executeVector(
     const priorSourcePostureDraft = input.priorSourcePostureDrafts?.find(
       (draft) => draft.vectorId === vector.vectorId,
     );
+    activeStage = 'source-posture';
     const assessed =
       priorSourcePostureDraft === undefined
         ? input.assessSourcePosture === undefined
@@ -436,6 +446,7 @@ async function executeVector(
             sourcePosture: priorSourcePostureDraft.sourcePosture,
             modelObservation: priorSourcePostureDraft.modelObservation,
           };
+    retainedSourcePostureObservation = assessed.modelObservation;
     if (assessed.modelObservation?.status === 'failed') {
       return failedSourcePostureResult({
         vector,
@@ -492,6 +503,7 @@ async function executeVector(
     const priorDraft = input.priorCandidateGroundingDrafts?.find(
       (draft) => draft.vectorId === vector.vectorId,
     );
+    activeStage = 'investigation';
     const discovery =
       priorDraft === undefined
         ? await input.investigate(
@@ -504,6 +516,7 @@ async function executeVector(
         : undefined;
     const investigationObservation =
       priorDraft?.discoveryObservation ?? discovery?.modelObservation;
+    retainedInvestigationObservation = investigationObservation;
     if (investigationObservation?.status === 'failed') {
       return failedInvestigationResult(
         vector,
@@ -551,6 +564,7 @@ async function executeVector(
         ]),
       ),
     );
+    activeStage = 'candidate-grounding';
     const grounding =
       priorDraft !== undefined ||
       verifiedSeeds.verified.length === 0 ||
@@ -635,6 +649,7 @@ async function executeVector(
       );
     const candidateGroundingObservation =
       priorDraft?.modelObservation ?? grounding?.modelObservation;
+    retainedCandidateGroundingObservation = candidateGroundingObservation;
     if (priorDraft === undefined && grounding?.modelObservation?.status === 'completed') {
       await input.onCandidateGroundingDraft?.({
         vectorId: vector.vectorId,
@@ -670,6 +685,7 @@ async function executeVector(
       });
     }
     const verifiedFindings = verifiedModel.verified;
+    activeStage = 'verification';
     const verificationResults = await Promise.all(
       verifiedFindings.map(async (hypothesis, index) => {
         return runCandidateAwareStage({
@@ -737,7 +753,11 @@ async function executeVector(
         false,
       ).verified;
     });
+    retainedVerificationObservations = verificationResults.flatMap((result) =>
+      result.modelObservation === undefined ? [] : [result.modelObservation],
+    );
     const countercheck = input.countercheck;
+    activeStage = 'countercheck';
     const countercheckResults =
       countercheck === undefined
         ? verifierReconciled.map(() => undefined)
@@ -870,12 +890,12 @@ async function executeVector(
         retryable: candidateAwareResultIsRetryable(result),
       });
     }
-    const verificationObservations = verificationResults.flatMap((result) =>
-      result.modelObservation === undefined ? [] : [result.modelObservation],
-    );
+    const verificationObservations = retainedVerificationObservations;
     const countercheckObservations = countercheckResults.flatMap((result) =>
       result?.modelObservation === undefined ? [] : [result.modelObservation],
     );
+    retainedCountercheckObservations = countercheckObservations;
+    activeStage = 'synthesis';
     const admissionFunnel = createFindingAdmissionFunnel({
       modelCandidateCount: traceBoundCandidates.candidates.length,
       integrityRejectedCount: verifiedModel.rejectedCount,
@@ -951,8 +971,8 @@ async function executeVector(
           : {
               candidateGroundingObservation,
             }),
-        verificationObservations,
-        countercheckObservations,
+        verificationObservations: [...verificationObservations],
+        countercheckObservations: [...countercheckObservations],
       },
       errors,
       proposed: accepted.map(redactVerifiedFinding),
@@ -960,13 +980,19 @@ async function executeVector(
     };
   } catch (error) {
     const code = errorCode(error);
-    return failedInvestigationResult(
+    return failedVectorStageResult({
       vector,
-      scopedSources.length,
-      0,
-      evidencePackage.limitations,
+      matchedSourcePaths: scopedSources.length,
+      limitations: evidencePackage.limitations,
       code,
-    );
+      stage: activeStage,
+      evidenceMapObservation: retainedEvidenceMapObservation,
+      sourcePostureObservation: retainedSourcePostureObservation,
+      investigationObservation: retainedInvestigationObservation,
+      candidateGroundingObservation: retainedCandidateGroundingObservation,
+      verificationObservations: retainedVerificationObservations,
+      countercheckObservations: retainedCountercheckObservations,
+    });
   }
 }
 
@@ -1214,6 +1240,67 @@ function emptyScopeCoverage(
     completed: false,
     outcome: 'incomplete',
     errorCode: 'no-admitted-source-in-scope',
+  };
+}
+
+/**
+ * Preserves the exact phase and every completed source-free observation when
+ * persistence or orchestration fails outside a model stage's normal result.
+ */
+function failedVectorStageResult(input: {
+  vector: AttackPlan['vectors'][number];
+  matchedSourcePaths: number;
+  limitations: readonly string[];
+  code: string;
+  stage: AuditError['stage'];
+  evidenceMapObservation?: ModelStageObservation;
+  sourcePostureObservation?: ModelStageObservation;
+  investigationObservation?: ModelStageObservation;
+  candidateGroundingObservation?: ModelStageObservation;
+  verificationObservations: readonly ModelStageObservation[];
+  countercheckObservations: readonly ModelStageObservation[];
+}): AuditVectorResult {
+  return {
+    coverage: {
+      vectorId: input.vector.vectorId,
+      planned: true,
+      completed: false,
+      matchedSourcePaths: input.matchedSourcePaths,
+      deterministicCandidateCount: 0,
+      evidenceMapFactCount: 0,
+      evidenceMapUnansweredObligationCount: 0,
+      ...emptySourcePostureCoverage(),
+      findingCount: 0,
+      outcome: terminalFailureOutcome(input.code),
+      errorCode: input.code,
+      limitations: uniqueSorted(input.limitations),
+      obligationClosure: deriveObligationClosureMatrix({ vector: input.vector }),
+      admissionFunnel: emptyFindingAdmissionFunnel(),
+      verificationObservations: [...input.verificationObservations],
+      countercheckObservations: [...input.countercheckObservations],
+      ...(input.evidenceMapObservation === undefined
+        ? {}
+        : { evidenceMapObservation: input.evidenceMapObservation }),
+      ...(input.sourcePostureObservation === undefined
+        ? {}
+        : { sourcePostureObservation: input.sourcePostureObservation }),
+      ...(input.investigationObservation === undefined
+        ? {}
+        : { modelObservation: input.investigationObservation }),
+      ...(input.candidateGroundingObservation === undefined
+        ? {}
+        : { candidateGroundingObservation: input.candidateGroundingObservation }),
+    },
+    errors: [
+      {
+        code: input.code,
+        stage: input.stage,
+        message: 'The approved vector could not complete its recorded audit phase.',
+        retryable: input.code === 'provider-failure',
+      },
+    ],
+    proposed: [],
+    reviewRequired: [],
   };
 }
 

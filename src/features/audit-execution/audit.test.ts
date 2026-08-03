@@ -440,6 +440,40 @@ const apiKey = '12345678';`,
   );
 });
 
+test('preserves the true phase when evidence-map checkpoint persistence fails', async () => {
+  const plan = approvedPlan();
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const query = request.input;\n',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-evidence-map-persistence-failure-01',
+    generatedAt: '2026-08-03T12:00:00.000Z',
+    mapEvidence,
+    investigate: async () => ({ seeds: [], closures: [] }),
+    verify: acceptVerifier,
+    onEvidenceMapDraft: async () => {
+      throw new SecurityReviewerError(
+        'artifact-invalid',
+        'Injected checkpoint persistence failure.',
+      );
+    },
+  });
+  expect(report.errors).toMatchObject([
+    { code: 'artifact-invalid', stage: 'evidence-mapping', retryable: false },
+  ]);
+  expect(report.coverage[0]).toMatchObject({
+    outcome: 'failed',
+    errorCode: 'artifact-invalid',
+  });
+});
+
 test('schedules every verifier and countercheck through one run-wide candidate-aware pool', async () => {
   const plan = approvedPlan();
   const firstVector = plan.vectors[0];
