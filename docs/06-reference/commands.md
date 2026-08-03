@@ -3,6 +3,8 @@
 | Command | Purpose | Model call |
 | --- | --- | --- |
 | plan | Create an executable attack-vector plan. | Yes. |
+| plan-draft | Create a constrained editable JSON draft from one sealed plan. | No. |
+| plan-reseal | Validate a draft against its sealed base and publish a new plan pair. | No. |
 | audit | Execute a matching plan and create a report. | Yes. |
 | report | Render an existing valid report. | No. |
 | lineage | Compare two existing reports with coverage-aware exact finding tracking. | No. |
@@ -21,6 +23,7 @@
 | target | Repository directory to inspect. |
 | context | Explicit, allowlisted files that explain project-specific behavior. |
 | plan | Executable plan JSON for an audit; organizational review is external. |
+| draft | Relative output-root path for an editable plan draft. It is accepted only by `plan-draft` and `plan-reseal`. |
 | output | Existing separate output directory for JSON artifacts. |
 | max-parallel-vectors | Optional `1`–`8` transport cap for independent plan-vector work and all run-wide verifier/countercheck dispatches. It never limits candidates or evidence. |
 | run-id | Optional stable audit identifier; required together with `resume=true`. |
@@ -28,7 +31,32 @@
 | retry-unfinished | `true` with `resume=true` resumes incomplete, failed, or cancelled vectors from their newest matching phase checkpoint while preserving completed work. |
 | previous/current | Relative report JSON paths used by `lineage`; both must be under the selected output root. |
 
-Options are command-specific. Unknown flags, or flags that belong to another command, are rejected before the reviewer loads configuration or opens a repository. For example, `provider` is valid for `plan` and `audit`, but not for `report` or `lineage`.
+Options are command-specific. Unknown flags, or flags that belong to another command, are rejected before the reviewer loads configuration or opens a repository. For example, `provider` is valid for `plan` and `audit`, but not for `plan-draft`, `plan-reseal`, `report`, or `lineage`.
+
+## Review and change a plan safely
+
+`plan` produces a matching pair below the output directory:
+
+- `plans/<plan-id>.json` is the strict, executable artifact used by `audit`.
+- `plans/<plan-id>.md` is a readable review projection. It is never executed or parsed back into a plan.
+
+To change the planned scope, obligations, or limitations, derive a constrained draft, edit that JSON, and reseal it. Resealing preserves the original target/context binding and inventory summary, validates the edited vectors, then creates a new immutable plan ID. It does not call a model or open the reviewed repository.
+
+```bash
+bun run start plan-draft \
+  --output .security-review-artifacts \
+  --plan plans/<plan-id>.json \
+  --draft plan-drafts/review.json
+
+# Edit plan-drafts/review.json in a reviewer or plan-authoring workflow.
+
+bun run start plan-reseal \
+  --output .security-review-artifacts \
+  --plan plans/<plan-id>.json \
+  --draft plan-drafts/review.json
+```
+
+Do not edit a sealed plan JSON in place. Do not use YAML or Markdown as an executable plan format: YAML's flexible typing and aliases make it a poor integrity boundary, while the Markdown file is intentionally presentation-only. If validation fails, the existing sealed plan remains unchanged.
 
 Context files are Markdown with validated frontmatter. They may describe surrounding systems, deployment, setup, data classification, trust boundaries, or controls. They are advisory and cannot enable tools, approve a plan, or replace source evidence.
 

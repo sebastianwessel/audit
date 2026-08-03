@@ -9,6 +9,7 @@
     "includes": [
       "**",
       "!evaluation/corpora",
+      "!evaluation/research-corpora",
       "!evaluation/acquisition-snapshots",
       "!artifacts/schemas",
       "!tmp"

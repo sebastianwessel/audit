@@ -200,6 +200,23 @@ test('loads a pinned corpus and keeps its answer key outside the agent target ja
   ).rejects.toThrow('invalid');
 });
 
+test('loads the AI-assisted real-world development pair as targeted evaluator-only evidence', async () => {
+  const pack = await loadCorpusPack('evaluation/research-corpora/ai-assisted-real-world-v1');
+  const entry = pack.cases[0];
+  if (entry === undefined) throw new Error('Expected the AI-assisted development case.');
+
+  expect(pack.manifest.packId).toBe('ai-assisted-real-world-development');
+  expect(entry.answerKey.adjudicationStatus).toBe('ai-assisted');
+  expect(entry.answerKey.findingCoverage).toBe('targeted');
+  await expect(
+    createJailedReadOnlyFilesystem({
+      targetRoot: variantRoot(pack, entry.case, 'vulnerable'),
+    }).then((filesystem) =>
+      filesystem.readFile({ relativePath: '../answer-keys/key.json', startLine: 1 }),
+    ),
+  ).rejects.toThrow('invalid');
+});
+
 test('loads one checksummed smoke target without opening an answer key', async () => {
   const root = join(tmpdir(), `security-reviewer-smoke-corpus-${crypto.randomUUID()}`);
   await cp('evaluation/corpora', root, { recursive: true });
@@ -414,6 +431,41 @@ test('requires matching include judgments from exactly two reviewers for a dual-
   expect(() =>
     CorpusAnswerKeySchema.parse({ ...dualReviewed, staticReviewApplicable: false }),
   ).toThrow('source-only applicability and one expected vulnerable finding');
+});
+
+test('accepts one traceable source-only AI-assisted development review', () => {
+  const review = {
+    reviewer: 'codex-source-only-review-20260803',
+    reviewerKind: 'ai-assisted' as const,
+    reviewedAt: '2026-08-03T12:00:00.000Z',
+    decision: 'include' as const,
+    findingCoverage: 'targeted' as const,
+    expectedPlanScenarios: dualExpectedPlanScenarios,
+    expectedFindings: [dualExpectedFinding],
+    patchedExpectation: 'no-matching-finding' as const,
+    staticReviewApplicable: true,
+    notes: 'Source-only internal development review; not external reliability evidence.',
+  };
+  const key = {
+    schemaVersion: 5,
+    caseId: 'ai-assisted-case-01',
+    findingCoverage: 'targeted',
+    expectedPlanScenarios: dualExpectedPlanScenarios,
+    expectedFindings: [dualExpectedFinding],
+    patchedExpectation: 'no-matching-finding',
+    staticReviewApplicable: true,
+    adjudicationStatus: 'ai-assisted' as const,
+    reviewers: [review.reviewer],
+    independentReviews: [review],
+    notes: 'One AI-assisted source-only review for a low-cost internal development measurement.',
+  };
+  expect(CorpusAnswerKeySchema.parse(key).adjudicationStatus).toBe('ai-assisted');
+  expect(() =>
+    CorpusAnswerKeySchema.parse({
+      ...key,
+      independentReviews: [{ ...review, reviewerKind: 'human' as const }],
+    }),
+  ).toThrow('AI-assisted answer keys require');
 });
 
 test('rejects a paired corpus case without a patched negative expectation', async () => {

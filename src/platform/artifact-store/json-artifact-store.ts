@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  link,
   lstat,
   mkdir,
   open,
@@ -25,6 +26,7 @@ export type ArtifactStoreErrorCode =
   | 'artifact-not-found'
   | 'artifact-read-failed'
   | 'artifact-write-failed'
+  | 'artifact-already-exists'
   | 'artifact-lease-unavailable';
 
 export class ArtifactStoreError extends Error {
@@ -101,6 +103,26 @@ export async function writeJsonArtifact<TSchema extends z.ZodType<JsonArtifactVa
   await writeAtomically(outputRoot, destinationPath, stableJsonStringify(parsedData.data));
 }
 
+/** Writes a validated immutable JSON artifact and never replaces an existing path. */
+export async function writeNewJsonArtifact<TSchema extends z.ZodType<JsonArtifactValue>>(
+  outputRoot: string,
+  artifactPath: string,
+  schema: TSchema,
+  data: z.input<TSchema>,
+): Promise<void> {
+  const parsedData = schema.safeParse(data);
+
+  if (!parsedData.success) {
+    throw new ArtifactStoreError(
+      'artifact-schema-invalid',
+      'The JSON artifact does not match its schema.',
+    );
+  }
+
+  const destinationPath = await resolveArtifactWritePath(outputRoot, artifactPath, '.json');
+  await writeNewAtomically(outputRoot, destinationPath, stableJsonStringify(parsedData.data));
+}
+
 /** Writes a UTF-8 Markdown projection inside the same jailed artifact root. */
 export async function writeMarkdownArtifact(
   outputRoot: string,
@@ -109,6 +131,16 @@ export async function writeMarkdownArtifact(
 ): Promise<void> {
   const destinationPath = await resolveArtifactWritePath(outputRoot, artifactPath, '.md');
   await writeAtomically(outputRoot, destinationPath, content);
+}
+
+/** Writes an immutable UTF-8 Markdown projection and never replaces an existing path. */
+export async function writeNewMarkdownArtifact(
+  outputRoot: string,
+  artifactPath: string,
+  content: string,
+): Promise<void> {
+  const destinationPath = await resolveArtifactWritePath(outputRoot, artifactPath, '.md');
+  await writeNewAtomically(outputRoot, destinationPath, content);
 }
 
 /** Writes private UTF-8 data that belongs to a feature-owned, validated manifest. */
@@ -172,6 +204,42 @@ async function writeAtomically(
 
     throw new ArtifactStoreError('artifact-write-failed', 'The artifact could not be written.');
   }
+}
+
+/** Publishes through a hard link so an existing artifact can never be replaced in a race. */
+async function writeNewAtomically(
+  outputRoot: string,
+  destinationPath: string,
+  content: string,
+): Promise<void> {
+  const canonicalOutputRoot = await resolveOutputRoot(outputRoot);
+  const temporaryPath = resolve(
+    dirname(destinationPath),
+    `.${basename(destinationPath)}.${randomUUID()}.tmp`,
+  );
+
+  try {
+    await writeFile(temporaryPath, content, {
+      encoding: 'utf8',
+      flag: 'wx',
+      mode: 0o600,
+    });
+    await assertExistingArtifactPathIsSafe(canonicalOutputRoot, destinationPath);
+    await link(temporaryPath, destinationPath);
+  } catch (error) {
+    await removeTemporaryArtifact(temporaryPath);
+
+    if (error instanceof ArtifactStoreError) throw error;
+    if (isExistingFileError(error)) {
+      throw new ArtifactStoreError(
+        'artifact-already-exists',
+        'The immutable artifact already exists and cannot be replaced.',
+      );
+    }
+    throw new ArtifactStoreError('artifact-write-failed', 'The artifact could not be written.');
+  }
+
+  await removeTemporaryArtifact(temporaryPath);
 }
 
 /**

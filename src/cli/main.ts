@@ -2,6 +2,12 @@ import { basename } from 'node:path';
 import type { ModelProvider } from '@purista/harness';
 import type { z } from 'zod';
 import { AttackPlanSchema } from '../features/attack-planning/plan.schema.js';
+import {
+  createAttackPlanDraft,
+  resealAttackPlanDraft,
+} from '../features/attack-planning/plan-authoring.js';
+import { AttackPlanDraftSchema } from '../features/attack-planning/plan-authoring.schema.js';
+import { renderAttackPlanMarkdown } from '../features/attack-planning/plan-markdown.js';
 import type { CandidateAwareCheckpointUpdate } from '../features/audit-execution/audit.js';
 import {
   AuditCandidateAwareCheckpointSchema,
@@ -80,6 +86,8 @@ import {
   readJsonArtifact,
   readOptionalJsonArtifact,
   writeJsonArtifact,
+  writeNewJsonArtifact,
+  writeNewMarkdownArtifact,
 } from '../platform/artifact-store/json-artifact-store.js';
 import {
   ensureSafeOutputRoot,
@@ -102,17 +110,17 @@ import {
 } from '../shared/errors/security-reviewer-error.js';
 import { assertValidCommandOptions } from './command-options.js';
 
-const commandNames = new Set(['plan', 'audit', 'report', 'lineage']);
+const commandNames = new Set(['plan', 'plan-draft', 'plan-reseal', 'audit', 'report', 'lineage']);
 
 export type CliCommand = Readonly<{
-  command: 'plan' | 'audit' | 'report' | 'lineage';
+  command: 'plan' | 'plan-draft' | 'plan-reseal' | 'audit' | 'report' | 'lineage';
   options: Readonly<Record<string, string>>;
 }>;
 
 export function parseCliArguments(argv: readonly string[]): CliCommand {
   const command = argv[0];
   if (command === undefined || !commandNames.has(command))
-    throw usage('Expected one of: plan, audit, report, lineage.');
+    throw usage('Expected one of: plan, plan-draft, plan-reseal, audit, report, lineage.');
   const options: Record<string, string> = {};
   for (let index = 1; index < argv.length; index += 2) {
     const key = argv[index];
@@ -136,6 +144,8 @@ export async function runCli(argv: readonly string[]): Promise<number> {
   const runtime = await loadRuntimeConfiguration();
   if (parsed.command === 'report') return runReport(parsed.options, runtime.configuration);
   if (parsed.command === 'lineage') return runLineage(parsed.options, runtime.configuration);
+  if (parsed.command === 'plan-draft') return runPlanDraft(parsed.options, runtime.configuration);
+  if (parsed.command === 'plan-reseal') return runPlanReseal(parsed.options, runtime.configuration);
   if (runtime.configuration.verificationMode === 'independent-route') {
     throw usage(
       'The independent verifier route is evaluation-only and cannot run product commands.',
@@ -179,11 +189,16 @@ async function runPlan(
     createdAt: startedAt,
     sessionId: runId,
   });
-  await writeJsonArtifact(
+  await writeNewJsonArtifact(
     output,
     `plans/${created.plan.planId}.json`,
     AttackPlanSchema,
     created.plan,
+  );
+  await writeNewMarkdownArtifact(
+    output,
+    `plans/${created.plan.planId}.md`,
+    renderAttackPlanMarkdown(created.plan),
   );
   await writeRunManifest(output, {
     schemaVersion: 2,
@@ -208,7 +223,38 @@ async function runPlan(
       : { modelCostCeilingState: created.modelCostCeilingState }),
   });
   process.stdout.write(
-    `Created executable plan plans/${created.plan.planId}.json for ${created.inventory.summary.fileCount} files.\n`,
+    `Created executable plan plans/${created.plan.planId}.json and review projection plans/${created.plan.planId}.md for ${created.inventory.summary.fileCount} files.\n`,
+  );
+  return 0;
+}
+
+/** Creates a constrained editable draft without opening a target or calling a provider. */
+async function runPlanDraft(
+  options: Readonly<Record<string, string>>,
+  runtime: RuntimeConfiguration,
+): Promise<number> {
+  const output = await outputDirectory(options, runtime);
+  const plan = await readJsonArtifact(output, required(options, 'plan'), AttackPlanSchema);
+  const draft = createAttackPlanDraft(plan);
+  const draftPath = required(options, 'draft');
+  await writeNewJsonArtifact(output, draftPath, AttackPlanDraftSchema, draft);
+  process.stdout.write(`Created editable plan draft ${draftPath} from ${plan.planId}.\n`);
+  return 0;
+}
+
+/** Validates a constrained edit and publishes a new immutable executable plan pair. */
+async function runPlanReseal(
+  options: Readonly<Record<string, string>>,
+  runtime: RuntimeConfiguration,
+): Promise<number> {
+  const output = await outputDirectory(options, runtime);
+  const basePlan = await readJsonArtifact(output, required(options, 'plan'), AttackPlanSchema);
+  const draft = await readJsonArtifact(output, required(options, 'draft'), AttackPlanDraftSchema);
+  const plan = resealAttackPlanDraft({ basePlan, draft });
+  await writeNewJsonArtifact(output, `plans/${plan.planId}.json`, AttackPlanSchema, plan);
+  await writeNewMarkdownArtifact(output, `plans/${plan.planId}.md`, renderAttackPlanMarkdown(plan));
+  process.stdout.write(
+    `Resealed executable plan plans/${plan.planId}.json and review projection plans/${plan.planId}.md.\n`,
   );
   return 0;
 }

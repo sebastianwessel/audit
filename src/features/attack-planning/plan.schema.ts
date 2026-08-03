@@ -152,6 +152,7 @@ export const ProposedFindingSchema = z.strictObject({
 
 export type AttackPlan = z.infer<typeof AttackPlanSchema>;
 export type AttackVector = z.infer<typeof AttackVectorSchema>;
+export type DraftAttackVector = z.infer<typeof DraftAttackVectorSchema>;
 export type InventorySummary = z.infer<typeof InventorySummarySchema>;
 export type SourceEvidence = z.infer<typeof SourceEvidenceSchema>;
 export type ProposedFinding = z.infer<typeof ProposedFindingSchema>;

@@ -1,8 +1,11 @@
 import { expect, test } from 'bun:test';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createPlan } from '../features/attack-planning/plan.js';
+import { AttackPlanSchema } from '../features/attack-planning/plan.schema.js';
+import { resealAttackPlanDraft } from '../features/attack-planning/plan-authoring.js';
+import { AttackPlanDraftSchema } from '../features/attack-planning/plan-authoring.schema.js';
 import {
   AuditReportSchema,
   type AuditRunAttempt,
@@ -42,6 +45,18 @@ test('CLI parsing accepts only explicit command option pairs', () => {
     command: 'lineage',
     options: { previous: 'reports/previous.json', current: 'reports/current.json' },
   });
+  expect(
+    parseCliArguments([
+      'plan-draft',
+      '--plan',
+      'plans/plan.json',
+      '--draft',
+      'plan-drafts/review.json',
+    ]),
+  ).toEqual({
+    command: 'plan-draft',
+    options: { plan: 'plans/plan.json', draft: 'plan-drafts/review.json' },
+  });
   expect(() => parseCliArguments(['plan', '--target'])).toThrow('Options must be unique');
   expect(() => parseCliArguments(['scan'])).toThrow('Expected one of');
 });
@@ -50,6 +65,87 @@ test('CLI rejects an unknown option before loading configuration or opening root
   await expect(
     runCli(['plan', '--target', 'does-not-matter', '--targett', 'typo']),
   ).rejects.toThrow('Invalid options');
+});
+
+test('plan authoring commands create a constrained draft and publish a new plan pair without target access', async () => {
+  const output = await mkdtemp(join(tmpdir(), 'security-reviewer-plan-authoring-'));
+  try {
+    const basePlan = createPlan({
+      targetFingerprint: 'a'.repeat(64),
+      contextDigest: 'b'.repeat(64),
+      targetDisplayName: 'fixture',
+      createdAt: '2026-08-03T12:00:00.000Z',
+      inventorySummary: { fileCount: 1, totalBytes: 1, languageHints: [] },
+      vectors: [
+        {
+          title: 'Review authorization boundaries',
+          rationale: 'Protected behavior requires an explicit review.',
+          enabled: true,
+          scopeGlobs: ['source.unknown'],
+          reviewObligations: [
+            {
+              obligationId: 'authoring-obligation-01',
+              riskStatement: 'A caller may reach protected data without authorization.',
+              evidenceRequirement: 'Source evidence identifies the protected operation.',
+            },
+          ],
+          limitations: [],
+        },
+      ],
+    });
+    await writeJsonArtifact(output, `plans/${basePlan.planId}.json`, AttackPlanSchema, basePlan);
+
+    await expect(
+      runCli([
+        'plan-draft',
+        '--output',
+        output,
+        '--plan',
+        `plans/${basePlan.planId}.json`,
+        '--draft',
+        'plan-drafts/review.json',
+      ]),
+    ).resolves.toBe(0);
+
+    const draft = await readJsonArtifact(output, 'plan-drafts/review.json', AttackPlanDraftSchema);
+    const vector = draft.vectors[0];
+    if (vector === undefined) throw new Error('Fixture requires one draft vector.');
+    const editedDraft = { ...draft, vectors: [{ ...vector, scopeGlobs: ['private.unknown'] }] };
+    await writeJsonArtifact(output, 'plan-drafts/review.json', AttackPlanDraftSchema, editedDraft);
+    const resealed = resealAttackPlanDraft({ basePlan, draft: editedDraft });
+
+    await expect(
+      runCli([
+        'plan-reseal',
+        '--output',
+        output,
+        '--plan',
+        `plans/${basePlan.planId}.json`,
+        '--draft',
+        'plan-drafts/review.json',
+      ]),
+    ).resolves.toBe(0);
+
+    await expect(
+      readJsonArtifact(output, `plans/${resealed.planId}.json`, AttackPlanSchema),
+    ).resolves.toEqual(resealed);
+    await expect(readFile(join(output, `plans/${resealed.planId}.md`), 'utf8')).resolves.toContain(
+      'read-only review projection',
+    );
+    await expect(
+      runCli([
+        'plan-draft',
+        '--output',
+        output,
+        '--plan',
+        `plans/${basePlan.planId}.json`,
+        '--draft',
+        'plan-drafts/review.json',
+      ]),
+    ).rejects.toMatchObject({ code: 'artifact-already-exists' });
+  } finally {
+    await rm(output, { force: true, recursive: true });
+  }
 });
 
 test('CLI reserves exit code 4 for a provider failure that prevented report publication', () => {

@@ -1,5 +1,5 @@
 {
-  "name": "security-reviewer",
+  "name": "@sebastianwessel/audit",
   "version": "0.1.0",
   "private": true,
   "type": "module",

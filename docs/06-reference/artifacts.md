@@ -4,6 +4,15 @@
 
 The plan contains a target identity, inventory summary, and executable review vectors. Plan review and approval are outside the product: executing a validated plan is the approval signal. A vector names a human-readable review focus, scope, rationale, and limitations. It also declares stable review obligations: each pairs a risk statement with the source-backed evidence an audit must seek and close.
 
+Every plan has two immutable artifacts with the same plan ID:
+
+| Artifact | Audience | Role |
+| --- | --- | --- |
+| `plans/<plan-id>.json` | Audit and CI | The only executable, schema-validated plan. |
+| `plans/<plan-id>.md` | Human reviewers | A deterministic, readable projection. It is not parsed or executed. |
+
+To make a review change, create an editable `AttackPlanDraft` with `plan-draft`, then use `plan-reseal` to validate it against the original plan and publish a new pair. The draft can change vectors only; it cannot alter the target/context binding, inventory, timestamps, or derived identities. JSON remains the machine contract because it is sealed and validated deterministically. YAML is deliberately not an executable input.
+
 ## Report
 
 The report contains:

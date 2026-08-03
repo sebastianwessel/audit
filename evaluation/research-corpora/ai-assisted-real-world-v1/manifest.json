@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "packId": "ai-assisted-real-world-development",
+  "packVersion": "0.1.0",
+  "createdAt": "2026-08-03T12:00:00.000Z",
+  "datasets": [
+    {
+      "datasetId": "openssf-cve-benchmark-local-snapshot",
+      "title": "OpenSSF CVE Benchmark local source snapshot",
+      "sourceUrl": "https://github.com/ossf-cve-benchmark/ossf-cve-benchmark",
+      "revision": "91c59fd54b2b768c0f310bb0027d2ac59cdf74d4",
+      "license": "Private research use; upstream project license not yet verified",
+      "retrievedAt": "2026-08-03T12:00:00.000Z",
+      "attribution": "One complete local source pair acquired from the OpenSSF metadata lead openssf-cve-2017-16023. The answer key is source-only AI-assisted development evidence, never an upstream label or external reliability claim."
+    }
+  ],
+  "cases": [
+    {
+      "caseId": "openssf-cve-2017-16023-decamelize",
+      "datasetId": "openssf-cve-benchmark-local-snapshot",
+      "projectId": "sindresorhus-decamelize",
+      "repositoryUrl": "https://github.com/sindresorhus/decamelize",
+      "vulnerableRevision": "18479821851414d91ad3d42d8560adff5969da4b",
+      "patchedRevision": "76d47d8de360afb574da2e34db87430ce11094e0",
+      "language": "javascript",
+      "difficulty": "easy",
+      "split": "development",
+      "evidenceOrigin": "real-world",
+      "controlFamilies": ["validation-canonicalization"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/openssf-cve-2017-16023-decamelize/vulnerable",
+        "patched": "cases/openssf-cve-2017-16023-decamelize/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "f20b47c03c6fea90d45fae57165dc62efa25cf08886087a8b50479df374e4259",
+        "patched": "778f24069508a4f883e67b1a554f678f38e5d07685c792f94c1c5352441e2d28"
+      },
+      "answerKeyPath": "answer-keys/openssf-cve-2017-16023-decamelize.json",
+      "reviewedPlanPath": "reviewed-plans/openssf-cve-2017-16023-decamelize.json",
+      "transformedContentDigest": "c2b164519fb1d010754c0144463406f89fc2664099fd4d622607711cabf07c0c"
+    }
+  ],
+  "redistributionDecision": "private-research-source-only",
+  "manifestDigest": "e4cc73c3d5732a6d11e9f848fcb0f8c49ff7bc6c79ab479ac9b2664c631316ea"
+}

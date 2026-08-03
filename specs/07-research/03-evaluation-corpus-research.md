@@ -30,6 +30,19 @@ PrimeVul remains a complementary C/C++ metadata reservoir: it publishes commit, 
 
 This preserves language diversity without changing the reviewed-target path: acquisition metadata, reviewer artifacts, and corpus source snapshots remain evaluator-only and cannot become model instructions or deterministic security rules.
 
+### Immediate local human-curation queue
+
+Before acquiring another external source pair, start with the four already-local provenance workspaces. This is an effort-ordering decision, not a vulnerability, priority, or label claim. Each currently has an unverified upstream-project license and zero human adjudication; none is a corpus case, answer key, baseline input, or provider-quality evidence.
+
+| Order | Source pair | Candidate | Target language | Why it is first | Required action before import |
+| ---: | --- | --- | --- | --- | --- |
+| 1 | `source-pair-e7f2be359ec3b494` | `openssf-cve-2017-16023` | JavaScript | Smallest local pair (9 vulnerable / 9 patched files; 3 changed) gives the AI-assisted review protocol a calibration case. | One traceable source-only AI-assisted review for an internal key; do not run upstream tooling. |
+| 2 | `source-pair-f2d690530afa8fe5` | `cwe-bench-java-cve-2016-9177` | Java | Adds Java coverage with a bounded but broader pair (187 / 186 files; 21 changed). | Same AI-assisted internal-key process. |
+| 3 | `source-pair-2be21bd89c0aa2b3` | `osv-cve-2023-45803-urllib3` | Python | Adds Python coverage (151 / 148 files; 54 changed). | Same AI-assisted internal-key process. |
+| 4 | `source-pair-b04707ed51b422f0` | `osv-cve-2026-34165-go-git` | Go | Adds Go coverage but has the largest review surface (387 / 476 files; 248 changed). | Same AI-assisted internal-key process after calibration. |
+
+Candidate metadata, snapshots, upstream CVE/CWE labels, filenames, and patch diffs are discovery aids only. For low-cost internal development, one traceable source-only AI-assisted review records applicability, expected vulnerable evidence, a patched no-matching-finding expectation, plan scenarios/paths, and an include/exclude decision. Its key is targeted and is useful for one-run regression signals only. Two independent human reviews remain optional and are required only before an external reliability claim. A resolver may record disagreement but cannot replace either original review.
+
 ## Dataset assessment
 
 | Dataset | Fit | Evidence | Decision |

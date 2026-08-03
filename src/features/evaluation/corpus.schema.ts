@@ -40,7 +40,8 @@ export const EvaluationEvidenceQualificationSchema = z.enum([
 ]);
 export const CorpusVariantSchema = z.enum(['vulnerable', 'patched', 'benign']);
 export const CorpusVariantModeSchema = z.enum(['paired', 'single']);
-export const AdjudicationStatusSchema = z.enum(['provisional', 'dual-reviewed']);
+/** A transparent one-review AI-assisted key supports internal development only. */
+export const AdjudicationStatusSchema = z.enum(['provisional', 'ai-assisted', 'dual-reviewed']);
 /** Separates real-world quality evidence from synthetic and semantic regression fixtures. */
 export const CorpusEvidenceOriginSchema = z.enum([
   'real-world',
@@ -183,9 +184,11 @@ const CorpusExpectedFindingsSchema = z
   );
 
 /** Evaluator-only independent judgment; it is never mounted into an agent target view. */
+export const CorpusReviewerKindSchema = z.enum(['human', 'ai-assisted']);
+
 export const CorpusIndependentReviewSchema = z.strictObject({
   reviewer: z.string().trim().min(1).max(160),
-  reviewerKind: z.literal('human'),
+  reviewerKind: CorpusReviewerKindSchema,
   reviewedAt: IsoDateTimeSchema,
   decision: z.enum(['include', 'exclude']),
   findingCoverage: AnswerKeyFindingCoverageSchema,
@@ -251,6 +254,25 @@ export const CorpusAnswerKeySchema = z
         code: 'custom',
         message: 'Dual-reviewed answer keys require two matching independent review records.',
         path: ['reviewers'],
+      });
+    }
+    if (
+      entry.adjudicationStatus === 'ai-assisted' &&
+      (entry.reviewers.length !== 1 ||
+        entry.independentReviews === undefined ||
+        entry.independentReviews.length !== 1 ||
+        entry.independentReviews[0]?.reviewer !== entry.reviewers[0] ||
+        entry.independentReviews[0]?.reviewerKind !== 'ai-assisted' ||
+        entry.independentReviews[0]?.decision !== 'include' ||
+        reviewJudgmentKey(entry.independentReviews[0]) !== reviewJudgmentKey(entry) ||
+        !entry.staticReviewApplicable ||
+        entry.expectedFindings.length === 0)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message:
+          'AI-assisted answer keys require one matching source-only AI include review and one expected finding.',
+        path: ['independentReviews'],
       });
     }
     if (
@@ -384,7 +406,11 @@ export const CorpusPackManifestSchema = z.strictObject({
   createdAt: IsoDateTimeSchema,
   datasets: z.array(CorpusDatasetSchema).min(1),
   cases: z.array(CorpusCaseSchema).min(1),
-  redistributionDecision: z.enum(['metadata-only', 'source-included-with-license']),
+  redistributionDecision: z.enum([
+    'metadata-only',
+    'private-research-source-only',
+    'source-included-with-license',
+  ]),
   manifestDigest: Sha256Schema,
 });
 

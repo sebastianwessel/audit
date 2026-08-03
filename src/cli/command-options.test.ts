@@ -25,6 +25,18 @@ test('accepts only the declared option set for each CLI command', () => {
       current: 'reports/current.json',
     }),
   ).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('plan-draft', {
+      plan: 'plans/plan.json',
+      draft: 'plan-drafts/review.json',
+    }),
+  ).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('plan-reseal', {
+      plan: 'plans/plan.json',
+      draft: 'plan-drafts/review.json',
+    }),
+  ).not.toThrow();
 });
 
 test('rejects unknown and command-incompatible CLI options before I/O', () => {
@@ -40,6 +52,16 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
       previous: 'reports/previous.json',
       current: 'reports/current.json',
       resume: 'true',
+    }),
+  ).toThrow('Invalid options');
+  expect(() => assertValidCommandOptions('plan-draft', { plan: 'plans/plan.json' })).toThrow(
+    'Invalid options',
+  );
+  expect(() =>
+    assertValidCommandOptions('plan-reseal', {
+      plan: 'plans/plan.json',
+      draft: 'plan-drafts/review.json',
+      provider: 'openai',
     }),
   ).toThrow('Invalid options');
 });

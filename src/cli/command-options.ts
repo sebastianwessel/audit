@@ -34,11 +34,19 @@ const LineageCommandOptionsSchema = z.strictObject({
   current: OptionValueSchema,
 });
 
+const PlanAuthoringCommandOptionsSchema = z.strictObject({
+  output: OptionValueSchema.optional(),
+  plan: OptionValueSchema,
+  draft: OptionValueSchema,
+});
+
 const CommandOptionsSchemas = {
   plan: PlanCommandOptionsSchema,
   audit: AuditCommandOptionsSchema,
   report: ReportCommandOptionsSchema,
   lineage: LineageCommandOptionsSchema,
+  'plan-draft': PlanAuthoringCommandOptionsSchema,
+  'plan-reseal': PlanAuthoringCommandOptionsSchema,
 } as const;
 
 export type ProductCliCommand = keyof typeof CommandOptionsSchemas;

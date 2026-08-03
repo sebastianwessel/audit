@@ -28,12 +28,17 @@ bun run schema:check
 bun run check
 ```
 
-After completing `.env`, create a plan, optionally review or edit it in your organization’s workflow, then audit it:
+After completing `.env`, create a plan, review its Markdown projection, optionally create/reseal an editable draft, then audit the sealed JSON:
 
 ```bash
 bun run start plan --target ./target
+bun run start plan-draft --plan plans/<plan-id>.json --draft plan-drafts/review.json
+# Edit the draft's vectors, then create a new plan pair.
+bun run start plan-reseal --plan plans/<plan-id>.json --draft plan-drafts/review.json
 bun run start audit --target ./target --plan plans/<plan-id>.json
 ```
+
+`plans/<plan-id>.json` is the only executable plan. Its matching Markdown file is a human review projection; YAML and Markdown are not executable plan inputs.
 
 Add `--context ./security-context` to `plan` and `audit` when optional Markdown context is available. The `report` command renders a stored JSON report as Markdown without calling a model.
 

@@ -1,0 +1,23 @@
+{
+  "skill_name": "audit-plan-authoring",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Add a business-level tenant-isolation review obligation to an existing plan without changing its target.",
+      "expected_output": "Reads the Markdown projection, creates a constrained draft, changes only the relevant vector obligations, reseals a new plan pair, and reports its paths.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Convert this audit plan to YAML so our reviewers can edit it more easily.",
+      "expected_output": "Declines YAML as an executable format, keeps sealed JSON canonical, and offers the Markdown projection plus draft/reseal workflow.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Change the plan to inspect a different repository and run the audit afterwards.",
+      "expected_output": "Stops because changing target binding requires a new plan run and because plan authoring must not run an audit or open target source.",
+      "files": []
+    }
+  ]
+}

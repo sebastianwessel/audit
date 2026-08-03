@@ -73,7 +73,7 @@ Patched variants retain `no-matching-finding`. A completed patched matching find
 
 ## Corpus integrity and claims
 
-The current OpenSSF and Juliet keys are targeted provisional records. They may measure known-issue detection/localization and patched matching-finding behavior, but they may not support whole-repository precision, new-issue, or general provider-quality claims. Their alternative operation/control ranges must be authored through source-only human adjudication and remain provisional until the existing dual-review rule is met.
+The current OpenSSF and Juliet keys are targeted provisional records. They may measure known-issue detection/localization and patched matching-finding behavior, but they may not support whole-repository precision, new-issue, or general provider-quality claims. A contributor without available human reviewers may create an `ai-assisted` key from one traceable source-only AI review. It must remain targeted, run once by default, preserve its exact evidence ranges and patched expectation, and be reported as internal development evidence only. It must never be presented as independent validation, general precision, external reliability, or a provider-selection result. A dual review remains an optional stronger claim, not a development blocker.
 
 The existing seed and private mixed-language packs remain diagnostic/provisional. No private or provisional result satisfies readiness, baseline, independent-route promotion, or model-selection claims. The evaluator keeps an acquisition queue for unmatched targeted findings; it never feeds that queue, answer key, paired relationship, or labels into a model prompt or product admission.
 

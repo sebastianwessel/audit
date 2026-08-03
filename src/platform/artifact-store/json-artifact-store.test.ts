@@ -12,6 +12,7 @@ import {
   writeJsonArtifact,
   writeJsonLinesArtifact,
   writeMarkdownArtifact,
+  writeNewJsonArtifact,
 } from './json-artifact-store.ts';
 
 const artifactRoots: string[] = [];
@@ -92,6 +93,23 @@ describe('JSON artifact store', () => {
     ).rejects.toMatchObject({
       code: 'artifact-invalid-output-path',
     } satisfies Pick<ArtifactStoreError, 'code'>);
+  });
+
+  test('never replaces an immutable JSON artifact', async () => {
+    const outputRoot = await createArtifactRoot();
+    const artifact = { zeta: 'original', alpha: 2, nested: { zulu: true, beta: false } };
+    await writeNewJsonArtifact(outputRoot, 'plans/plan-01.json', AuditArtifactSchema, artifact);
+    await expect(
+      writeNewJsonArtifact(outputRoot, 'plans/plan-01.json', AuditArtifactSchema, {
+        ...artifact,
+        zeta: 'replacement',
+      }),
+    ).rejects.toMatchObject({
+      code: 'artifact-already-exists',
+    } satisfies Pick<ArtifactStoreError, 'code'>);
+    await expect(
+      readJsonArtifact(outputRoot, 'plans/plan-01.json', AuditArtifactSchema),
+    ).resolves.toEqual(artifact);
   });
 
   test('writes validated JSON-lines records atomically inside the jailed root', async () => {

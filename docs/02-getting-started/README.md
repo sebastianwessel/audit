@@ -27,7 +27,20 @@ The default checks are local and do not require a provider credential.
 bun run start plan --target ./path/to/repository
 ```
 
-The configured artifact directory is created automatically and receives an executable `plans/<plan-id>.json` artifact. Read, edit, and store the plan in your normal engineering or governance workflow. Remove irrelevant vectors, change their scope, add project-specific vectors, and keep only the checks the team wants to own.
+The configured artifact directory is created automatically and receives two matching artifacts: executable `plans/<plan-id>.json` and readable `plans/<plan-id>.md`. Read the Markdown projection in your normal engineering or governance workflow. If the plan needs changes, create a constrained draft and reseal it rather than editing the executable JSON directly:
+
+```bash
+bun run start plan-draft \
+  --plan plans/<plan-id>.json \
+  --draft plan-drafts/review.json
+
+# Edit only the draft's vectors, then publish a new plan pair.
+bun run start plan-reseal \
+  --plan plans/<plan-id>.json \
+  --draft plan-drafts/review.json
+```
+
+The new JSON plan has a new identity. Markdown is for review only; JSON is the only format accepted by the audit.
 
 ## Audit the plan
 

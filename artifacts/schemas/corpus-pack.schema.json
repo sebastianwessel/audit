@@ -241,6 +241,7 @@
       "type": "string",
       "enum": [
         "metadata-only",
+        "private-research-source-only",
         "source-included-with-license"
       ]
     },
