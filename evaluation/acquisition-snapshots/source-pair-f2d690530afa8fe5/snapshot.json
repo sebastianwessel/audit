@@ -1,0 +1,1893 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "source-pair-f2d690530afa8fe5",
+  "candidateRegistryId": "cwe-bench-java-candidate-pilot",
+  "candidateRegistryDigest": "1ead58d242e0d0ca179d8da5453800c1ba861bd4b916c398f961520ccc6dd745",
+  "candidateId": "cwe-bench-java-cve-2016-9177",
+  "sourceRecordId": "cve-2016-9177",
+  "repositoryUrl": "https://github.com/perwendel/spark",
+  "sourceLicenseStatus": "unverified",
+  "capturedAt": "2026-07-31T12:17:47.088Z",
+  "variants": {
+    "vulnerable": {
+      "revision": "ce57dfb949ed183405f75dee8cf3262b45c9b3b5",
+      "directory": "vulnerable",
+      "files": [
+        {
+          "path": ".gitignore",
+          "mode": "100644",
+          "digest": "4f3a7a6f0deb661cc9850367bb07df192b3c456915db0d6ca829a4dbc64c3526"
+        },
+        {
+          "path": ".travis.yml",
+          "mode": "100644",
+          "digest": "36ac3382a8854f006ad8f7cb7212505dfed96950b9577338b9c688f0be832c0d"
+        },
+        {
+          "path": "config/spark-formatter-intellij.jar",
+          "mode": "100644",
+          "digest": "c40a502cfac4e13a8b3e0feadce488f9ebfaac71c474aadd1c1612cac2d10f3b"
+        },
+        {
+          "path": "LICENSE",
+          "mode": "100644",
+          "digest": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "NOTICE",
+          "mode": "100644",
+          "digest": "c95d84b848529cc3b370491addf5fce64781a2bfd00f731c2c1743364b8d47ec"
+        },
+        {
+          "path": "pom.xml",
+          "mode": "100644",
+          "digest": "27117a6a685730bf8281e04a88977799dc2c06492e3d534c5f9b8065222b1e3b"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "digest": "fa082dd0b78d0f432f1a7831efdc95f6e55ba6e5b563d78e8b4aaf7087b15bd5"
+        },
+        {
+          "path": "src/main/java/spark/Access.java",
+          "mode": "100644",
+          "digest": "64ec5bd9e50bf95291b01ea76f21e1a1be9231c14b5617292104f5711b7b7bda"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/EmbeddedServer.java",
+          "mode": "100644",
+          "digest": "28056b01a4f3a09c63815c6aa04b16dbe6288995afa40bd766f8426dcc272493"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/EmbeddedServerFactory.java",
+          "mode": "100644",
+          "digest": "f2bc0c5417b94d3ecd7e96bd5e199331b408fc8f5edcd924ceae71856e7a3ecc"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/EmbeddedServers.java",
+          "mode": "100644",
+          "digest": "d031f605d5226466ed918d8b97663e73c537ba85b3bbf1bccafb32ff5b3d606a"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/EmbeddedJettyFactory.java",
+          "mode": "100644",
+          "digest": "4a3b56d87a0e6c8a5df9e5b7859f72d704806c11d54f1b2a75d6cbd424817b14"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/EmbeddedJettyServer.java",
+          "mode": "100644",
+          "digest": "82ffbb2cc4f51fb8a3ddac7cbbd3d81318951d5811d11081d210b1e411a6b310"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/HttpRequestWrapper.java",
+          "mode": "100644",
+          "digest": "e3eeb84d0ad25bc4a85b2d52f9a1f8dd3fc5fe928b6d4c97e46a93f0fd737d86"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/JettyHandler.java",
+          "mode": "100644",
+          "digest": "498675a92daeb5c675fe63cc51cd4536abb4face779827677e191f0f0eeeb7a3"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/JettyServer.java",
+          "mode": "100644",
+          "digest": "44b09c721e85e705a55a3a9a6e33023fc15fa01305fc93c85de5b7e7218d6a61"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/SocketConnectorFactory.java",
+          "mode": "100644",
+          "digest": "19fb38eca7535a57f225c6556c0fd4595aa65f1556fc35cbd6a963eaee159897"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketCreatorFactory.java",
+          "mode": "100644",
+          "digest": "bca51fd5bdb8a5c5ee4c6bbf39f8f43d53589af351c00004cd22175e778f0ef1"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketHandlerClassWrapper.java",
+          "mode": "100644",
+          "digest": "14e8c0910d18f9ec8bfe271121c4fdaa78eb1476a790d4197699d3eaa7ec8014"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketHandlerInstanceWrapper.java",
+          "mode": "100644",
+          "digest": "575109d806b7ba538a319cfacb55c027653db985c205adfee88703e07f4b96f5"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketHandlerWrapper.java",
+          "mode": "100644",
+          "digest": "2fe3954dee346deacfc63c33aa94270c96ab223f87b1cb45d8324bc3a7b92ff6"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketServletContextHandlerFactory.java",
+          "mode": "100644",
+          "digest": "a19cf83d6999ae461dc16e1ef3b57c188afdfda6cf6b0275d9cc5aedcd6b1d1d"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/NotSupportedException.java",
+          "mode": "100644",
+          "digest": "b4b6777b465aaf043e5bb58cbc00dd42966a09a666dc431aea1087b8cfa1123c"
+        },
+        {
+          "path": "src/main/java/spark/ExceptionHandler.java",
+          "mode": "100644",
+          "digest": "d1ccd169f8a435f2d853a95121bacbfba852fa55870e7d0b970f4815cad5effb"
+        },
+        {
+          "path": "src/main/java/spark/ExceptionHandlerImpl.java",
+          "mode": "100644",
+          "digest": "44e3181ba85fb56b2fc6d03a25693b8cabac705dc315d28aec8f713fea5fde4d"
+        },
+        {
+          "path": "src/main/java/spark/ExceptionMapper.java",
+          "mode": "100644",
+          "digest": "78334a810bcec8dee4d5eb09d71538186364af3d9b40612384939ab6f53e291f"
+        },
+        {
+          "path": "src/main/java/spark/Experimental.java",
+          "mode": "100644",
+          "digest": "c25ad637498f95fdbab2a72028bbddf9036c437f4083fb82e361bff62190e262"
+        },
+        {
+          "path": "src/main/java/spark/Filter.java",
+          "mode": "100644",
+          "digest": "f2a9a76371070e2972d5769d47609736328865ad255c3dd9fee3ffdd28f0843b"
+        },
+        {
+          "path": "src/main/java/spark/FilterImpl.java",
+          "mode": "100644",
+          "digest": "c82a77586f5a0a932d66ffd51d021c92e112d0d3e91f066e6e179091439dcfa4"
+        },
+        {
+          "path": "src/main/java/spark/globalstate/ServletFlag.java",
+          "mode": "100644",
+          "digest": "bb0a279612da0cc2b904f7ef3a7ee654ed9b801cd520f8b2ba5110763cc80af1"
+        },
+        {
+          "path": "src/main/java/spark/HaltException.java",
+          "mode": "100644",
+          "digest": "1099826637a05432b67bd224f10da183f24a0089c0fb2ed5161f6c9db0b556e8"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/AfterFilters.java",
+          "mode": "100644",
+          "digest": "2049d5326ba598a9f919bbd5f796efb613e8225c5e0c94afbc7e7e9913d8618e"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/BeforeFilters.java",
+          "mode": "100644",
+          "digest": "0243b6ace4823eeeaccf5c2a385abe883fb00f207f94be370cbace5639f6a953"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/Body.java",
+          "mode": "100644",
+          "digest": "cfd9e4deaa23e6363b465e6b890af6b9af2c193e2bf0bcead3c0266647630f68"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/GeneralError.java",
+          "mode": "100644",
+          "digest": "c85779082af812894cc5f99c2102ac8fe7afc68790218b8e942b25b8bb959378"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/Halt.java",
+          "mode": "100644",
+          "digest": "405694d34acf0673fcd84b7ab01515985a0a439e14e0e1845032a60d2cdac2fa"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/MatcherFilter.java",
+          "mode": "100644",
+          "digest": "9c8861207719efafbf357aa5d7868a84377226c338dfcc27ca0b4cd7951404e7"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/RequestWrapper.java",
+          "mode": "100644",
+          "digest": "90be197ec8c21471f9b8b600d96c7ac6ae39afcd170daa13e09f029914e3eca0"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/ResponseWrapper.java",
+          "mode": "100644",
+          "digest": "d7f0f8281e25b78ca143978850ca7ed0a5c698dc059e0cde0d036e5f8f480667"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/RouteContext.java",
+          "mode": "100644",
+          "digest": "e8dc34ba11173a044e8fa5865b1ca3928d92e3ad4db65f6e799e7be56eb41740"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/Routes.java",
+          "mode": "100644",
+          "digest": "a18ab8e3020ae2811c6cdd9866a8910c7190feab0392ecf7138d5b252b050552"
+        },
+        {
+          "path": "src/main/java/spark/ModelAndView.java",
+          "mode": "100644",
+          "digest": "a2dff2cde875dd353c311a5440d274b7c246afdaf6c34e3a32e6bdbe4019ed39"
+        },
+        {
+          "path": "src/main/java/spark/QueryParamsMap.java",
+          "mode": "100644",
+          "digest": "7b5baa20edad6ae07deec9d8240434d47906d32657ca64139f862f1015609971"
+        },
+        {
+          "path": "src/main/java/spark/Redirect.java",
+          "mode": "100644",
+          "digest": "6215e7972180c6dfdccd4d211eb6d72804be8e0e1be9b2e20eb51d632bd162cb"
+        },
+        {
+          "path": "src/main/java/spark/Request.java",
+          "mode": "100644",
+          "digest": "bdadfeb6553eeff32e846aa1b0de92db64cc4d66dbbcf0ef54ce60e0e4d10de0"
+        },
+        {
+          "path": "src/main/java/spark/RequestResponseFactory.java",
+          "mode": "100644",
+          "digest": "142e84a9a5861f78dfab2ffae9c16c87114eea14ac971e5e2c453f42d106f4d9"
+        },
+        {
+          "path": "src/main/java/spark/resource/AbstractFileResolvingResource.java",
+          "mode": "100644",
+          "digest": "63025d16f9f0c0c178fe0e4163bb93cb8c38238505cac214664a8b2d905c798b"
+        },
+        {
+          "path": "src/main/java/spark/resource/AbstractResource.java",
+          "mode": "100644",
+          "digest": "18bfaa29a68829a41b90ca0bf2ab65425d00364b603874b4c9310c2a26bf46cc"
+        },
+        {
+          "path": "src/main/java/spark/resource/AbstractResourceHandler.java",
+          "mode": "100644",
+          "digest": "daa2518767d07e89c76cbd25e48221b4f336eb8e255c733ebb4dcf486f7479c9"
+        },
+        {
+          "path": "src/main/java/spark/resource/ClassPathResource.java",
+          "mode": "100644",
+          "digest": "d7aaafc6f7e8c6745550e8d530c777d77b9612bf73b21a4369b0ceb1a8042878"
+        },
+        {
+          "path": "src/main/java/spark/resource/ClassPathResourceHandler.java",
+          "mode": "100644",
+          "digest": "31cba02d05b8b689af01954f34b7ae8ff8dda0523dbcdc7de837b7f21098aa1c"
+        },
+        {
+          "path": "src/main/java/spark/resource/ExternalResource.java",
+          "mode": "100644",
+          "digest": "029d95cc8071308c6be18da0d8e7e1b92e5455a453b4e80edec7dd7b94dd75fb"
+        },
+        {
+          "path": "src/main/java/spark/resource/ExternalResourceHandler.java",
+          "mode": "100644",
+          "digest": "4443a1c28bdec1794e5d6c120677cae8c0a80b2f3c0ccdb3a6b5eed91f788bd0"
+        },
+        {
+          "path": "src/main/java/spark/resource/InputStreamResource.java",
+          "mode": "100644",
+          "digest": "503ff499b6ea699d23da60febfcc3575bf8e2209b62fc1b5b97fb63611015f4a"
+        },
+        {
+          "path": "src/main/java/spark/resource/JarResourceHandler.java",
+          "mode": "100644",
+          "digest": "98756d2f7224c31d09f68e965596fc9244da0d5e9b4684e4bde9d359f44b3247"
+        },
+        {
+          "path": "src/main/java/spark/resource/Resource.java",
+          "mode": "100644",
+          "digest": "97fd7d678696b10f0c0563942ccbc010bea4f9a049f122f9132e07362d19599c"
+        },
+        {
+          "path": "src/main/java/spark/resource/UriPath.java",
+          "mode": "100644",
+          "digest": "c8f287c9a160d15e54ff1b3f85e5168873a7f9c4e6c67d48edf4880609d15e9b"
+        },
+        {
+          "path": "src/main/java/spark/Response.java",
+          "mode": "100644",
+          "digest": "77b1660ad9cd533c6b3720bcfd8233949ea95deb1e374da4b7bb02fb53e10112"
+        },
+        {
+          "path": "src/main/java/spark/ResponseTransformer.java",
+          "mode": "100644",
+          "digest": "8aa286e4e5de77f436514b3a7675f08ab1d21b6857fecb7b650427934cb27cf2"
+        },
+        {
+          "path": "src/main/java/spark/ResponseTransformerRouteImpl.java",
+          "mode": "100644",
+          "digest": "60129ce1466b171ed78a600551fbc000fe73836d213e0de85d23ec2a10c5312e"
+        },
+        {
+          "path": "src/main/java/spark/Routable.java",
+          "mode": "100644",
+          "digest": "0ae12b70ab6790003b96359463bddb594ea75781f6e2b364be56a2e00126fdba"
+        },
+        {
+          "path": "src/main/java/spark/Route.java",
+          "mode": "100644",
+          "digest": "97c204723e05878e2ecabce721a11e9bbb0458347df23c3cd96d352e5c79922e"
+        },
+        {
+          "path": "src/main/java/spark/route/HttpMethod.java",
+          "mode": "100644",
+          "digest": "8ae5415aaf085fe077d0b1480040ee17a9be38a92dc8900903e70cf5fb43ccdf"
+        },
+        {
+          "path": "src/main/java/spark/route/RouteEntry.java",
+          "mode": "100644",
+          "digest": "531b3c60f76e88b26c77a7a3c395e55220010f0863fddcbeda23e16cbea678db"
+        },
+        {
+          "path": "src/main/java/spark/route/RouteOverview.java",
+          "mode": "100644",
+          "digest": "92f1db3a85ea9558cac26cc168610440316defea380e8abeefab43c0f4112b90"
+        },
+        {
+          "path": "src/main/java/spark/route/Routes.java",
+          "mode": "100644",
+          "digest": "7da8149eb603dd64fade3894ab78bb977cbfbc7e716f71e849d9a7fa79f3ddc0"
+        },
+        {
+          "path": "src/main/java/spark/route/ServletRoutes.java",
+          "mode": "100644",
+          "digest": "e8eb0a92cc85389c31b1dbed41e3259081968df94901d1b5b50207957e77d261"
+        },
+        {
+          "path": "src/main/java/spark/route/SimpleRouteMatcher.java",
+          "mode": "100644",
+          "digest": "2aefb437f18377d610d847d19ee78c89402f5756221ce4b1432943b49cc9105e"
+        },
+        {
+          "path": "src/main/java/spark/RouteImpl.java",
+          "mode": "100644",
+          "digest": "9c3f150c1677968b71a76030d20ce48c8b33894cc8562ed2e6b0200ad056a7d4"
+        },
+        {
+          "path": "src/main/java/spark/routematch/RouteMatch.java",
+          "mode": "100644",
+          "digest": "6e50a9c8cd2714b68d141fda4b290ccc1f1b671f7ea5dc5cf08a9c538b58649b"
+        },
+        {
+          "path": "src/main/java/spark/serialization/BytesSerializer.java",
+          "mode": "100644",
+          "digest": "0e2e62329eab84774f6e8fd5bed8e4b7cd3e7d62243c4c226eb8a5648c59c25b"
+        },
+        {
+          "path": "src/main/java/spark/serialization/DefaultSerializer.java",
+          "mode": "100644",
+          "digest": "031219508bd97c81c710d94d78f06662069c4ece55135be8e04f6a3fd93ab947"
+        },
+        {
+          "path": "src/main/java/spark/serialization/InputStreamSerializer.java",
+          "mode": "100644",
+          "digest": "d4acb81ceef3d4547bb95621c61e908c1f9446c366e1ab2cb9d48cdb2bd8833e"
+        },
+        {
+          "path": "src/main/java/spark/serialization/Serializer.java",
+          "mode": "100644",
+          "digest": "f95fc039bbcbb44da300d99df0eb89725b6c3b6d7b0bfdf618e6b3f05f684c00"
+        },
+        {
+          "path": "src/main/java/spark/serialization/SerializerChain.java",
+          "mode": "100644",
+          "digest": "94c8d25bfee675d84acab10a65b2cb19709a52a660adb8863a06711f2f9f5343"
+        },
+        {
+          "path": "src/main/java/spark/Service.java",
+          "mode": "100644",
+          "digest": "77f1b700df44b023efcce978d26bc59c5fefec50100e07028646cfc20d9bf030"
+        },
+        {
+          "path": "src/main/java/spark/servlet/FilterTools.java",
+          "mode": "100644",
+          "digest": "5d369dc2a45de983f1b64d431d77fe0a43575450ecd8acfbfd813bac213f40e5"
+        },
+        {
+          "path": "src/main/java/spark/servlet/SparkApplication.java",
+          "mode": "100644",
+          "digest": "07f308a9486d479c374bbfa2b1d4c01af466ed4dd4178722c321cc6d2f3cf301"
+        },
+        {
+          "path": "src/main/java/spark/servlet/SparkFilter.java",
+          "mode": "100644",
+          "digest": "bd7d1a9b0398c4fd1f769db9260517bc7559670d35625fd3b4953aebcfb45924"
+        },
+        {
+          "path": "src/main/java/spark/Session.java",
+          "mode": "100644",
+          "digest": "64f255234f45f0f37a1b74cf7d757a946be9d877f6f8797ed9fd4bfbd65e81b6"
+        },
+        {
+          "path": "src/main/java/spark/Spark.java",
+          "mode": "100644",
+          "digest": "dc167cd6892e5198db46f5ce0b1eb796111a10793bfb95df57a5dd2f0ef141b6"
+        },
+        {
+          "path": "src/main/java/spark/ssl/SslStores.java",
+          "mode": "100644",
+          "digest": "c60994b4a58141f3ec29efae3035802e7f494fcd822a7bddbbd8ef430feb43f5"
+        },
+        {
+          "path": "src/main/java/spark/staticfiles/MimeType.java",
+          "mode": "100644",
+          "digest": "20e860bf12b95961741c894538e9353212b15f65faf263db18214ef85191c3e4"
+        },
+        {
+          "path": "src/main/java/spark/staticfiles/StaticFilesConfiguration.java",
+          "mode": "100644",
+          "digest": "539f740089df808b31e9900a7eee799dd6e516774d4acb96ed7cfc6285bb1dc2"
+        },
+        {
+          "path": "src/main/java/spark/TemplateEngine.java",
+          "mode": "100644",
+          "digest": "ec947c039d31a2818571b2df69283c37b19fcaea4a5b2132b4d60b98d47549af"
+        },
+        {
+          "path": "src/main/java/spark/TemplateViewRoute.java",
+          "mode": "100644",
+          "digest": "cbf6e792765bb800f2d9432b45129081deb4917b0564a3ed9a4bf84e7ccf1e72"
+        },
+        {
+          "path": "src/main/java/spark/TemplateViewRouteImpl.java",
+          "mode": "100644",
+          "digest": "88ec804dc442ebd50d8f62cd985173268d5ca02abd556d50acf47e7cb3e5f5ca"
+        },
+        {
+          "path": "src/main/java/spark/utils/Assert.java",
+          "mode": "100644",
+          "digest": "fa1847d697767ce6b573a6d76ebd71ed05e295d8ee56345835da2413ea222e2a"
+        },
+        {
+          "path": "src/main/java/spark/utils/ClassUtils.java",
+          "mode": "100644",
+          "digest": "cd6216abd7007196bd65094d10a910febfc7195d0ca931d9ff5f575820aadc8d"
+        },
+        {
+          "path": "src/main/java/spark/utils/CollectionUtils.java",
+          "mode": "100644",
+          "digest": "a0a72b6339b3620cf624e2a40ee5805154b4323746fd4d839587917e3a4bed70"
+        },
+        {
+          "path": "src/main/java/spark/utils/GzipUtils.java",
+          "mode": "100644",
+          "digest": "8c323444195d4ede1ed6584845e84dc3f01c0a996b3b15069a410403da7efaac"
+        },
+        {
+          "path": "src/main/java/spark/utils/IOUtils.java",
+          "mode": "100644",
+          "digest": "3b31233ff3338d88f17269b7298219f32f16907c42d65d4272bcc43f731a5739"
+        },
+        {
+          "path": "src/main/java/spark/utils/MimeParse.java",
+          "mode": "100644",
+          "digest": "25f2fd11982c3d6eb218a68238d709dff704be45f5f12848251cc36bf834e8e2"
+        },
+        {
+          "path": "src/main/java/spark/utils/ObjectUtils.java",
+          "mode": "100644",
+          "digest": "cb934d89fd1e50f7597f8edc9f6569da46f226c16aad52257b82d6e6cb5d65d9"
+        },
+        {
+          "path": "src/main/java/spark/utils/ResourceUtils.java",
+          "mode": "100644",
+          "digest": "9fff761efeae31a128a6611bffc0a02def0b96052961d50fabc876d364b4c9e2"
+        },
+        {
+          "path": "src/main/java/spark/utils/SparkUtils.java",
+          "mode": "100644",
+          "digest": "10ec352c69c7d74c5f84c3d057e5fb3a3f63a96529f6a0d0e58d5b34e9a3c79b"
+        },
+        {
+          "path": "src/main/java/spark/utils/StringUtils.java",
+          "mode": "100644",
+          "digest": "f0987fff953eac23ea03775bbaaec5f590de0c9001b2a0e9fc980107bb7baf11"
+        },
+        {
+          "path": "src/main/java/spark/utils/Wrapper.java",
+          "mode": "100644",
+          "digest": "a0cdf9b9c2ae88a36da906a2b6e597aadf5d8ae55c6b477475b2d12831e1b47d"
+        },
+        {
+          "path": "src/test/java/spark/BodyAvailabilityTest.java",
+          "mode": "100644",
+          "digest": "46d1e2907a9f4055b19d3ef021af47fb4a7c95f9680d3fef1dd0b70dd5332a04"
+        },
+        {
+          "path": "src/test/java/spark/BooksIntegrationTest.java",
+          "mode": "100644",
+          "digest": "acd17c155edbdfc1962c1cdb49e81b395ffb3139d52bf83e1c1193f41828adba"
+        },
+        {
+          "path": "src/test/java/spark/CookiesIntegrationTest.java",
+          "mode": "100644",
+          "digest": "332d679bf894eff6dc23de12f847502eb1f4a0fcc47658640c53913f697defd4"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/JettyServerTest.java",
+          "mode": "100644",
+          "digest": "bbaed04849cd869a1e344f9ed3a7af9b2b485bfb1fc28645bf61a3dde12b8a59"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/SocketConnectorFactoryTest.java",
+          "mode": "100644",
+          "digest": "1cdf075665defe49892cae9b6a2744b22c3052e31ce30a3e7c3dcf8194b59b2f"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketCreatorFactoryTest.java",
+          "mode": "100644",
+          "digest": "7d15b2a91e2b491cabf29636976d5a86c31f6eb1b8db31fdc5fcac2fa3b06560"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketServletContextHandlerFactoryTest.java",
+          "mode": "100644",
+          "digest": "b91a100617be8fa4192c03f55c62aaa3bae9be81d136a5f52f1bb4ccf59c1bb9"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketTestClient.java",
+          "mode": "100644",
+          "digest": "63347eba95eb22944e0fe026a71e9ed9838211a8dbce4633dafb145da9d6959b"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketTestHandler.java",
+          "mode": "100644",
+          "digest": "1146ed51d13325a7e39246ce668499aa935aece6d7c5bea191da334ea948e047"
+        },
+        {
+          "path": "src/test/java/spark/examples/accept/JsonAcceptTypeExample.java",
+          "mode": "100644",
+          "digest": "c109190d086b10f17ae94d15d5d2210cb06889737e5633e298a1276c06caf09a"
+        },
+        {
+          "path": "src/test/java/spark/examples/books/Book.java",
+          "mode": "100644",
+          "digest": "c5986d26105d253c782f99de1fc79270980e35611bfbb8201eeb1e40c8ca2f3f"
+        },
+        {
+          "path": "src/test/java/spark/examples/books/Books.java",
+          "mode": "100644",
+          "digest": "46cb71faa147d768bec84854c08d54c109949a61c0db8c933f42dda923c0dbdf"
+        },
+        {
+          "path": "src/test/java/spark/examples/exception/BaseException.java",
+          "mode": "100644",
+          "digest": "48a753f48094a67497908e9f300d945d3354896a391039f48890aee025d5f047"
+        },
+        {
+          "path": "src/test/java/spark/examples/exception/NotFoundException.java",
+          "mode": "100644",
+          "digest": "b46bab5bf338ec3d6a67c257e5bfb3cd2ea30f37c81b5fa45eab0f430127b042"
+        },
+        {
+          "path": "src/test/java/spark/examples/exception/SubclassOfBaseException.java",
+          "mode": "100644",
+          "digest": "8d22dc9bb8bf88faaacd1bf0cfca7181c65604067c7e917d259e509edb62f4d1"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/DummyFilter.java",
+          "mode": "100644",
+          "digest": "3a60ec68ea4c1eff13d76bdff58b0d58ee694d9e1c570143d97df979c239963f"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/FilterExample.java",
+          "mode": "100644",
+          "digest": "ab774ceefdc8a185f58649214ba90e78471620f5a3c9337e03b94e742312918d"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/FilterExampleAttributes.java",
+          "mode": "100644",
+          "digest": "ffa7e4660235cc5ed0d99f1282ebd8f9d57657a9a45913c586339aa94c4b01ed"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/FilterExampleWildcard.java",
+          "mode": "100644",
+          "digest": "6a242a3e06976379840c8fe65d0a34af9c91f056e75ad3d3c8e001246f162783"
+        },
+        {
+          "path": "src/test/java/spark/examples/gzip/GzipClient.java",
+          "mode": "100644",
+          "digest": "a36e77f7fba327861f8879e55028773c31b5afda47bd2263c08e9552b305488b"
+        },
+        {
+          "path": "src/test/java/spark/examples/gzip/GzipExample.java",
+          "mode": "100644",
+          "digest": "f901080396ee38d18dc5b2619dd8e9c3414ca46a262d1e8ca89ad9dc9c74dcba"
+        },
+        {
+          "path": "src/test/java/spark/examples/hello/HelloSecureWorld.java",
+          "mode": "100644",
+          "digest": "c57d15c1ecf3c700fd2ac95fb7f0eaae1077c8c7829a6a8058ef7db83979b1ae"
+        },
+        {
+          "path": "src/test/java/spark/examples/hello/HelloWorld.java",
+          "mode": "100644",
+          "digest": "8be32ad6ee7e522094707a88e0fe5a27c9792c04d7943be6101c65418c338cf8"
+        },
+        {
+          "path": "src/test/java/spark/examples/multiple/MultipleServices.java",
+          "mode": "100644",
+          "digest": "ec98b2fbcb7dd44d5274fe73255d24c05dc3f5376f7d2b1927429a5c94c41910"
+        },
+        {
+          "path": "src/test/java/spark/examples/session/SessionExample.java",
+          "mode": "100644",
+          "digest": "4d0063c2b6fdf51d21e8e1c8d0dd4f5e10ab62e146e6b90c7a04eee9328699ea"
+        },
+        {
+          "path": "src/test/java/spark/examples/simple/SimpleExample.java",
+          "mode": "100644",
+          "digest": "5e6b8c683f104b78b4f9f40660a8bbecd542ba0cb711094c4b71985765dc26e9"
+        },
+        {
+          "path": "src/test/java/spark/examples/simple/SimpleSecureExample.java",
+          "mode": "100644",
+          "digest": "2f7a7e8bea81f02189e5ac6326a8f76d50e43d133f3cdb162c9dc2c21867ee99"
+        },
+        {
+          "path": "src/test/java/spark/examples/staticresources/StaticResources.java",
+          "mode": "100644",
+          "digest": "42940c07e5fd43daaecdd4d7041892b9a9e046800a96840ff65f146bf8692871"
+        },
+        {
+          "path": "src/test/java/spark/examples/sugar/http.java",
+          "mode": "100644",
+          "digest": "726738100984696e7287a79cd58e874263e3e9b4d8bacf8cd4a950213232b5de"
+        },
+        {
+          "path": "src/test/java/spark/examples/sugar/SugarExample.java",
+          "mode": "100644",
+          "digest": "a21758d96a8a051e7edc4a63b39e7b8b39082660fa2d59ecc7f07017f5edd2fc"
+        },
+        {
+          "path": "src/test/java/spark/examples/templateview/FreeMarkerExample.java",
+          "mode": "100644",
+          "digest": "e0b9eb88c399f36c1ee6c1306148b86f06cbbb54850f26e74833cfe361604173"
+        },
+        {
+          "path": "src/test/java/spark/examples/templateview/FreeMarkerTemplateEngine.java",
+          "mode": "100644",
+          "digest": "89dfd90395e36a430ff85f17a56e30679dc211a6a4f6a6da2b269f94108a7b8a"
+        },
+        {
+          "path": "src/test/java/spark/examples/transformer/JsonTransformer.java",
+          "mode": "100644",
+          "digest": "b21ba9626f30aa52b6cf50732712039f04224756ee26a62841dee2cc2573b3bf"
+        },
+        {
+          "path": "src/test/java/spark/examples/transformer/MyMessage.java",
+          "mode": "100644",
+          "digest": "cad710dc2d1739ee200f8e5dd78156512e316155500d7cb93bef64c3c95168e4"
+        },
+        {
+          "path": "src/test/java/spark/examples/transformer/TransformerExample.java",
+          "mode": "100644",
+          "digest": "2aab34f1b88f7f386077821727152ed5622ba8a130b9034978a1b79589874771"
+        },
+        {
+          "path": "src/test/java/spark/examples/websocket/EchoWebSocket.java",
+          "mode": "100644",
+          "digest": "251b1213e0e86808bfc4ad7f55474641ed43932588cd78695d6ccc5107a31e43"
+        },
+        {
+          "path": "src/test/java/spark/examples/websocket/PingWebSocket.java",
+          "mode": "100644",
+          "digest": "fa33977ff7202f1f9d2320de53a1b93218e2251aabc31a4081e1b450d6e00dfb"
+        },
+        {
+          "path": "src/test/java/spark/examples/websocket/WebSocketExample.java",
+          "mode": "100644",
+          "digest": "6cc8cdf6c2e0223619db5e5d328a62a4c2c5599b5f0cef0f3cad4aeee426fbb7"
+        },
+        {
+          "path": "src/test/java/spark/ExceptionMapperTest.java",
+          "mode": "100644",
+          "digest": "99a3de4a440ec4e75cbd7bef7b32918025e2d06a26a903f0b5339e4eadf4c8a9"
+        },
+        {
+          "path": "src/test/java/spark/FilterImplTest.java",
+          "mode": "100644",
+          "digest": "e78a33740466d75b3feace5a4e3b0278992a2a1b57cf3760a1683a119d7da335"
+        },
+        {
+          "path": "src/test/java/spark/FilterTest.java",
+          "mode": "100644",
+          "digest": "1369cefb1823dfaba22f9eac7f54d54ed56f91a5f99bdf411eb3decbab2ca690"
+        },
+        {
+          "path": "src/test/java/spark/GenericIntegrationTest.java",
+          "mode": "100644",
+          "digest": "bfe7edbefe76de23bc5612c869ff47145063d6702f09a698d8da04f880be6e70"
+        },
+        {
+          "path": "src/test/java/spark/GenericSecureIntegrationTest.java",
+          "mode": "100644",
+          "digest": "0a45e1b3efca2b4182563394c700ea52747e25b85fb4a69f02e07f0d3e6e9f63"
+        },
+        {
+          "path": "src/test/java/spark/globalstate/ServletFlagTest.java",
+          "mode": "100644",
+          "digest": "fc8b86ab2a4b97d0c108613d25ea7eccc0e30578a94026d9cc81cc97381880d9"
+        },
+        {
+          "path": "src/test/java/spark/GzipTest.java",
+          "mode": "100644",
+          "digest": "c3c06adad43da8787ccca9ba584cf951fb2fb4bd3a7513c5aa7175857d0f97ad"
+        },
+        {
+          "path": "src/test/java/spark/MultipleFiltersTest.java",
+          "mode": "100644",
+          "digest": "96c92e9a9e48c82c59242023e21b1e4d951b2eedac134c38ade4f8f7b35b22cf"
+        },
+        {
+          "path": "src/test/java/spark/MultipleServicesTest.java",
+          "mode": "100644",
+          "digest": "1e502020dedd88bf00b81675169d9607d8a6699b9e60353c2a0153fdee953182"
+        },
+        {
+          "path": "src/test/java/spark/QueryParamsMapTest.java",
+          "mode": "100644",
+          "digest": "df9376f7c00a4f74cc0d0cf5a14c9d6cf2175f0f69cfd0b822510aaaa51b1b17"
+        },
+        {
+          "path": "src/test/java/spark/RedirectTest.java",
+          "mode": "100644",
+          "digest": "14fc27b2ee558f8a2b45c0d7f50f3a9e6d8cf1e37a8e488d14437e3e1464df7f"
+        },
+        {
+          "path": "src/test/java/spark/RequestTest.java",
+          "mode": "100644",
+          "digest": "ac3092eb3723c4d0dd5ab94c910f034cef9b67ee1d2449c20e059fc99307dfca"
+        },
+        {
+          "path": "src/test/java/spark/resource/AbstractResourceTest.java",
+          "mode": "100644",
+          "digest": "abf210068900579c5dcaf50b3eb0abb14661bb332c3c8279124407df32f4d969"
+        },
+        {
+          "path": "src/test/java/spark/resource/ClassPathResourceHandlerTest.java",
+          "mode": "100644",
+          "digest": "f81e64394ebb90fbe41f9e724e903885769b79972bedf03eef60128883b19c02"
+        },
+        {
+          "path": "src/test/java/spark/resource/ExternalResourceHandlerTest.java",
+          "mode": "100644",
+          "digest": "0b6ebb3da2a593527ba13eedd19dc1a3126981f4f558f47854242edc6359aa40"
+        },
+        {
+          "path": "src/test/java/spark/resource/UriPathTest.java",
+          "mode": "100644",
+          "digest": "21dc29fbdccfe6bc17113b5820d504844317abe23d2782859c16a968c213438b"
+        },
+        {
+          "path": "src/test/java/spark/ResponseBodyTest.java",
+          "mode": "100644",
+          "digest": "5ae168c3c5e0ed6c24c8476d7381ce7b84ca27b478e2ad4ef19bc1b3a9ae1f9a"
+        },
+        {
+          "path": "src/test/java/spark/ResponseTest.java",
+          "mode": "100644",
+          "digest": "b02ca013b3c02fe7b0b852dabcffb9d53caa8edb5e79c55a7517be877936437b"
+        },
+        {
+          "path": "src/test/java/spark/ResponseWrapperDelegationTest.java",
+          "mode": "100644",
+          "digest": "fa3e6227b49137d9980a4ad594ae551d4d74a4215dc4fc50170d3be341fcb961"
+        },
+        {
+          "path": "src/test/java/spark/route/HttpMethodTest.java",
+          "mode": "100644",
+          "digest": "39fa5cee4e2f4cf3fead1731c69f8649ba50565422b0b3ae37a84b7f5bcea2ae"
+        },
+        {
+          "path": "src/test/java/spark/route/RouteEntryTest.java",
+          "mode": "100644",
+          "digest": "0f20deb9fd9701b3d9a68d6e9b7cd04c8496d455414aa812134fe8458b053bc7"
+        },
+        {
+          "path": "src/test/java/spark/route/RouteOverviewTest.java",
+          "mode": "100644",
+          "digest": "dd2cf5b295565b0f14d977ab94b5a64f4192b9aabb6c11c53f537066d958bb57"
+        },
+        {
+          "path": "src/test/java/spark/route/RoutesTest.java",
+          "mode": "100644",
+          "digest": "6eddf1d5f0b03ec23c619b893679d82d1ae9bd289b2a16166110e05c7eb539ba"
+        },
+        {
+          "path": "src/test/java/spark/route/Util.java",
+          "mode": "100644",
+          "digest": "70c25d13806b5bd9dc6d8961f151ecfb645ef03ed6b79707c9361d041b97ded6"
+        },
+        {
+          "path": "src/test/java/spark/RouteImplTest.java",
+          "mode": "100644",
+          "digest": "4b1ce09738cfbd4d827eb8eb54fd281cd6d001c0e6d073af9f1773d791298e75"
+        },
+        {
+          "path": "src/test/java/spark/ServiceTest.java",
+          "mode": "100644",
+          "digest": "41305276a7ea2ad4afae1cf7662915ae47ae8a8095ee027e582be5f9c67a241a"
+        },
+        {
+          "path": "src/test/java/spark/servlet/FilterConfigWrapper.java",
+          "mode": "100644",
+          "digest": "320eafb9a20f4273ccc8920921694edff83167e2ab5f435333804739d5fff316"
+        },
+        {
+          "path": "src/test/java/spark/servlet/MyApp.java",
+          "mode": "100644",
+          "digest": "210c54febffab46d4aa21d6d4d37ef5cb78a3bab104c51d5e39aa01e2bfee98c"
+        },
+        {
+          "path": "src/test/java/spark/servlet/ServletTest.java",
+          "mode": "100644",
+          "digest": "3a5ee7142ef0eedd32a5621b2472fc384c66b6d846373347cc8522779e6e9b1c"
+        },
+        {
+          "path": "src/test/java/spark/SessionTest.java",
+          "mode": "100644",
+          "digest": "64105a4ffa6c6a5e2a17150279853c3a91f335939004216501d153646c6e4dda"
+        },
+        {
+          "path": "src/test/java/spark/staticfiles/StaticFilesTest.java",
+          "mode": "100644",
+          "digest": "1ca2b8892a6a2a3ff256e1b31bd1ffa7db5a93a9b4343d5a0e3c89dc2a3208d5"
+        },
+        {
+          "path": "src/test/java/spark/StaticFilesMemberTest.java",
+          "mode": "100644",
+          "digest": "bc44a2f23d23f02af2cd78f81c57e926b6488bc0948e42255de206d4b1077769"
+        },
+        {
+          "path": "src/test/java/spark/StaticFilesTest.java",
+          "mode": "100644",
+          "digest": "f564b6fca537414133d068a8b265eb3a57b67d4b69bebc8cf8c26ccd45784b60"
+        },
+        {
+          "path": "src/test/java/spark/util/ResourceUtilsTest.java",
+          "mode": "100644",
+          "digest": "b3a1c3542bbb90ef4d9b4ff3283b9f26c99641f4dac0714d3821b26cac1ecc4a"
+        },
+        {
+          "path": "src/test/java/spark/util/SparkTestUtil.java",
+          "mode": "100644",
+          "digest": "0d33feb4dd0b0caaf49d25d7d1d798126995cdc9915bc71c363dddd7ba7449d8"
+        },
+        {
+          "path": "src/test/java/spark/utils/CollectionUtilsTest.java",
+          "mode": "100644",
+          "digest": "9d5580d6612d281b796b6edf5961b30077b2c17fa3d8ddf8e9d815b86e51c45e"
+        },
+        {
+          "path": "src/test/java/spark/utils/MimeParseTest.java",
+          "mode": "100644",
+          "digest": "b33180a9b66ae98a3d46b7fc99b75f9d8f06e33817f1adae872491cfb26bfa70"
+        },
+        {
+          "path": "src/test/java/spark/utils/ObjectUtilsTest.java",
+          "mode": "100644",
+          "digest": "746bdcf205bec4f02aff3119903f3c73dc0923cbee1b3dafb0a8b143a8a711bc"
+        },
+        {
+          "path": "src/test/java/spark/utils/SparkUtilsTest.java",
+          "mode": "100644",
+          "digest": "59314325650712ba362d07783acc17f78911567a17e05d07ca51a73d4d96aaab"
+        },
+        {
+          "path": "src/test/resources/keystore.jks",
+          "mode": "100644",
+          "digest": "b1d385bedb920b82b426d1d21cf405908b05a7b1f406ab933b4fcabd60e76998"
+        },
+        {
+          "path": "src/test/resources/public/css/style.css",
+          "mode": "100644",
+          "digest": "3b22931b96d43eccca7270d4e693007a0a5ac7491a63a35b1b4b9b6bf4be6955"
+        },
+        {
+          "path": "src/test/resources/public/img/file.cxt",
+          "mode": "100644",
+          "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogo.png",
+          "mode": "100644",
+          "digest": "929d41c2e477d43b9b9bfcab79531b041006970633732551551acb55aae662ca"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogo.svg",
+          "mode": "100644",
+          "digest": "394433f978eb71dc30523092c542f12de5d338364891c7e9efe8e4399f28111d"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogoPng",
+          "mode": "100644",
+          "digest": "929d41c2e477d43b9b9bfcab79531b041006970633732551551acb55aae662ca"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogoSvg",
+          "mode": "100644",
+          "digest": "394433f978eb71dc30523092c542f12de5d338364891c7e9efe8e4399f28111d"
+        },
+        {
+          "path": "src/test/resources/public/js/scripts.js",
+          "mode": "100644",
+          "digest": "53dd8cc5b8a90da63c603ecc7434d5e71b7d4f4b79bb5577461c28d9061b3b7f"
+        },
+        {
+          "path": "src/test/resources/public/page.html",
+          "mode": "100644",
+          "digest": "75f905691e9a7966a61ea521e57ea12b7e6cc2d17a2c06f83c9be4af08dbfe87"
+        },
+        {
+          "path": "src/test/resources/public/pages/index.html",
+          "mode": "100644",
+          "digest": "8496312604aad48a25167615ea2d1d24d484b9f93abf81832aa54222af627d04"
+        },
+        {
+          "path": "src/test/resources/spark/examples/templateview/freemarker/hello.ftl",
+          "mode": "100644",
+          "digest": "0d179976dbffeba18df6169b485c104451bff4b8072aa4ca18b2e3bab1b0050d"
+        },
+        {
+          "path": "src/test/webapp/WEB-INF/web.xml",
+          "mode": "100644",
+          "digest": "6fa973d4a0f180604635bfe1db3265721ffbea6b49e3f37e9a1b67b9970659c9"
+        }
+      ],
+      "contentDigest": "bc8c5ac8f85a6c818c4c6e329ad82d106eb8f5ade03714b9ee245b4b8e8ccb75"
+    },
+    "patched": {
+      "revision": "efcb46c710e3f56805b9257a63d1306882f4faf9",
+      "directory": "patched",
+      "files": [
+        {
+          "path": ".gitignore",
+          "mode": "100644",
+          "digest": "4f3a7a6f0deb661cc9850367bb07df192b3c456915db0d6ca829a4dbc64c3526"
+        },
+        {
+          "path": ".travis.yml",
+          "mode": "100644",
+          "digest": "36ac3382a8854f006ad8f7cb7212505dfed96950b9577338b9c688f0be832c0d"
+        },
+        {
+          "path": "config/spark-formatter-intellij.jar",
+          "mode": "100644",
+          "digest": "c40a502cfac4e13a8b3e0feadce488f9ebfaac71c474aadd1c1612cac2d10f3b"
+        },
+        {
+          "path": "LICENSE",
+          "mode": "100644",
+          "digest": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "path": "NOTICE",
+          "mode": "100644",
+          "digest": "c95d84b848529cc3b370491addf5fce64781a2bfd00f731c2c1743364b8d47ec"
+        },
+        {
+          "path": "pom.xml",
+          "mode": "100644",
+          "digest": "fe598bfe0ad30954bdd3a495fa45012292d279ddca4e7f97fd285fa160c097d9"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "digest": "1968b43680e36560210e15dde7fd729cba3e5e42fb3ae20e5d0d14f1e4b6f2c0"
+        },
+        {
+          "path": "src/main/java/spark/Access.java",
+          "mode": "100644",
+          "digest": "64ec5bd9e50bf95291b01ea76f21e1a1be9231c14b5617292104f5711b7b7bda"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/EmbeddedServer.java",
+          "mode": "100644",
+          "digest": "28056b01a4f3a09c63815c6aa04b16dbe6288995afa40bd766f8426dcc272493"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/EmbeddedServerFactory.java",
+          "mode": "100644",
+          "digest": "c585eece3de5d2df8dde338857d90412304839e38248a4cc9b0b0ae358105936"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/EmbeddedServers.java",
+          "mode": "100644",
+          "digest": "3110d68bb7a7053211570f7c02e246246c31e4a62dcda9ad1a27a3c929ab3050"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/EmbeddedJettyFactory.java",
+          "mode": "100644",
+          "digest": "4a3b56d87a0e6c8a5df9e5b7859f72d704806c11d54f1b2a75d6cbd424817b14"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/EmbeddedJettyServer.java",
+          "mode": "100644",
+          "digest": "82ffbb2cc4f51fb8a3ddac7cbbd3d81318951d5811d11081d210b1e411a6b310"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/HttpRequestWrapper.java",
+          "mode": "100644",
+          "digest": "e3eeb84d0ad25bc4a85b2d52f9a1f8dd3fc5fe928b6d4c97e46a93f0fd737d86"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/JettyHandler.java",
+          "mode": "100644",
+          "digest": "498675a92daeb5c675fe63cc51cd4536abb4face779827677e191f0f0eeeb7a3"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/JettyServer.java",
+          "mode": "100644",
+          "digest": "44b09c721e85e705a55a3a9a6e33023fc15fa01305fc93c85de5b7e7218d6a61"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/SocketConnectorFactory.java",
+          "mode": "100644",
+          "digest": "19fb38eca7535a57f225c6556c0fd4595aa65f1556fc35cbd6a963eaee159897"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketCreatorFactory.java",
+          "mode": "100644",
+          "digest": "bca51fd5bdb8a5c5ee4c6bbf39f8f43d53589af351c00004cd22175e778f0ef1"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketHandlerClassWrapper.java",
+          "mode": "100644",
+          "digest": "14e8c0910d18f9ec8bfe271121c4fdaa78eb1476a790d4197699d3eaa7ec8014"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketHandlerInstanceWrapper.java",
+          "mode": "100644",
+          "digest": "575109d806b7ba538a319cfacb55c027653db985c205adfee88703e07f4b96f5"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketHandlerWrapper.java",
+          "mode": "100644",
+          "digest": "2fe3954dee346deacfc63c33aa94270c96ab223f87b1cb45d8324bc3a7b92ff6"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/jetty/websocket/WebSocketServletContextHandlerFactory.java",
+          "mode": "100644",
+          "digest": "a19cf83d6999ae461dc16e1ef3b57c188afdfda6cf6b0275d9cc5aedcd6b1d1d"
+        },
+        {
+          "path": "src/main/java/spark/embeddedserver/NotSupportedException.java",
+          "mode": "100644",
+          "digest": "440d2d66ab14713a6986d09cbe0b1bd0bb972da9bdf34d64309bda4a89a653ac"
+        },
+        {
+          "path": "src/main/java/spark/ExceptionHandler.java",
+          "mode": "100644",
+          "digest": "d1ccd169f8a435f2d853a95121bacbfba852fa55870e7d0b970f4815cad5effb"
+        },
+        {
+          "path": "src/main/java/spark/ExceptionHandlerImpl.java",
+          "mode": "100644",
+          "digest": "e6ab46dbd2ba5a13250a95cb03b5cc0d3a9f6afa996ed16f829ec0bae39bf357"
+        },
+        {
+          "path": "src/main/java/spark/ExceptionMapper.java",
+          "mode": "100644",
+          "digest": "78334a810bcec8dee4d5eb09d71538186364af3d9b40612384939ab6f53e291f"
+        },
+        {
+          "path": "src/main/java/spark/Experimental.java",
+          "mode": "100644",
+          "digest": "c25ad637498f95fdbab2a72028bbddf9036c437f4083fb82e361bff62190e262"
+        },
+        {
+          "path": "src/main/java/spark/Filter.java",
+          "mode": "100644",
+          "digest": "f2a9a76371070e2972d5769d47609736328865ad255c3dd9fee3ffdd28f0843b"
+        },
+        {
+          "path": "src/main/java/spark/FilterImpl.java",
+          "mode": "100644",
+          "digest": "c82a77586f5a0a932d66ffd51d021c92e112d0d3e91f066e6e179091439dcfa4"
+        },
+        {
+          "path": "src/main/java/spark/globalstate/ServletFlag.java",
+          "mode": "100644",
+          "digest": "bb0a279612da0cc2b904f7ef3a7ee654ed9b801cd520f8b2ba5110763cc80af1"
+        },
+        {
+          "path": "src/main/java/spark/HaltException.java",
+          "mode": "100644",
+          "digest": "1099826637a05432b67bd224f10da183f24a0089c0fb2ed5161f6c9db0b556e8"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/AfterFilters.java",
+          "mode": "100644",
+          "digest": "2049d5326ba598a9f919bbd5f796efb613e8225c5e0c94afbc7e7e9913d8618e"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/BeforeFilters.java",
+          "mode": "100644",
+          "digest": "0243b6ace4823eeeaccf5c2a385abe883fb00f207f94be370cbace5639f6a953"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/Body.java",
+          "mode": "100644",
+          "digest": "cfd9e4deaa23e6363b465e6b890af6b9af2c193e2bf0bcead3c0266647630f68"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/GeneralError.java",
+          "mode": "100644",
+          "digest": "c85779082af812894cc5f99c2102ac8fe7afc68790218b8e942b25b8bb959378"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/Halt.java",
+          "mode": "100644",
+          "digest": "ec43524d5445e79d5c42a3acc80c4ed4596a13455a3c76eb920aaacd7e79fc27"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/MatcherFilter.java",
+          "mode": "100644",
+          "digest": "8d0291f6a0a050b69f6ce0f86f1a258457670c9b899535460db3fe9ed3f4f703"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/RequestWrapper.java",
+          "mode": "100644",
+          "digest": "90be197ec8c21471f9b8b600d96c7ac6ae39afcd170daa13e09f029914e3eca0"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/ResponseWrapper.java",
+          "mode": "100644",
+          "digest": "d7f0f8281e25b78ca143978850ca7ed0a5c698dc059e0cde0d036e5f8f480667"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/RouteContext.java",
+          "mode": "100644",
+          "digest": "e8dc34ba11173a044e8fa5865b1ca3928d92e3ad4db65f6e799e7be56eb41740"
+        },
+        {
+          "path": "src/main/java/spark/http/matching/Routes.java",
+          "mode": "100644",
+          "digest": "a18ab8e3020ae2811c6cdd9866a8910c7190feab0392ecf7138d5b252b050552"
+        },
+        {
+          "path": "src/main/java/spark/ModelAndView.java",
+          "mode": "100644",
+          "digest": "a2dff2cde875dd353c311a5440d274b7c246afdaf6c34e3a32e6bdbe4019ed39"
+        },
+        {
+          "path": "src/main/java/spark/QueryParamsMap.java",
+          "mode": "100644",
+          "digest": "deab2e4c20bbc4c424f3444adfe44d963c69d2c1888ec3819f081af990ef9b0c"
+        },
+        {
+          "path": "src/main/java/spark/Redirect.java",
+          "mode": "100644",
+          "digest": "6215e7972180c6dfdccd4d211eb6d72804be8e0e1be9b2e20eb51d632bd162cb"
+        },
+        {
+          "path": "src/main/java/spark/Request.java",
+          "mode": "100644",
+          "digest": "be6b94d13718d0a3d7a5e6d79a4d889109f86a29cfa71d73d94e916fcfb67b86"
+        },
+        {
+          "path": "src/main/java/spark/RequestResponseFactory.java",
+          "mode": "100644",
+          "digest": "142e84a9a5861f78dfab2ffae9c16c87114eea14ac971e5e2c453f42d106f4d9"
+        },
+        {
+          "path": "src/main/java/spark/resource/AbstractFileResolvingResource.java",
+          "mode": "100644",
+          "digest": "63025d16f9f0c0c178fe0e4163bb93cb8c38238505cac214664a8b2d905c798b"
+        },
+        {
+          "path": "src/main/java/spark/resource/AbstractResource.java",
+          "mode": "100644",
+          "digest": "18bfaa29a68829a41b90ca0bf2ab65425d00364b603874b4c9310c2a26bf46cc"
+        },
+        {
+          "path": "src/main/java/spark/resource/AbstractResourceHandler.java",
+          "mode": "100644",
+          "digest": "daa2518767d07e89c76cbd25e48221b4f336eb8e255c733ebb4dcf486f7479c9"
+        },
+        {
+          "path": "src/main/java/spark/resource/ClassPathResource.java",
+          "mode": "100644",
+          "digest": "d7aaafc6f7e8c6745550e8d530c777d77b9612bf73b21a4369b0ceb1a8042878"
+        },
+        {
+          "path": "src/main/java/spark/resource/ClassPathResourceHandler.java",
+          "mode": "100644",
+          "digest": "a994145cfbee771be03c210a6386a56577f8ffce32d1d6528a48d44fa8e21ce4"
+        },
+        {
+          "path": "src/main/java/spark/resource/ExternalResource.java",
+          "mode": "100644",
+          "digest": "029d95cc8071308c6be18da0d8e7e1b92e5455a453b4e80edec7dd7b94dd75fb"
+        },
+        {
+          "path": "src/main/java/spark/resource/ExternalResourceHandler.java",
+          "mode": "100644",
+          "digest": "f47f5c52ea26bdc49c2b8c174ed554c55d3b243a5ea9c5c8dd1908209d7920e2"
+        },
+        {
+          "path": "src/main/java/spark/resource/InputStreamResource.java",
+          "mode": "100644",
+          "digest": "503ff499b6ea699d23da60febfcc3575bf8e2209b62fc1b5b97fb63611015f4a"
+        },
+        {
+          "path": "src/main/java/spark/resource/JarResourceHandler.java",
+          "mode": "100644",
+          "digest": "98756d2f7224c31d09f68e965596fc9244da0d5e9b4684e4bde9d359f44b3247"
+        },
+        {
+          "path": "src/main/java/spark/resource/Resource.java",
+          "mode": "100644",
+          "digest": "97fd7d678696b10f0c0563942ccbc010bea4f9a049f122f9132e07362d19599c"
+        },
+        {
+          "path": "src/main/java/spark/resource/UriPath.java",
+          "mode": "100644",
+          "digest": "c8f287c9a160d15e54ff1b3f85e5168873a7f9c4e6c67d48edf4880609d15e9b"
+        },
+        {
+          "path": "src/main/java/spark/Response.java",
+          "mode": "100644",
+          "digest": "77b1660ad9cd533c6b3720bcfd8233949ea95deb1e374da4b7bb02fb53e10112"
+        },
+        {
+          "path": "src/main/java/spark/ResponseTransformer.java",
+          "mode": "100644",
+          "digest": "8aa286e4e5de77f436514b3a7675f08ab1d21b6857fecb7b650427934cb27cf2"
+        },
+        {
+          "path": "src/main/java/spark/ResponseTransformerRouteImpl.java",
+          "mode": "100644",
+          "digest": "60129ce1466b171ed78a600551fbc000fe73836d213e0de85d23ec2a10c5312e"
+        },
+        {
+          "path": "src/main/java/spark/Routable.java",
+          "mode": "100644",
+          "digest": "0ae12b70ab6790003b96359463bddb594ea75781f6e2b364be56a2e00126fdba"
+        },
+        {
+          "path": "src/main/java/spark/Route.java",
+          "mode": "100644",
+          "digest": "97c204723e05878e2ecabce721a11e9bbb0458347df23c3cd96d352e5c79922e"
+        },
+        {
+          "path": "src/main/java/spark/route/HttpMethod.java",
+          "mode": "100644",
+          "digest": "8b217a950e55234c9a9b3fda79547c906c80a0ebf8a95a5acaa89386d9cd48bb"
+        },
+        {
+          "path": "src/main/java/spark/route/RouteEntry.java",
+          "mode": "100644",
+          "digest": "531b3c60f76e88b26c77a7a3c395e55220010f0863fddcbeda23e16cbea678db"
+        },
+        {
+          "path": "src/main/java/spark/route/RouteOverview.java",
+          "mode": "100644",
+          "digest": "92f1db3a85ea9558cac26cc168610440316defea380e8abeefab43c0f4112b90"
+        },
+        {
+          "path": "src/main/java/spark/route/Routes.java",
+          "mode": "100644",
+          "digest": "7da8149eb603dd64fade3894ab78bb977cbfbc7e716f71e849d9a7fa79f3ddc0"
+        },
+        {
+          "path": "src/main/java/spark/route/ServletRoutes.java",
+          "mode": "100644",
+          "digest": "e8eb0a92cc85389c31b1dbed41e3259081968df94901d1b5b50207957e77d261"
+        },
+        {
+          "path": "src/main/java/spark/route/SimpleRouteMatcher.java",
+          "mode": "100644",
+          "digest": "28f9545576c18c55d67aaa4f7c8e50c2d94aa7e43e97fda37e180cf59fc0ed5c"
+        },
+        {
+          "path": "src/main/java/spark/RouteImpl.java",
+          "mode": "100644",
+          "digest": "9c3f150c1677968b71a76030d20ce48c8b33894cc8562ed2e6b0200ad056a7d4"
+        },
+        {
+          "path": "src/main/java/spark/routematch/RouteMatch.java",
+          "mode": "100644",
+          "digest": "6e50a9c8cd2714b68d141fda4b290ccc1f1b671f7ea5dc5cf08a9c538b58649b"
+        },
+        {
+          "path": "src/main/java/spark/serialization/BytesSerializer.java",
+          "mode": "100644",
+          "digest": "0e2e62329eab84774f6e8fd5bed8e4b7cd3e7d62243c4c226eb8a5648c59c25b"
+        },
+        {
+          "path": "src/main/java/spark/serialization/DefaultSerializer.java",
+          "mode": "100644",
+          "digest": "031219508bd97c81c710d94d78f06662069c4ece55135be8e04f6a3fd93ab947"
+        },
+        {
+          "path": "src/main/java/spark/serialization/InputStreamSerializer.java",
+          "mode": "100644",
+          "digest": "d4acb81ceef3d4547bb95621c61e908c1f9446c366e1ab2cb9d48cdb2bd8833e"
+        },
+        {
+          "path": "src/main/java/spark/serialization/Serializer.java",
+          "mode": "100644",
+          "digest": "f95fc039bbcbb44da300d99df0eb89725b6c3b6d7b0bfdf618e6b3f05f684c00"
+        },
+        {
+          "path": "src/main/java/spark/serialization/SerializerChain.java",
+          "mode": "100644",
+          "digest": "94c8d25bfee675d84acab10a65b2cb19709a52a660adb8863a06711f2f9f5343"
+        },
+        {
+          "path": "src/main/java/spark/Service.java",
+          "mode": "100644",
+          "digest": "6c65785d9a29c0f1fb776e7c7158346491e528180f869494d3d8b1742851ed76"
+        },
+        {
+          "path": "src/main/java/spark/servlet/FilterTools.java",
+          "mode": "100644",
+          "digest": "5d369dc2a45de983f1b64d431d77fe0a43575450ecd8acfbfd813bac213f40e5"
+        },
+        {
+          "path": "src/main/java/spark/servlet/SparkApplication.java",
+          "mode": "100644",
+          "digest": "07f308a9486d479c374bbfa2b1d4c01af466ed4dd4178722c321cc6d2f3cf301"
+        },
+        {
+          "path": "src/main/java/spark/servlet/SparkFilter.java",
+          "mode": "100644",
+          "digest": "bd7d1a9b0398c4fd1f769db9260517bc7559670d35625fd3b4953aebcfb45924"
+        },
+        {
+          "path": "src/main/java/spark/Session.java",
+          "mode": "100644",
+          "digest": "64f255234f45f0f37a1b74cf7d757a946be9d877f6f8797ed9fd4bfbd65e81b6"
+        },
+        {
+          "path": "src/main/java/spark/Spark.java",
+          "mode": "100644",
+          "digest": "dc167cd6892e5198db46f5ce0b1eb796111a10793bfb95df57a5dd2f0ef141b6"
+        },
+        {
+          "path": "src/main/java/spark/ssl/SslStores.java",
+          "mode": "100644",
+          "digest": "c60994b4a58141f3ec29efae3035802e7f494fcd822a7bddbbd8ef430feb43f5"
+        },
+        {
+          "path": "src/main/java/spark/staticfiles/DirectoryTraversal.java",
+          "mode": "100644",
+          "digest": "4f903c57632231950afef279a27bb85fac5421df9b7a520f283b80a0d6b48399"
+        },
+        {
+          "path": "src/main/java/spark/staticfiles/MimeType.java",
+          "mode": "100644",
+          "digest": "2bd6f802bc42ff17e450cb46face85ebc5d68693276360cecdfc93b2937f60d1"
+        },
+        {
+          "path": "src/main/java/spark/staticfiles/StaticFilesConfiguration.java",
+          "mode": "100644",
+          "digest": "c8a88859ffaa112177546eb8835a020a5878632ee1c34a647175a29dd9c6726e"
+        },
+        {
+          "path": "src/main/java/spark/staticfiles/StaticFilesFolder.java",
+          "mode": "100644",
+          "digest": "98953eadcc891adf0df6db72695db0851b7bbfed56c64e265ae609fe8caaef76"
+        },
+        {
+          "path": "src/main/java/spark/TemplateEngine.java",
+          "mode": "100644",
+          "digest": "ec947c039d31a2818571b2df69283c37b19fcaea4a5b2132b4d60b98d47549af"
+        },
+        {
+          "path": "src/main/java/spark/TemplateViewRoute.java",
+          "mode": "100644",
+          "digest": "2a101d4f02445e91dee3ab0a3a8f408ea88fe2b53f900ba11e26965dfd490cb7"
+        },
+        {
+          "path": "src/main/java/spark/TemplateViewRouteImpl.java",
+          "mode": "100644",
+          "digest": "88ec804dc442ebd50d8f62cd985173268d5ca02abd556d50acf47e7cb3e5f5ca"
+        },
+        {
+          "path": "src/main/java/spark/utils/Assert.java",
+          "mode": "100644",
+          "digest": "fa1847d697767ce6b573a6d76ebd71ed05e295d8ee56345835da2413ea222e2a"
+        },
+        {
+          "path": "src/main/java/spark/utils/ClassUtils.java",
+          "mode": "100644",
+          "digest": "cd6216abd7007196bd65094d10a910febfc7195d0ca931d9ff5f575820aadc8d"
+        },
+        {
+          "path": "src/main/java/spark/utils/CollectionUtils.java",
+          "mode": "100644",
+          "digest": "a0a72b6339b3620cf624e2a40ee5805154b4323746fd4d839587917e3a4bed70"
+        },
+        {
+          "path": "src/main/java/spark/utils/GzipUtils.java",
+          "mode": "100644",
+          "digest": "8c323444195d4ede1ed6584845e84dc3f01c0a996b3b15069a410403da7efaac"
+        },
+        {
+          "path": "src/main/java/spark/utils/IOUtils.java",
+          "mode": "100644",
+          "digest": "3b31233ff3338d88f17269b7298219f32f16907c42d65d4272bcc43f731a5739"
+        },
+        {
+          "path": "src/main/java/spark/utils/MimeParse.java",
+          "mode": "100644",
+          "digest": "25f2fd11982c3d6eb218a68238d709dff704be45f5f12848251cc36bf834e8e2"
+        },
+        {
+          "path": "src/main/java/spark/utils/ObjectUtils.java",
+          "mode": "100644",
+          "digest": "cb934d89fd1e50f7597f8edc9f6569da46f226c16aad52257b82d6e6cb5d65d9"
+        },
+        {
+          "path": "src/main/java/spark/utils/ResourceUtils.java",
+          "mode": "100644",
+          "digest": "9fff761efeae31a128a6611bffc0a02def0b96052961d50fabc876d364b4c9e2"
+        },
+        {
+          "path": "src/main/java/spark/utils/SparkUtils.java",
+          "mode": "100644",
+          "digest": "10ec352c69c7d74c5f84c3d057e5fb3a3f63a96529f6a0d0e58d5b34e9a3c79b"
+        },
+        {
+          "path": "src/main/java/spark/utils/StringUtils.java",
+          "mode": "100644",
+          "digest": "f24a371a64f4949dde6307339118e23d63453d38c0bd5860eb079abbdf4371ad"
+        },
+        {
+          "path": "src/main/java/spark/utils/Wrapper.java",
+          "mode": "100644",
+          "digest": "a0cdf9b9c2ae88a36da906a2b6e597aadf5d8ae55c6b477475b2d12831e1b47d"
+        },
+        {
+          "path": "src/test/java/spark/BodyAvailabilityTest.java",
+          "mode": "100644",
+          "digest": "46d1e2907a9f4055b19d3ef021af47fb4a7c95f9680d3fef1dd0b70dd5332a04"
+        },
+        {
+          "path": "src/test/java/spark/BooksIntegrationTest.java",
+          "mode": "100644",
+          "digest": "acd17c155edbdfc1962c1cdb49e81b395ffb3139d52bf83e1c1193f41828adba"
+        },
+        {
+          "path": "src/test/java/spark/CookiesIntegrationTest.java",
+          "mode": "100644",
+          "digest": "332d679bf894eff6dc23de12f847502eb1f4a0fcc47658640c53913f697defd4"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/JettyServerTest.java",
+          "mode": "100644",
+          "digest": "bbaed04849cd869a1e344f9ed3a7af9b2b485bfb1fc28645bf61a3dde12b8a59"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/SocketConnectorFactoryTest.java",
+          "mode": "100644",
+          "digest": "1cdf075665defe49892cae9b6a2744b22c3052e31ce30a3e7c3dcf8194b59b2f"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketCreatorFactoryTest.java",
+          "mode": "100644",
+          "digest": "7d15b2a91e2b491cabf29636976d5a86c31f6eb1b8db31fdc5fcac2fa3b06560"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketServletContextHandlerFactoryTest.java",
+          "mode": "100644",
+          "digest": "b91a100617be8fa4192c03f55c62aaa3bae9be81d136a5f52f1bb4ccf59c1bb9"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketTestClient.java",
+          "mode": "100644",
+          "digest": "63347eba95eb22944e0fe026a71e9ed9838211a8dbce4633dafb145da9d6959b"
+        },
+        {
+          "path": "src/test/java/spark/embeddedserver/jetty/websocket/WebSocketTestHandler.java",
+          "mode": "100644",
+          "digest": "1146ed51d13325a7e39246ce668499aa935aece6d7c5bea191da334ea948e047"
+        },
+        {
+          "path": "src/test/java/spark/examples/accept/JsonAcceptTypeExample.java",
+          "mode": "100644",
+          "digest": "c109190d086b10f17ae94d15d5d2210cb06889737e5633e298a1276c06caf09a"
+        },
+        {
+          "path": "src/test/java/spark/examples/books/Book.java",
+          "mode": "100644",
+          "digest": "c5986d26105d253c782f99de1fc79270980e35611bfbb8201eeb1e40c8ca2f3f"
+        },
+        {
+          "path": "src/test/java/spark/examples/books/Books.java",
+          "mode": "100644",
+          "digest": "46cb71faa147d768bec84854c08d54c109949a61c0db8c933f42dda923c0dbdf"
+        },
+        {
+          "path": "src/test/java/spark/examples/exception/BaseException.java",
+          "mode": "100644",
+          "digest": "48a753f48094a67497908e9f300d945d3354896a391039f48890aee025d5f047"
+        },
+        {
+          "path": "src/test/java/spark/examples/exception/NotFoundException.java",
+          "mode": "100644",
+          "digest": "b46bab5bf338ec3d6a67c257e5bfb3cd2ea30f37c81b5fa45eab0f430127b042"
+        },
+        {
+          "path": "src/test/java/spark/examples/exception/SubclassOfBaseException.java",
+          "mode": "100644",
+          "digest": "8d22dc9bb8bf88faaacd1bf0cfca7181c65604067c7e917d259e509edb62f4d1"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/DummyFilter.java",
+          "mode": "100644",
+          "digest": "3a60ec68ea4c1eff13d76bdff58b0d58ee694d9e1c570143d97df979c239963f"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/FilterExample.java",
+          "mode": "100644",
+          "digest": "ab774ceefdc8a185f58649214ba90e78471620f5a3c9337e03b94e742312918d"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/FilterExampleAttributes.java",
+          "mode": "100644",
+          "digest": "ffa7e4660235cc5ed0d99f1282ebd8f9d57657a9a45913c586339aa94c4b01ed"
+        },
+        {
+          "path": "src/test/java/spark/examples/filter/FilterExampleWildcard.java",
+          "mode": "100644",
+          "digest": "6a242a3e06976379840c8fe65d0a34af9c91f056e75ad3d3c8e001246f162783"
+        },
+        {
+          "path": "src/test/java/spark/examples/gzip/GzipClient.java",
+          "mode": "100644",
+          "digest": "a36e77f7fba327861f8879e55028773c31b5afda47bd2263c08e9552b305488b"
+        },
+        {
+          "path": "src/test/java/spark/examples/gzip/GzipExample.java",
+          "mode": "100644",
+          "digest": "f901080396ee38d18dc5b2619dd8e9c3414ca46a262d1e8ca89ad9dc9c74dcba"
+        },
+        {
+          "path": "src/test/java/spark/examples/hello/HelloSecureWorld.java",
+          "mode": "100644",
+          "digest": "c57d15c1ecf3c700fd2ac95fb7f0eaae1077c8c7829a6a8058ef7db83979b1ae"
+        },
+        {
+          "path": "src/test/java/spark/examples/hello/HelloWorld.java",
+          "mode": "100644",
+          "digest": "8be32ad6ee7e522094707a88e0fe5a27c9792c04d7943be6101c65418c338cf8"
+        },
+        {
+          "path": "src/test/java/spark/examples/multiple/MultipleServices.java",
+          "mode": "100644",
+          "digest": "ec98b2fbcb7dd44d5274fe73255d24c05dc3f5376f7d2b1927429a5c94c41910"
+        },
+        {
+          "path": "src/test/java/spark/examples/session/SessionExample.java",
+          "mode": "100644",
+          "digest": "4d0063c2b6fdf51d21e8e1c8d0dd4f5e10ab62e146e6b90c7a04eee9328699ea"
+        },
+        {
+          "path": "src/test/java/spark/examples/simple/SimpleExample.java",
+          "mode": "100644",
+          "digest": "5e6b8c683f104b78b4f9f40660a8bbecd542ba0cb711094c4b71985765dc26e9"
+        },
+        {
+          "path": "src/test/java/spark/examples/simple/SimpleSecureExample.java",
+          "mode": "100644",
+          "digest": "2f7a7e8bea81f02189e5ac6326a8f76d50e43d133f3cdb162c9dc2c21867ee99"
+        },
+        {
+          "path": "src/test/java/spark/examples/staticresources/StaticResources.java",
+          "mode": "100644",
+          "digest": "42940c07e5fd43daaecdd4d7041892b9a9e046800a96840ff65f146bf8692871"
+        },
+        {
+          "path": "src/test/java/spark/examples/sugar/http.java",
+          "mode": "100644",
+          "digest": "726738100984696e7287a79cd58e874263e3e9b4d8bacf8cd4a950213232b5de"
+        },
+        {
+          "path": "src/test/java/spark/examples/sugar/SugarExample.java",
+          "mode": "100644",
+          "digest": "a21758d96a8a051e7edc4a63b39e7b8b39082660fa2d59ecc7f07017f5edd2fc"
+        },
+        {
+          "path": "src/test/java/spark/examples/templateview/FreeMarkerExample.java",
+          "mode": "100644",
+          "digest": "e0b9eb88c399f36c1ee6c1306148b86f06cbbb54850f26e74833cfe361604173"
+        },
+        {
+          "path": "src/test/java/spark/examples/templateview/FreeMarkerTemplateEngine.java",
+          "mode": "100644",
+          "digest": "89dfd90395e36a430ff85f17a56e30679dc211a6a4f6a6da2b269f94108a7b8a"
+        },
+        {
+          "path": "src/test/java/spark/examples/transformer/JsonTransformer.java",
+          "mode": "100644",
+          "digest": "b21ba9626f30aa52b6cf50732712039f04224756ee26a62841dee2cc2573b3bf"
+        },
+        {
+          "path": "src/test/java/spark/examples/transformer/MyMessage.java",
+          "mode": "100644",
+          "digest": "cad710dc2d1739ee200f8e5dd78156512e316155500d7cb93bef64c3c95168e4"
+        },
+        {
+          "path": "src/test/java/spark/examples/transformer/TransformerExample.java",
+          "mode": "100644",
+          "digest": "2aab34f1b88f7f386077821727152ed5622ba8a130b9034978a1b79589874771"
+        },
+        {
+          "path": "src/test/java/spark/examples/websocket/EchoWebSocket.java",
+          "mode": "100644",
+          "digest": "251b1213e0e86808bfc4ad7f55474641ed43932588cd78695d6ccc5107a31e43"
+        },
+        {
+          "path": "src/test/java/spark/examples/websocket/PingWebSocket.java",
+          "mode": "100644",
+          "digest": "fa33977ff7202f1f9d2320de53a1b93218e2251aabc31a4081e1b450d6e00dfb"
+        },
+        {
+          "path": "src/test/java/spark/examples/websocket/WebSocketExample.java",
+          "mode": "100644",
+          "digest": "6cc8cdf6c2e0223619db5e5d328a62a4c2c5599b5f0cef0f3cad4aeee426fbb7"
+        },
+        {
+          "path": "src/test/java/spark/ExceptionMapperTest.java",
+          "mode": "100644",
+          "digest": "99a3de4a440ec4e75cbd7bef7b32918025e2d06a26a903f0b5339e4eadf4c8a9"
+        },
+        {
+          "path": "src/test/java/spark/FilterImplTest.java",
+          "mode": "100644",
+          "digest": "e78a33740466d75b3feace5a4e3b0278992a2a1b57cf3760a1683a119d7da335"
+        },
+        {
+          "path": "src/test/java/spark/FilterTest.java",
+          "mode": "100644",
+          "digest": "1369cefb1823dfaba22f9eac7f54d54ed56f91a5f99bdf411eb3decbab2ca690"
+        },
+        {
+          "path": "src/test/java/spark/GenericIntegrationTest.java",
+          "mode": "100644",
+          "digest": "bfe7edbefe76de23bc5612c869ff47145063d6702f09a698d8da04f880be6e70"
+        },
+        {
+          "path": "src/test/java/spark/GenericSecureIntegrationTest.java",
+          "mode": "100644",
+          "digest": "0a45e1b3efca2b4182563394c700ea52747e25b85fb4a69f02e07f0d3e6e9f63"
+        },
+        {
+          "path": "src/test/java/spark/globalstate/ServletFlagTest.java",
+          "mode": "100644",
+          "digest": "fc8b86ab2a4b97d0c108613d25ea7eccc0e30578a94026d9cc81cc97381880d9"
+        },
+        {
+          "path": "src/test/java/spark/GzipTest.java",
+          "mode": "100644",
+          "digest": "c3c06adad43da8787ccca9ba584cf951fb2fb4bd3a7513c5aa7175857d0f97ad"
+        },
+        {
+          "path": "src/test/java/spark/MultipleFiltersTest.java",
+          "mode": "100644",
+          "digest": "96c92e9a9e48c82c59242023e21b1e4d951b2eedac134c38ade4f8f7b35b22cf"
+        },
+        {
+          "path": "src/test/java/spark/MultipleServicesTest.java",
+          "mode": "100644",
+          "digest": "1e502020dedd88bf00b81675169d9607d8a6699b9e60353c2a0153fdee953182"
+        },
+        {
+          "path": "src/test/java/spark/QueryParamsMapTest.java",
+          "mode": "100644",
+          "digest": "e98fc4d296e9a6479fb3c2b18cdebea4025802690c3cd869149adb1dd6b9c15d"
+        },
+        {
+          "path": "src/test/java/spark/RedirectTest.java",
+          "mode": "100644",
+          "digest": "14fc27b2ee558f8a2b45c0d7f50f3a9e6d8cf1e37a8e488d14437e3e1464df7f"
+        },
+        {
+          "path": "src/test/java/spark/RequestTest.java",
+          "mode": "100644",
+          "digest": "ac3092eb3723c4d0dd5ab94c910f034cef9b67ee1d2449c20e059fc99307dfca"
+        },
+        {
+          "path": "src/test/java/spark/ResponseBodyTest.java",
+          "mode": "100644",
+          "digest": "5ae168c3c5e0ed6c24c8476d7381ce7b84ca27b478e2ad4ef19bc1b3a9ae1f9a"
+        },
+        {
+          "path": "src/test/java/spark/ResponseTest.java",
+          "mode": "100644",
+          "digest": "b02ca013b3c02fe7b0b852dabcffb9d53caa8edb5e79c55a7517be877936437b"
+        },
+        {
+          "path": "src/test/java/spark/ResponseWrapperDelegationTest.java",
+          "mode": "100644",
+          "digest": "fa3e6227b49137d9980a4ad594ae551d4d74a4215dc4fc50170d3be341fcb961"
+        },
+        {
+          "path": "src/test/java/spark/route/HttpMethodTest.java",
+          "mode": "100644",
+          "digest": "39fa5cee4e2f4cf3fead1731c69f8649ba50565422b0b3ae37a84b7f5bcea2ae"
+        },
+        {
+          "path": "src/test/java/spark/route/RouteEntryTest.java",
+          "mode": "100644",
+          "digest": "0f20deb9fd9701b3d9a68d6e9b7cd04c8496d455414aa812134fe8458b053bc7"
+        },
+        {
+          "path": "src/test/java/spark/route/RouteOverviewTest.java",
+          "mode": "100644",
+          "digest": "dd2cf5b295565b0f14d977ab94b5a64f4192b9aabb6c11c53f537066d958bb57"
+        },
+        {
+          "path": "src/test/java/spark/route/RoutesTest.java",
+          "mode": "100644",
+          "digest": "6eddf1d5f0b03ec23c619b893679d82d1ae9bd289b2a16166110e05c7eb539ba"
+        },
+        {
+          "path": "src/test/java/spark/route/Util.java",
+          "mode": "100644",
+          "digest": "70c25d13806b5bd9dc6d8961f151ecfb645ef03ed6b79707c9361d041b97ded6"
+        },
+        {
+          "path": "src/test/java/spark/RouteImplTest.java",
+          "mode": "100644",
+          "digest": "4b1ce09738cfbd4d827eb8eb54fd281cd6d001c0e6d073af9f1773d791298e75"
+        },
+        {
+          "path": "src/test/java/spark/ServiceTest.java",
+          "mode": "100644",
+          "digest": "41305276a7ea2ad4afae1cf7662915ae47ae8a8095ee027e582be5f9c67a241a"
+        },
+        {
+          "path": "src/test/java/spark/servlet/FilterConfigWrapper.java",
+          "mode": "100644",
+          "digest": "320eafb9a20f4273ccc8920921694edff83167e2ab5f435333804739d5fff316"
+        },
+        {
+          "path": "src/test/java/spark/servlet/MyApp.java",
+          "mode": "100644",
+          "digest": "210c54febffab46d4aa21d6d4d37ef5cb78a3bab104c51d5e39aa01e2bfee98c"
+        },
+        {
+          "path": "src/test/java/spark/servlet/ServletTest.java",
+          "mode": "100644",
+          "digest": "3a5ee7142ef0eedd32a5621b2472fc384c66b6d846373347cc8522779e6e9b1c"
+        },
+        {
+          "path": "src/test/java/spark/SessionTest.java",
+          "mode": "100644",
+          "digest": "64105a4ffa6c6a5e2a17150279853c3a91f335939004216501d153646c6e4dda"
+        },
+        {
+          "path": "src/test/java/spark/staticfiles/StaticFilesTest.java",
+          "mode": "100644",
+          "digest": "1ca2b8892a6a2a3ff256e1b31bd1ffa7db5a93a9b4343d5a0e3c89dc2a3208d5"
+        },
+        {
+          "path": "src/test/java/spark/StaticFilesMemberTest.java",
+          "mode": "100644",
+          "digest": "bc44a2f23d23f02af2cd78f81c57e926b6488bc0948e42255de206d4b1077769"
+        },
+        {
+          "path": "src/test/java/spark/StaticFilesTest.java",
+          "mode": "100644",
+          "digest": "0cbfd9e80fcc80c6e6756b598ef34b317c675db2e6b6d48378436121af2f85d0"
+        },
+        {
+          "path": "src/test/java/spark/StaticFilesTestExternal.java",
+          "mode": "100644",
+          "digest": "c4d4554f75aaf4a6cf80ac483f85832add9bf31ad30348b40d406d5f2681616b"
+        },
+        {
+          "path": "src/test/java/spark/util/ResourceUtilsTest.java",
+          "mode": "100644",
+          "digest": "b3a1c3542bbb90ef4d9b4ff3283b9f26c99641f4dac0714d3821b26cac1ecc4a"
+        },
+        {
+          "path": "src/test/java/spark/util/SparkTestUtil.java",
+          "mode": "100644",
+          "digest": "0d33feb4dd0b0caaf49d25d7d1d798126995cdc9915bc71c363dddd7ba7449d8"
+        },
+        {
+          "path": "src/test/java/spark/utils/CollectionUtilsTest.java",
+          "mode": "100644",
+          "digest": "9d5580d6612d281b796b6edf5961b30077b2c17fa3d8ddf8e9d815b86e51c45e"
+        },
+        {
+          "path": "src/test/java/spark/utils/MimeParseTest.java",
+          "mode": "100644",
+          "digest": "b33180a9b66ae98a3d46b7fc99b75f9d8f06e33817f1adae872491cfb26bfa70"
+        },
+        {
+          "path": "src/test/java/spark/utils/ObjectUtilsTest.java",
+          "mode": "100644",
+          "digest": "746bdcf205bec4f02aff3119903f3c73dc0923cbee1b3dafb0a8b143a8a711bc"
+        },
+        {
+          "path": "src/test/java/spark/utils/SparkUtilsTest.java",
+          "mode": "100644",
+          "digest": "59314325650712ba362d07783acc17f78911567a17e05d07ca51a73d4d96aaab"
+        },
+        {
+          "path": "src/test/resources/keystore.jks",
+          "mode": "100644",
+          "digest": "b1d385bedb920b82b426d1d21cf405908b05a7b1f406ab933b4fcabd60e76998"
+        },
+        {
+          "path": "src/test/resources/public/css/style.css",
+          "mode": "100644",
+          "digest": "3b22931b96d43eccca7270d4e693007a0a5ac7491a63a35b1b4b9b6bf4be6955"
+        },
+        {
+          "path": "src/test/resources/public/img/file.cxt",
+          "mode": "100644",
+          "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogo.png",
+          "mode": "100644",
+          "digest": "929d41c2e477d43b9b9bfcab79531b041006970633732551551acb55aae662ca"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogo.svg",
+          "mode": "100644",
+          "digest": "394433f978eb71dc30523092c542f12de5d338364891c7e9efe8e4399f28111d"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogoPng",
+          "mode": "100644",
+          "digest": "929d41c2e477d43b9b9bfcab79531b041006970633732551551acb55aae662ca"
+        },
+        {
+          "path": "src/test/resources/public/img/sparklogoSvg",
+          "mode": "100644",
+          "digest": "394433f978eb71dc30523092c542f12de5d338364891c7e9efe8e4399f28111d"
+        },
+        {
+          "path": "src/test/resources/public/js/scripts.js",
+          "mode": "100644",
+          "digest": "53dd8cc5b8a90da63c603ecc7434d5e71b7d4f4b79bb5577461c28d9061b3b7f"
+        },
+        {
+          "path": "src/test/resources/public/page.html",
+          "mode": "100644",
+          "digest": "75f905691e9a7966a61ea521e57ea12b7e6cc2d17a2c06f83c9be4af08dbfe87"
+        },
+        {
+          "path": "src/test/resources/public/pages/index.html",
+          "mode": "100644",
+          "digest": "8496312604aad48a25167615ea2d1d24d484b9f93abf81832aa54222af627d04"
+        },
+        {
+          "path": "src/test/resources/spark/examples/templateview/freemarker/hello.ftl",
+          "mode": "100644",
+          "digest": "0d179976dbffeba18df6169b485c104451bff4b8072aa4ca18b2e3bab1b0050d"
+        },
+        {
+          "path": "src/test/webapp/WEB-INF/web.xml",
+          "mode": "100644",
+          "digest": "6fa973d4a0f180604635bfe1db3265721ffbea6b49e3f37e9a1b67b9970659c9"
+        }
+      ],
+      "contentDigest": "eaa244c4d5de8dfdef64b460ce7538a9decd8f812b097021e95847c2f9cf29b1"
+    }
+  },
+  "snapshotDigest": "8334e8bc1fe5dc1a25748d188273f9c4f2183888dd12000401bc4f78ad63e9d3"
+}

@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "caseId": "ts-unsafe-query",
+  "language": "typescript",
+  "category": "injection",
+  "difficulty": "easy",
+  "expected": {
+    "label": "finding",
+    "priority": "high",
+    "file": "vulnerable.ts",
+    "startLine": 2,
+    "endLine": 2
+  },
+  "fixedPair": "fixed.ts",
+  "provenance": {
+    "source": "repository-authored",
+    "license": "UNLICENSED",
+    "reviewedBy": "security-reviewer-maintainer"
+  }
+}

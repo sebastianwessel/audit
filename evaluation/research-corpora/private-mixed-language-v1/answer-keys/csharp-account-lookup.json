@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 5,
+  "caseId": "csharp-account-lookup",
+  "findingCoverage": "targeted",
+  "expectedPlanScenarios": [
+    {
+      "scenarioId": "injection-account-lookup",
+      "relevantPaths": ["Api/AccountLookup.cs"],
+      "expectedFindingIds": ["expected-01"]
+    }
+  ],
+  "expectedFindings": [
+    {
+      "findingId": "expected-01",
+      "staticReviewApplicable": true,
+      "evidenceRoles": [
+        {
+          "role": "operation",
+          "notApplicable": false,
+          "ranges": [
+            {
+              "path": "Api/AccountLookup.cs",
+              "startLine": 7,
+              "endLine": 7
+            }
+          ]
+        },
+        {
+          "role": "unsafe-condition",
+          "notApplicable": false,
+          "ranges": [
+            {
+              "path": "Api/AccountLookup.cs",
+              "startLine": 7,
+              "endLine": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "patchedExpectation": "no-matching-finding",
+  "staticReviewApplicable": true,
+  "adjudicationStatus": "provisional",
+  "reviewers": ["private research corpus author"],
+  "notes": "Locally authored diagnostic case. The vulnerable variant combines caller-controlled input into a database command; the patched variant binds it as a parameter. It is not real-world reliability evidence."
+}

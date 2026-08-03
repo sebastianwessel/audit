@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "source-pair-e7f2be359ec3b494",
+  "candidateRegistryId": "openssf-candidate-pilot",
+  "candidateRegistryDigest": "2f6cc74df6778ce6664cd049a494841d45eaf9481e18436dcbbd90110ea5e1bb",
+  "candidateId": "openssf-cve-2017-16023",
+  "sourceRecordId": "cve-2017-16023",
+  "repositoryUrl": "https://github.com/sindresorhus/decamelize",
+  "sourceLicenseStatus": "unverified",
+  "capturedAt": "2026-07-31T12:29:09.889Z",
+  "variants": {
+    "vulnerable": {
+      "revision": "18479821851414d91ad3d42d8560adff5969da4b",
+      "directory": "vulnerable",
+      "files": [
+        {
+          "path": ".editorconfig",
+          "mode": "100644",
+          "digest": "e3bbc4cf6206c9fcc036e8937981c3fa4bff9b8b8153d7c106e3db2104019b9b"
+        },
+        {
+          "path": ".gitattributes",
+          "mode": "100644",
+          "digest": "e753774a5c6c845d5b43db5e4e133c8b7308c233f036517be1e2ae01cb068790"
+        },
+        {
+          "path": ".gitignore",
+          "mode": "100644",
+          "digest": "16d30e4462189fb14dd611bdb708c510630c576a1f35b9383e89a4352da36c97"
+        },
+        {
+          "path": ".travis.yml",
+          "mode": "100644",
+          "digest": "c8c705945858b6c63655b649d219327bfb0abb8a334ba040d9e18aabdc6d87a7"
+        },
+        {
+          "path": "index.js",
+          "mode": "100644",
+          "digest": "7508570eb914edfb5da94e641c0c77ffd2a8754b249c90805d54ab4d588966a5"
+        },
+        {
+          "path": "license",
+          "mode": "100644",
+          "digest": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        },
+        {
+          "path": "package.json",
+          "mode": "100644",
+          "digest": "9c4b02829bf7a841e9faa23c58f94df81a433a679ea36e8d1e3ab95222780de0"
+        },
+        {
+          "path": "readme.md",
+          "mode": "100644",
+          "digest": "5e1a0a44e7171b010b297ef9cd8595cb66dbd136a5e10f7704e908d02448f043"
+        },
+        {
+          "path": "test.js",
+          "mode": "100644",
+          "digest": "c88286589187b85a987e96661a18c88c2907ead64a172f99d02f546c43f84a8f"
+        }
+      ],
+      "contentDigest": "54562b8e676b68aff8bf577c6a8d2807cde9d254c4a7c7695a323c3fb71c765e"
+    },
+    "patched": {
+      "revision": "76d47d8de360afb574da2e34db87430ce11094e0",
+      "directory": "patched",
+      "files": [
+        {
+          "path": ".editorconfig",
+          "mode": "100644",
+          "digest": "e3bbc4cf6206c9fcc036e8937981c3fa4bff9b8b8153d7c106e3db2104019b9b"
+        },
+        {
+          "path": ".gitattributes",
+          "mode": "100644",
+          "digest": "e753774a5c6c845d5b43db5e4e133c8b7308c233f036517be1e2ae01cb068790"
+        },
+        {
+          "path": ".gitignore",
+          "mode": "100644",
+          "digest": "16d30e4462189fb14dd611bdb708c510630c576a1f35b9383e89a4352da36c97"
+        },
+        {
+          "path": ".travis.yml",
+          "mode": "100644",
+          "digest": "c8c705945858b6c63655b649d219327bfb0abb8a334ba040d9e18aabdc6d87a7"
+        },
+        {
+          "path": "index.js",
+          "mode": "100644",
+          "digest": "e17283a14564db14c6838a9101c86812d4cf5b8a90429cc6dbeab630ae23a84f"
+        },
+        {
+          "path": "license",
+          "mode": "100644",
+          "digest": "6fb9754611c20f6649f68805e8c990e83261f29316e29de9e6cedae607b8634c"
+        },
+        {
+          "path": "package.json",
+          "mode": "100644",
+          "digest": "dd7a49570c5a6029d003e5f034d01810308c7d2e6f5275289c2db34b9e195ba3"
+        },
+        {
+          "path": "readme.md",
+          "mode": "100644",
+          "digest": "5e1a0a44e7171b010b297ef9cd8595cb66dbd136a5e10f7704e908d02448f043"
+        },
+        {
+          "path": "test.js",
+          "mode": "100644",
+          "digest": "8ea0a0bc3783d5a8bed8c3414782a33e136aa210b2d6f0129bca22cffe1dd3e1"
+        }
+      ],
+      "contentDigest": "d0ba0169959f4a5cc0e1e301580f13207c1be70376c75030490a341154035e56"
+    }
+  },
+  "snapshotDigest": "29d188fae1ee685be696ff11b47a82c66cde08164aef172a32db8090a503c5f1"
+}

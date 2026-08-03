@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "caseId": "owasp-benchmarkjava-00008",
+  "reviewer": "security-reviewer corpus maintainer",
+  "reviewedAt": "2026-07-29T12:00:00.000Z",
+  "notes": "Human-reviewed source-only plan for request handling and database query construction. This fixture does not contain expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review request data in query execution",
+      "rationale": "Request-derived values and database execution APIs require parameterization and query-structure boundary review.",
+      "enabled": true,
+      "scopeGlobs": [
+        "**/*"
+      ],
+      "reviewObligations": [
+        {
+          "obligationId": "fixture-obligation-01",
+          "riskStatement": "Request-derived data may influence query structure rather than a bound parameter.",
+          "evidenceRequirement": "The review identifies the query operation and untrusted construction condition."
+        }
+      ],
+      "limitations": [
+        "Static review cannot verify database driver behavior or runtime authorization."
+      ]
+    }
+  ]
+}

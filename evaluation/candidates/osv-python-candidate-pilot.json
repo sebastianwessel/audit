@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "registryId": "osv-python-candidate-pilot",
+  "source": {
+    "datasetId": "osv-api",
+    "title": "OSV API pinned advisory snapshot",
+    "sourceUrl": "https://api.osv.dev/v1/vulns/CVE-2023-45803",
+    "revision": "response-sha256-0cc503bc05b3db94a0f42ad44a502e17f822c2978b976218d19060e942b5dfaa",
+    "license": "Metadata provenance only; upstream terms are not evaluated here.",
+    "retrievedAt": "2026-07-31T12:50:00.000Z",
+    "attribution": "Pinned full OSV API response for private acquisition research. The registry extracts only an exact repository and adjacent Git revision pair; it contains no source, expected finding, answer key, plan, or readiness claim."
+  },
+  "candidates": [
+    {
+      "candidateId": "osv-cve-2023-45803-urllib3",
+      "sourceRecordId": "cve-2023-45803",
+      "repositoryUrl": "https://github.com/urllib3/urllib3",
+      "vulnerableRevision": "6446fef0cf432ca035169602a1447a0d8ef53e80",
+      "patchedRevision": "56f01e088dc006c03d4ee6ea9da4ab810f1ed700",
+      "metadataPath": "osv/CVE-2023-45803.json",
+      "metadataDigest": "77909e869d1110dabf520b5a9a6cec1677b8744e31f2327799c8b2311dbb0bd9",
+      "sourceLicenseStatus": "unverified"
+    }
+  ],
+  "registryDigest": "6349c21182a41d4ec229439ed5f6e7322ef8906ee5a9c1dbd6194f4b38229e60"
+}

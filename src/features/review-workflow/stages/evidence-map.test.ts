@@ -1,0 +1,272 @@
+import { expect, test } from 'bun:test';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  type JsonValue,
+  ModelError,
+  type ObjectRequest,
+  type ObjectResponse,
+} from '@purista/harness';
+import { FakeModelProvider } from '@purista/harness/testing';
+import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
+import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
+import { EvidenceMapRequestSchema } from '../../audit-execution/phase-input/contract.js';
+
+import { runEvidenceMapStage } from './evidence-map.js';
+
+test('fails closed when a tool-guided evidence map completes without scoped source inspection', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-stage-'));
+  await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
+  const provider = new FakeModelProvider();
+  provider.enqueueObject({
+    object: {
+      facts: [],
+      controlCoverage: [{ obligationId: 'test-obligation-01', controlFactIds: [] }],
+      unansweredPlanObligations: [{ obligationId: 'test-obligation-01' }],
+      limitations: ['The model did not inspect the approved source.'],
+    },
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop',
+  });
+
+  const result = await runEvidenceMapStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: EvidenceMapRequestSchema.parse({
+      vector: vector(),
+      availableSourcePaths: ['reviewed.unknown'],
+      limitations: [],
+    }),
+    context: [],
+    sessionId: 'evidence-map-stage-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({
+    status: 'failed',
+    errorCode: 'coverage-incomplete',
+    modelObservation: {
+      stage: 'evidence-mapping',
+      status: 'failed',
+      usage: { modelCallCount: 1, inputTokens: 3, outputTokens: 2 },
+      toolUsage: { readFileCallCount: 0, grepFilesCallCount: 0 },
+    },
+  });
+});
+
+test('fails closed when the only source-tool attempt is rejected', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-rejected-tool-'));
+  await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
+  const provider = new FakeModelProvider();
+  provider.enqueueObject({
+    object: {},
+    toolCalls: [
+      {
+        id: 'rejected-out-of-scope-read',
+        name: 'repo_read',
+        arguments: { path: 'outside.unknown' },
+      },
+    ],
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    finishReason: 'tool_calls',
+  });
+  provider.enqueueObject({
+    object: {
+      facts: [],
+      controlCoverage: [{ obligationId: 'test-obligation-01', controlFactIds: [] }],
+      unansweredPlanObligations: [{ obligationId: 'test-obligation-01' }],
+      limitations: ['The attempted read was outside the approved scope.'],
+    },
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop',
+  });
+
+  const result = await runEvidenceMapStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: EvidenceMapRequestSchema.parse({
+      vector: vector(),
+      availableSourcePaths: ['reviewed.unknown'],
+      limitations: [],
+    }),
+    context: [],
+    sessionId: 'evidence-map-stage-rejected-tool-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({
+    status: 'failed',
+    errorCode: 'coverage-incomplete',
+    modelObservation: {
+      toolUsage: {
+        readFileCallCount: 1,
+        successfulReadFileCallCount: 0,
+        successfulGrepFilesCallCount: 0,
+        rejectedCallCount: 1,
+      },
+    },
+  });
+});
+
+test('fails closed instead of choosing conflicting map facts from overflow partitions', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-overflow-'));
+  await writeFile(join(targetRoot, 'a.unknown'), 'value = request.input;\n', 'utf8');
+  await writeFile(join(targetRoot, 'b.unknown'), 'value = request.input;\n', 'utf8');
+  const provider = new OverflowFirstObjectProvider();
+  enqueueScopedSearch(provider, 'a-search');
+  provider.enqueueObject(mapOutput('a.unknown', 'First partition statement.'));
+  enqueueScopedSearch(provider, 'b-search');
+  provider.enqueueObject(mapOutput('b.unknown', 'Conflicting partition statement.'));
+
+  const result = await runEvidenceMapStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: EvidenceMapRequestSchema.parse({
+      vector: vector(),
+      availableSourcePaths: ['a.unknown', 'b.unknown'],
+      limitations: [],
+    }),
+    context: [],
+    sessionId: 'evidence-map-stage-overflow-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({ status: 'failed', errorCode: 'provider-context-overflow' });
+});
+
+test('retries an uninspected tool loop inside the same scope before failing coverage', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-retry-'));
+  await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
+  const provider = new FakeModelProvider();
+  const output = {
+    facts: [],
+    controlCoverage: [{ obligationId: 'test-obligation-01', controlFactIds: [] }],
+    unansweredPlanObligations: [{ obligationId: 'test-obligation-01' }],
+    limitations: ['The model did not inspect the approved source.'],
+  };
+  provider.enqueueObject({
+    object: output,
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop',
+  });
+  provider.enqueueObject({
+    object: output,
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop',
+  });
+
+  const result = await runEvidenceMapStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: EvidenceMapRequestSchema.parse({
+      vector: vector(),
+      availableSourcePaths: ['reviewed.unknown'],
+      limitations: [],
+    }),
+    context: [],
+    sessionId: 'evidence-map-stage-retry-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'default' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({
+    status: 'failed',
+    errorCode: 'coverage-incomplete',
+    modelObservation: {
+      recoveredErrorCodes: ['coverage-incomplete'],
+      usage: { modelCallCount: 2, inputTokens: 6, outputTokens: 4 },
+      toolUsage: { readFileCallCount: 0, grepFilesCallCount: 0 },
+    },
+  });
+  expect(provider.requests).toHaveLength(2);
+});
+
+function vector() {
+  return {
+    vectorId: 'vector-unknown-01',
+    vectorDigest: 'a'.repeat(64),
+    title: 'Review bounded source',
+    rationale: 'Review the approved source for security weaknesses.',
+    enabled: true,
+    scopeGlobs: ['reviewed.unknown'],
+    reviewObligations: [
+      {
+        obligationId: 'test-obligation-01',
+        riskStatement: 'The approved source could expose request-controlled data.',
+        evidenceRequirement: 'Any claim is source-backed and inside the approved scope.',
+      },
+    ],
+    limitations: [],
+  };
+}
+
+class OverflowFirstObjectProvider extends FakeModelProvider {
+  private firstObjectCall = true;
+
+  public override async object<T extends JsonValue>(
+    request: ObjectRequest<T>,
+  ): Promise<ObjectResponse<T>> {
+    if (this.firstObjectCall) {
+      this.firstObjectCall = false;
+      throw new ModelError('The provider rejected the context.', {
+        provider: 'test',
+        model: 'test-model',
+        method: 'object',
+        reason: 'context_length_exceeded',
+      });
+    }
+    return super.object(request);
+  }
+}
+
+function enqueueScopedSearch(provider: FakeModelProvider, id: string): void {
+  provider.enqueueObject({
+    object: {},
+    toolCalls: [
+      {
+        id,
+        name: 'repo_grep',
+        arguments: { pattern: 'value', mode: 'literal', caseSensitive: true },
+      },
+    ],
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    finishReason: 'tool_calls',
+  });
+}
+
+function mapOutput(path: string, statement: string) {
+  return {
+    object: {
+      facts: [
+        {
+          factId: 'fact-duplicate-01',
+          role: 'input',
+          statement,
+          evidence: [{ path, startLine: 1 }],
+          planObligations: [{ obligationId: 'test-obligation-01' }],
+        },
+      ],
+      controlCoverage: [{ obligationId: 'test-obligation-01', controlFactIds: [] }],
+      unansweredPlanObligations: [],
+      limitations: [],
+    },
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    finishReason: 'stop' as const,
+  };
+}

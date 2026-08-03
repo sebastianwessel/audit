@@ -1,0 +1,16 @@
+diff --git a/dist/agents/index.js b/dist/agents/index.js
+index 0772e13367bc7dc042a0e6ac0474f79bb0f1a663..33ecc8b882da165d1ab1a6957f03d92b1581dff2 100644
+--- a/dist/agents/index.js
++++ b/dist/agents/index.js
+@@ -186,7 +186,10 @@ async function runDefaultAgentInner(args) {
+         return [{ role: m.role, content: m.content, toolCalls: m.toolCalls }];
+     });
+     const emitted = [];
+-    const maxSteps = Math.min(args.agent.maxSteps ?? args.maxSteps, 64);
++    // Preserve the harness caller's configured limit. Applications that set
++    // Infinity rely on their run timeout/cancellation policy rather than an
++    // undocumented fixed loop ceiling.
++    const maxSteps = args.agent.maxSteps ?? args.maxSteps;
+     let steps = 0;
+     const agentEventMeta = {
+         ...(args.workflowId ? { workflowId: args.workflowId } : {}),

@@ -1,0 +1,316 @@
+{
+  "schemaVersion": 1,
+  "registryId": "openssf-candidate-pilot",
+  "source": {
+    "datasetId": "openssf-cve-benchmark",
+    "title": "OpenSSF CVE Benchmark",
+    "sourceUrl": "https://github.com/ossf-cve-benchmark/ossf-cve-benchmark",
+    "revision": "91c59fd54b2b768c0f310bb0027d2ac59cdf74d4",
+    "license": "MIT",
+    "retrievedAt": "2026-07-29T00:00:00.000Z",
+    "attribution": "OpenSSF metadata reservoir. Candidate records are not answer keys and contain no copied target source."
+  },
+  "candidates": [
+    {
+      "candidateId": "openssf-cve-2016-1000229",
+      "sourceRecordId": "cve-2016-1000229",
+      "repositoryUrl": "https://github.com/linxiaowu66/swagger-ui",
+      "vulnerableRevision": "14fad2b4c76efe249db515c98432eb609aa77691",
+      "patchedRevision": "be1d6d4dbed60e3efbb15caede756bdbd2269a41",
+      "metadataPath": "CVEs/CVE-2016-1000229.json",
+      "metadataDigest": "09a457412a4773c455e99826202172fa28719cbe53bb6c8ac978a223da69a813",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2016-10735",
+      "sourceRecordId": "cve-2016-10735",
+      "repositoryUrl": "https://github.com/twbs/bootstrap",
+      "vulnerableRevision": "ba6a6f13691000ffaf22ef8e731513737659447f",
+      "patchedRevision": "bcad4bcb5f5a9ef079b2883a48a698b35261e083",
+      "metadataPath": "CVEs/CVE-2016-10735.json",
+      "metadataDigest": "4fe3f3badb7bd93bd9bd95788ea929ff95d08816b061d84f81ff38099676ed70",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-0931",
+      "sourceRecordId": "cve-2017-0931",
+      "repositoryUrl": "https://github.com/guardian/html-janitor",
+      "vulnerableRevision": "8c99e653a36a85edd740e756d7371ee47a9aee45",
+      "patchedRevision": "0f60a4243f38b81cede9d5742aeccac2a95d0bcb",
+      "metadataPath": "CVEs/CVE-2017-0931.json",
+      "metadataDigest": "d31f75c53137e7b62426be7d5b45d5aa4402721303b446f79e88acaf2205886a",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-1000006",
+      "sourceRecordId": "cve-2017-1000006",
+      "repositoryUrl": "https://github.com/plotly/plotly.js",
+      "vulnerableRevision": "16e0fc29690c82282db91f99e651190afa0a9f87",
+      "patchedRevision": "0a1526de6ee872993cabac966ed6fdc67cd052f0",
+      "metadataPath": "CVEs/CVE-2017-1000006.json",
+      "metadataDigest": "d5f4a978c8b3be2ba40b03ebbbca6950e4d63d8d5af467559bb728cce7b1bf48",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-1000219",
+      "sourceRecordId": "cve-2017-1000219",
+      "repositoryUrl": "https://github.com/KyleRoss/windows-cpu",
+      "vulnerableRevision": "da656c1a9d5edbf4e8bf0640f349aeb714a4f1a0",
+      "patchedRevision": "b75e19aa2f7459a9506bceb577ba2341fe273117",
+      "metadataPath": "CVEs/CVE-2017-1000219.json",
+      "metadataDigest": "384e5bc33c5fdf568911cc89ae197d37bb6744d147eeed9cfd49783215f0416a",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-1000427",
+      "sourceRecordId": "cve-2017-1000427",
+      "repositoryUrl": "https://github.com/markedjs/marked",
+      "vulnerableRevision": "38f1727ffee0820975677027b8968bc1954e6637",
+      "patchedRevision": "cd2f6f5b7091154c5526e79b5f3bfb4d15995a51",
+      "metadataPath": "CVEs/CVE-2017-1000427.json",
+      "metadataDigest": "52ce55c8ffe427c7770f7bed5b0f1e9a73d829c3f7459b83bd83e255754c84bd",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-1001004",
+      "sourceRecordId": "cve-2017-1001004",
+      "repositoryUrl": "https://github.com/josdejong/typed-function",
+      "vulnerableRevision": "9a8cac3cb8ae89fd0a9b3ae2dfde27cd1aa5a60a",
+      "patchedRevision": "6478ef4f2c3f3c2d9f2c820e2db4b4ba3425e6fe",
+      "metadataPath": "CVEs/CVE-2017-1001004.json",
+      "metadataDigest": "9f2022c40f28e3cb2d44d21ccc4d7164f1472ab38ba1e110f1bd89dfff6650bc",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-10910",
+      "sourceRecordId": "cve-2017-10910",
+      "repositoryUrl": "https://github.com/mqttjs/MQTT.js",
+      "vulnerableRevision": "800a4ddaaec80f3289b1aa249bf67584588611ff",
+      "patchedRevision": "403ba53b838f2d319a0c0505a045fe00239e9923",
+      "metadataPath": "CVEs/CVE-2017-10910.json",
+      "metadataDigest": "96741d07c237ce6ad9fe02cd2cbfd2117a5f3dcd171f148b6e6d5990c2657806",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-15010",
+      "sourceRecordId": "cve-2017-15010",
+      "repositoryUrl": "https://github.com/salesforce/tough-cookie",
+      "vulnerableRevision": "fcc8abfa3d3cab4f99da38f3f3749b1b186eb5a4",
+      "patchedRevision": "f1ed420a6a92ea7a5418df6e39e676556bc0c71d",
+      "metadataPath": "CVEs/CVE-2017-15010.json",
+      "metadataDigest": "138d0a43e8973a494b66e8ab7fc7817572c04a78629443cd22e2bc4c3085253f",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16003",
+      "sourceRecordId": "cve-2017-16003",
+      "repositoryUrl": "https://github.com/felixrieseberg/windows-build-tools",
+      "vulnerableRevision": "3a97ea156d07aaccca101ed8f0a1606eea8dfc2d",
+      "patchedRevision": "9835d33e68f2cb5e4d148e954bb3ed0221d98e90",
+      "metadataPath": "CVEs/CVE-2017-16003.json",
+      "metadataDigest": "5c753e568ca381642c800da13d15de615c137e6eb86bcfe8097717447d332a74",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16006",
+      "sourceRecordId": "cve-2017-16006",
+      "repositoryUrl": "https://github.com/jonschlinkert/remarkable",
+      "vulnerableRevision": "a85cf32cd194d7a12d2155256bd38283e431b26b",
+      "patchedRevision": "6da96c34ca5a3e2ab25ef36a62fe29377bdda9ff",
+      "metadataPath": "CVEs/CVE-2017-16006.json",
+      "metadataDigest": "97653d12ac4ec88b6fead240e4a3c8dd5f7fac6f77b84659019d93f04355d55f",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16011",
+      "sourceRecordId": "cve-2017-16011",
+      "repositoryUrl": "https://github.com/jquery/jquery",
+      "vulnerableRevision": "452e32769d514d835988c544492e4083df2bc1d6",
+      "patchedRevision": "05531fc4080ae24070930d15ae0cea7ae056457d",
+      "metadataPath": "CVEs/CVE-2017-16011.json",
+      "metadataDigest": "7a98a8c3b3e50c4ab54e9fce48eef4192f9dd62ac881529b68db23e077a45186",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16014",
+      "sourceRecordId": "cve-2017-16014",
+      "repositoryUrl": "https://github.com/http-party/node-http-proxy",
+      "vulnerableRevision": "0c71119ee58ee84068120be72308ecb28cb3e532",
+      "patchedRevision": "0e36912906640fdb007e0492b75c3f6a7b580ec6",
+      "metadataPath": "CVEs/CVE-2017-16014.json",
+      "metadataDigest": "49f47992deec92dcd4ef8b20b2f869bd7cfd0bd7481b2850c30eebf51ce1edc3",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16018",
+      "sourceRecordId": "cve-2017-16018",
+      "repositoryUrl": "https://github.com/restify/node-restify",
+      "vulnerableRevision": "893895137b6a54a21ebf88cabe3f275636ef28d7",
+      "patchedRevision": "24c57cef13dced488ca698db72b851cecd687924",
+      "metadataPath": "CVEs/CVE-2017-16018.json",
+      "metadataDigest": "bc75bb4de7d6f39a1c0009a61cf179589a20b295daf75592e7c6230d672453bd",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16023",
+      "sourceRecordId": "cve-2017-16023",
+      "repositoryUrl": "https://github.com/sindresorhus/decamelize",
+      "vulnerableRevision": "18479821851414d91ad3d42d8560adff5969da4b",
+      "patchedRevision": "76d47d8de360afb574da2e34db87430ce11094e0",
+      "metadataPath": "CVEs/CVE-2017-16023.json",
+      "metadataDigest": "588e3e8d8d2d786ca2da09277b5ef993e68d7326bd919840be5c7246089c0f52",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16026",
+      "sourceRecordId": "cve-2017-16026",
+      "repositoryUrl": "https://github.com/request/request",
+      "vulnerableRevision": "85f8235c061f8d0d1697066290a34f43120cb77f",
+      "patchedRevision": "3d31d4526fa4d4e4f59b89cabe194fb671063cdb",
+      "metadataPath": "CVEs/CVE-2017-16026.json",
+      "metadataDigest": "eecb24718b696ee2b98695774de3e06aa558bc7430dd04e1aa06b56dc6fe7fbf",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16028",
+      "sourceRecordId": "cve-2017-16028",
+      "repositoryUrl": "https://github.com/jonschlinkert/randomatic",
+      "vulnerableRevision": "833f31a5aac0b8c2ddd3ae23ab41a0145c2974d0",
+      "patchedRevision": "4a526959b3a246ae8e4a82f9c182180907227fe1",
+      "metadataPath": "CVEs/CVE-2017-16028.json",
+      "metadataDigest": "9a5a50847aeb5945ba2afb49b26ade255287ffe7cd6803f9b25ee32c858c0176",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16029",
+      "sourceRecordId": "cve-2017-16029",
+      "repositoryUrl": "https://github.com/henrytseng/hostr",
+      "vulnerableRevision": "5827ba48fd4a08c26604b97798c57d45fe1cd51e",
+      "patchedRevision": "789a00047459fd80b6f0a9701a1378a47fb73ba8",
+      "metadataPath": "CVEs/CVE-2017-16029.json",
+      "metadataDigest": "697773a06dc0e9c31885495c4c052abad2e56be39b1f23a674fa9e1ecdc214a0",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16030",
+      "sourceRecordId": "cve-2017-16030",
+      "repositoryUrl": "https://github.com/3rd-Eden/useragent",
+      "vulnerableRevision": "50be8cbd7e3b9cbfeaab041de726b5438d07672e",
+      "patchedRevision": "b18cf7c2a13c994ea8d6d0d132feef4eb8193c36",
+      "metadataPath": "CVEs/CVE-2017-16030.json",
+      "metadataDigest": "27ba944c2480ffd8017970e33b5947e50f5140346f9587a9891f372d3ea3c3c9",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16031",
+      "sourceRecordId": "cve-2017-16031",
+      "repositoryUrl": "https://github.com/socketio/socket.io",
+      "vulnerableRevision": "fe6dd874437ccd13e4753c03d7a98e5382d0b0d5",
+      "patchedRevision": "67b4eb9abdf111dfa9be4176d1709374a2b4ded8",
+      "metadataPath": "CVEs/CVE-2017-16031.json",
+      "metadataDigest": "8f76e72f64243eec5cd7bfda6872440251c0db58dc47d4da0ea74f2e8d512c51",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16034",
+      "sourceRecordId": "cve-2017-16034",
+      "repositoryUrl": "https://github.com/soyuka/pidusage",
+      "vulnerableRevision": "e3660d8a8e5e61afad9b02af67356a1e239d6bde",
+      "patchedRevision": "b70eca15f7ca7f1b82a15f8a5d4bb48737f5a89d",
+      "metadataPath": "CVEs/CVE-2017-16034.json",
+      "metadataDigest": "5e516338978be573125276d4bd0084ce9400c43f5e137c1a23b2f1f8c4d11ec4",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16042",
+      "sourceRecordId": "cve-2017-16042",
+      "repositoryUrl": "https://github.com/tj/node-growl",
+      "vulnerableRevision": "dc8aae046df328edd32dd69f3cd2d6b114d7018e",
+      "patchedRevision": "d71177d5331c9de4658aca62e0ac921f178b0669",
+      "metadataPath": "CVEs/CVE-2017-16042.json",
+      "metadataDigest": "53c88ccc876a82ce39fb56fb93ac5a00d23ae0b5326cb0500b6c8abdfd430a9a",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16043",
+      "sourceRecordId": "cve-2017-16043",
+      "repositoryUrl": "https://github.com/erming/shout",
+      "vulnerableRevision": "890c751bb624cde53dc392b2c851cdcd056033c6",
+      "patchedRevision": "ef041d6612e20369bf49b17b8162c57b4955a1cc",
+      "metadataPath": "CVEs/CVE-2017-16043.json",
+      "metadataDigest": "05f67ee0be5df6fb865fe5fa2873461376bf553126607e27cda834772bba7e82",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16082",
+      "sourceRecordId": "cve-2017-16082",
+      "repositoryUrl": "https://github.com/brianc/node-postgres",
+      "vulnerableRevision": "51a28c226519daaa3a2a3971128355d0440d3819",
+      "patchedRevision": "7008bd9ccfe6a21d66f44a4f536004ca3f40bd71",
+      "metadataPath": "CVEs/CVE-2017-16082.json",
+      "metadataDigest": "9a2f617486e2bd610757eed8816c533750085ffd8e6998d120a14b43888cce3e",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16083",
+      "sourceRecordId": "cve-2017-16083",
+      "repositoryUrl": "https://github.com/sandy98/node-simple-router",
+      "vulnerableRevision": "91da4299aee0086cc1e0cc837763578af6f82cea",
+      "patchedRevision": "dfdd52e2e80607af433097d940b3834fd96df488",
+      "metadataPath": "CVEs/CVE-2017-16083.json",
+      "metadataDigest": "5ced88f71edc736739415b97bfcd28f48e511831c627b149574a916c81263813",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16084",
+      "sourceRecordId": "cve-2017-16084",
+      "repositoryUrl": "https://github.com/KoryNunn/list-n-stream",
+      "vulnerableRevision": "87de3f13465e9d4d21eb75be8143cdc4085a19b3",
+      "patchedRevision": "99b0b40b34aaedfcdf25da46bef0a06b9c47fb59",
+      "metadataPath": "CVEs/CVE-2017-16084.json",
+      "metadataDigest": "c17f78d4c9a464d72c254589eba7a8f99207eb03e44f1413b8301ce00384d02e",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16087",
+      "sourceRecordId": "cve-2017-16087",
+      "repositoryUrl": "https://github.com/vvakame/fs-git",
+      "vulnerableRevision": "50b33e3faec0b08183a699efb9b154c0d1495bee",
+      "patchedRevision": "eb5f70efa5cfbff1ab299fa7daaa5de549243998",
+      "metadataPath": "CVEs/CVE-2017-16087.json",
+      "metadataDigest": "1a42004f6cb0fbc565a0d17bcd362ff077e079775d76dcf57423b81dda5ac64c",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16098",
+      "sourceRecordId": "cve-2017-16098",
+      "repositoryUrl": "https://github.com/node-modules/charset",
+      "vulnerableRevision": "5ba8a4942f069d40584cf5a1a7938ff8dc92bcc9",
+      "patchedRevision": "effda0c48c51b47a47f4cad7db0c51ee7407cc1b",
+      "metadataPath": "CVEs/CVE-2017-16098.json",
+      "metadataDigest": "a80482e2dfa4c9dc7ec63f40129ef137251adeb42290242961108295a6fd27cc",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16100",
+      "sourceRecordId": "cve-2017-16100",
+      "repositoryUrl": "https://github.com/skoranga/node-dns-sync",
+      "vulnerableRevision": "b748fe77a87749d95876028eda8e759109be4c73",
+      "patchedRevision": "d9abaae384b198db1095735ad9c1c73d7b890a0d",
+      "metadataPath": "CVEs/CVE-2017-16100.json",
+      "metadataDigest": "33ae11573b25e85be1fa899eb66a2bfac4a28869c5f456ecdbdfe3759e1cdff8",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "openssf-cve-2017-16107",
+      "sourceRecordId": "cve-2017-16107",
+      "repositoryUrl": "https://github.com/Eeems/PooledWebSocket",
+      "vulnerableRevision": "d51217a285c1dc5851743d0756cc43c35d12737c",
+      "patchedRevision": "7b3b4e5c6be6d8a964296fa3c50e38dc07e9701d",
+      "metadataPath": "CVEs/CVE-2017-16107.json",
+      "metadataDigest": "b307418878847987998922a50c45da6871765401cc2a644b494db88d743e749d",
+      "sourceLicenseStatus": "unverified"
+    }
+  ],
+  "registryDigest": "2114385006ef83e51b92f714818091280e5c1f7b93537d541ec7a8fbc249b9ed"
+}

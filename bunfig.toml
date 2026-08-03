@@ -1,0 +1,4 @@
+[test]
+coverage = true
+coverageDir = "coverage"
+timeout = 10000

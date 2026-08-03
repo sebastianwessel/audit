@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+coverage/
+output/
+tmp/
+.turbo/
+.cache/
+artifacts/runs/
+artifacts/reports/
+artifacts/tmp/
+.security-review-artifacts/
+evaluation/runs/
+*.log
+.DS_Store

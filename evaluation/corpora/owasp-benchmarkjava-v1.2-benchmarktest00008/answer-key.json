@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "caseId": "owasp-benchmarkjava-v1.2-benchmarktest00008",
+  "variant": "vulnerable",
+  "expectedLabel": "finding",
+  "category": "injection",
+  "cwes": ["CWE-89"],
+  "priority": "high",
+  "expectedLocations": [
+    {
+      "path": "source/BenchmarkTest00008.java",
+      "startLine": 52,
+      "endLine": 58,
+      "locationTolerance": 1,
+      "role": "request-derived-sql-concatenation-and-execution"
+    }
+  ],
+  "adjudication": {
+    "basis": "OWASP Benchmark expectedresults-1.2.csv record BenchmarkTest00008,sqli,true,89",
+    "notes": "The request header reaches a concatenated callable-statement SQL string. Do not run the servlet, connect to a database, or use benchmark execution scripts."
+  }
+}

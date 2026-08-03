@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 1,
+  "registryId": "cwe-bench-java-candidate-pilot",
+  "source": {
+    "datasetId": "cwe-bench-java",
+    "title": "CWE-Bench-Java",
+    "sourceUrl": "https://github.com/iris-sast/cwe-bench-java",
+    "revision": "afe0ebd0adc237abb46255f9cd479b1d71819136",
+    "license": "MIT",
+    "retrievedAt": "2026-07-31T08:00:00.000Z",
+    "attribution": "Metadata reservoir for private source-pair research. Its build, fetch, patch, and advisory materials are outside this static-review acquisition path."
+  },
+  "candidates": [
+    {
+      "candidateId": "cwe-bench-java-cve-2016-10726",
+      "sourceRecordId": "cve-2016-10726",
+      "repositoryUrl": "https://github.com/DSpace/DSpace",
+      "vulnerableRevision": "ca4c86b1baa4e0b07975b1da86a34a6e7170b3b7",
+      "patchedRevision": "4239abd2dd2ae0dedd7edc95a5c9f264fdcf639d",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2016-9177",
+      "sourceRecordId": "cve-2016-9177",
+      "repositoryUrl": "https://github.com/perwendel/spark",
+      "vulnerableRevision": "ce57dfb949ed183405f75dee8cf3262b45c9b3b5",
+      "patchedRevision": "efcb46c710e3f56805b9257a63d1306882f4faf9",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2018-1000850",
+      "sourceRecordId": "cve-2018-1000850",
+      "repositoryUrl": "https://github.com/square/retrofit",
+      "vulnerableRevision": "7158698314daa138e993fac6a590ed19d78a8599",
+      "patchedRevision": "b9a7f6ad72073ddd40254c0058710e87a073047d",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2018-12542",
+      "sourceRecordId": "cve-2018-12542",
+      "repositoryUrl": "https://github.com/vert-x3/vertx-web",
+      "vulnerableRevision": "3fe3873cc28b4d833c90f8989ff797a7b463da2c",
+      "patchedRevision": "57a65dce6f4c5aa5e3ce7288685e7f3447eb8f3b",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2018-17297",
+      "sourceRecordId": "cve-2018-17297",
+      "repositoryUrl": "https://github.com/dromara/hutool",
+      "vulnerableRevision": "7687720c5125b29386d3bb9c7c2931da79664b73",
+      "patchedRevision": "8d7d0b7fb5ea4f7447b40131bffc1ec506a6528e",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2019-0194",
+      "sourceRecordId": "cve-2019-0194",
+      "repositoryUrl": "https://github.com/apache/camel",
+      "vulnerableRevision": "757bc836d1d9ed11d11de73c5dc72fc53617d6a0",
+      "patchedRevision": "5b64969d37cf2906efd4623cfd473041ce5132fd",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2019-0207",
+      "sourceRecordId": "cve-2019-0207",
+      "repositoryUrl": "https://github.com/apache/tapestry-5",
+      "vulnerableRevision": "d29cc6778eb0c75e45139274005bba1c4f58907f",
+      "patchedRevision": "6dd7219fd4707467a36091e2f7f5f6460c619099",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2019-0225",
+      "sourceRecordId": "cve-2019-0225",
+      "repositoryUrl": "https://github.com/apache/jspwiki",
+      "vulnerableRevision": "d48bcef107a14dd07ecd830ab817b8df796082a4",
+      "patchedRevision": "88d89d6523802c044cfcb7930cba40d8eeb21da2",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2019-17572",
+      "sourceRecordId": "cve-2019-17572",
+      "repositoryUrl": "https://github.com/apache/rocketmq",
+      "vulnerableRevision": "d1b4e47c26576cf4fa543bbdd8c6f09643220bed",
+      "patchedRevision": "f8f6fbe4aa7f5dee937e688322628c366b12a552",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2020-17519",
+      "sourceRecordId": "cve-2020-17519",
+      "repositoryUrl": "https://github.com/apache/flink",
+      "vulnerableRevision": "fe3613574f76201a8d55d572a639a4ce7e18a9db",
+      "patchedRevision": "b561010b0ee741543c3953306037f00d7a9f0801",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2020-35460",
+      "sourceRecordId": "cve-2020-35460",
+      "repositoryUrl": "https://github.com/joniles/mpxj",
+      "vulnerableRevision": "87ea0ba33e901b87c95a18e3703ac51b59e2ee04",
+      "patchedRevision": "8eaf4225048ea5ba7e59ef4556dab2098fcc4a1d",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    },
+    {
+      "candidateId": "cwe-bench-java-cve-2020-5410",
+      "sourceRecordId": "cve-2020-5410",
+      "repositoryUrl": "https://github.com/spring-cloud/spring-cloud-config",
+      "vulnerableRevision": "91843a9ddc7489275b679568bfce1e4c37af71e1",
+      "patchedRevision": "03eaadc25323d8c8c89f528e8585033ed90c50f6",
+      "metadataPath": "data/project_info.csv",
+      "metadataDigest": "8c9c1c5c3ad69152007d923f29939b43f19c85ecbb8f4beff1184a17f1197b0b",
+      "sourceLicenseStatus": "unverified"
+    }
+  ],
+  "registryDigest": "33fd425e1f44e97a360ac3756762c51f4f706488ccfcc4b1623c082f7268cb88"
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "offline-source-corpus-case",
+  "status": "ready",
+  "caseId": "owasp-benchmarkjava-v1.2-benchmarktest00008",
+  "track": "java-synthetic-taxonomy",
+  "sourceLanguage": "java",
+  "difficulty": "easy",
+  "taxonomy": {
+    "category": "injection",
+    "cwes": ["CWE-89"],
+    "benchmarkCategory": "sqli"
+  },
+  "retrievalDate": "2026-07-27",
+  "provenance": {
+    "dataset": "OWASP Benchmark Java",
+    "upstreamRepository": "https://github.com/OWASP-Benchmark/BenchmarkJava",
+    "upstreamCommit": "79b9bd6177e07991a9c11dc19e457c840e229931",
+    "upstreamVersion": "OWASP Benchmark v1.2",
+    "upstreamLicense": {
+      "spdx": "GPL-2.0-only",
+      "evidenceUrl": "https://raw.githubusercontent.com/OWASP-Benchmark/BenchmarkJava/79b9bd6177e07991a9c11dc19e457c840e229931/LICENSE",
+      "evidenceSha256": "c03cea027b4b40e4402fabd08557736727ec3d5bc54ad64ab6472de432198cad"
+    },
+    "expectedResults": {
+      "path": "expectedresults-1.2.csv",
+      "record": "BenchmarkTest00008,sqli,true,89",
+      "url": "https://raw.githubusercontent.com/OWASP-Benchmark/BenchmarkJava/79b9bd6177e07991a9c11dc19e457c840e229931/expectedresults-1.2.csv",
+      "sha256": "1809f6a690c6cf7dd6685df6ebe2eef8fe3ca93d19a7ca0ce45987ca4f5d78e1"
+    }
+  },
+  "snapshots": [
+    {
+      "variant": "vulnerable",
+      "path": "source/BenchmarkTest00008.java",
+      "upstreamPath": "src/main/java/org/owasp/benchmark/testcode/BenchmarkTest00008.java",
+      "upstreamUrl": "https://raw.githubusercontent.com/OWASP-Benchmark/BenchmarkJava/79b9bd6177e07991a9c11dc19e457c840e229931/src/main/java/org/owasp/benchmark/testcode/BenchmarkTest00008.java",
+      "sha256": "9bc49dbe491a39162c97b0c43b8ce5e42a4de5c0552c52117b1a51b0a541dfbe"
+    }
+  ],
+  "scope": {
+    "sourceOnly": true,
+    "targetExecution": "prohibited",
+    "omittedDependencies": ["javax.servlet APIs", "org.owasp.benchmark.helpers.DatabaseHelper"]
+  },
+  "notes": "The authoritative expected-results record marks this Java source case as a real SQL injection vulnerability. It is intentionally stored without application dependencies because this corpus is static-review evidence only."
+}

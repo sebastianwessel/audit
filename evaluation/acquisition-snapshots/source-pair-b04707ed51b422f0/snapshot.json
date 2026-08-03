@@ -1,0 +1,4343 @@
+{
+  "schemaVersion": 1,
+  "snapshotId": "source-pair-b04707ed51b422f0",
+  "candidateRegistryId": "osv-go-candidate-pilot",
+  "candidateRegistryDigest": "718e3b6e8f6e66d34cf5ecf84d2f6323b6cf719a39b110fc575d487bf27b9988",
+  "candidateId": "osv-cve-2026-34165-go-git",
+  "sourceRecordId": "cve-2026-34165",
+  "repositoryUrl": "https://github.com/go-git/go-git",
+  "sourceLicenseStatus": "unverified",
+  "capturedAt": "2026-07-31T13:22:12.009Z",
+  "variants": {
+    "vulnerable": {
+      "revision": "9d0f15c4fa712cdacfa3887e9baac918f093fbf6",
+      "directory": "vulnerable",
+      "files": [
+        {
+          "path": "_examples/branch/main.go",
+          "mode": "100644",
+          "digest": "b89c85704a9e7fca1b45634978170caf495b35dd0954f243c0b27f0f2c573c45"
+        },
+        {
+          "path": "_examples/checkout/main.go",
+          "mode": "100644",
+          "digest": "09ef0837345420982f760037bc837f2b2476fbdae37de5ec07aac768c8f697ce"
+        },
+        {
+          "path": "_examples/clone/auth/basic/access_token/main.go",
+          "mode": "100644",
+          "digest": "ce4483622e669dd4cb38938f6fa674ecd471cc45c5d538f0daa53aab9d03803f"
+        },
+        {
+          "path": "_examples/clone/auth/basic/username_password/main.go",
+          "mode": "100644",
+          "digest": "466c280041bb96315774fa6a1af1db765860f078b27540e45b9d6da8e3b06001"
+        },
+        {
+          "path": "_examples/clone/main.go",
+          "mode": "100644",
+          "digest": "1562211fe546d3cda794f183234ddc49e044b04d39b9ebc665c619ea756bf761"
+        },
+        {
+          "path": "_examples/commit/main.go",
+          "mode": "100644",
+          "digest": "f41c69c655145e907e5e8303bbc8d9a82cde5f98bc023da11f8f5a9b51281f9b"
+        },
+        {
+          "path": "_examples/common_test.go",
+          "mode": "100644",
+          "digest": "546af575e17b13932581fd454f8ea23b744f67a2130a6bcce9ad058461caf870"
+        },
+        {
+          "path": "_examples/common.go",
+          "mode": "100644",
+          "digest": "26aed227c7e5321a756685d7e8fa595479ab9af7b0c21c5c5e1b8897e6dd451e"
+        },
+        {
+          "path": "_examples/context/main.go",
+          "mode": "100644",
+          "digest": "a6a34b921b613fdd59bcd397e890b52b26307765c33e772b33722460b2ba33ca"
+        },
+        {
+          "path": "_examples/custom_http/main.go",
+          "mode": "100644",
+          "digest": "7f7bb5754dfac37956ee8dd0688b366365aeadee6783f63495913237dd8dec97"
+        },
+        {
+          "path": "_examples/log/main.go",
+          "mode": "100644",
+          "digest": "dcc27513ac72c4b642a3bdc0e9b07a6f3861d6ee39d8dc45202165eccadf3093"
+        },
+        {
+          "path": "_examples/ls-remote/main.go",
+          "mode": "100644",
+          "digest": "161aa7ef45b706aff57dc97095eeff7f19366301e4f428d5964e95d4eefcf91a"
+        },
+        {
+          "path": "_examples/ls/main.go",
+          "mode": "100644",
+          "digest": "3a7e0d6c2b41af817eae08c2235ad9d3e003fd46b3982dc374bf5187d7adec0f"
+        },
+        {
+          "path": "_examples/merge_base/help-long.msg.go",
+          "mode": "100644",
+          "digest": "8e44c1093268124559cb943b8f7380d8165357d67aa0d66d5d1771ba35f1ebec"
+        },
+        {
+          "path": "_examples/merge_base/helpers.go",
+          "mode": "100644",
+          "digest": "ef01fb5f3a3c7a3bfc582af0c179798cf9af105737ddb12a397136f075f7ae5d"
+        },
+        {
+          "path": "_examples/merge_base/main.go",
+          "mode": "100644",
+          "digest": "f9d8c8ce2ab1482492c6edd38923845a5043fc86361d373c9f54504a43256e44"
+        },
+        {
+          "path": "_examples/open/main.go",
+          "mode": "100644",
+          "digest": "4d3856b3b70d042db206c90098c7458f1bf536b8ac4e8eb8e09a972cb84c4b95"
+        },
+        {
+          "path": "_examples/progress/main.go",
+          "mode": "100644",
+          "digest": "1470c63e103111faecae000ba1021a83079b68d237dc029c47c85659aee09576"
+        },
+        {
+          "path": "_examples/pull/main.go",
+          "mode": "100644",
+          "digest": "2bb5884b1d1c7711ae3ffee16b25445d17eed279f06a94aeee56dc4b62bf301c"
+        },
+        {
+          "path": "_examples/push/main.go",
+          "mode": "100644",
+          "digest": "09c494ca6fa63fc14f65b5ed7337ab96af81f81fd1285f9536cff0217cb8cfc3"
+        },
+        {
+          "path": "_examples/README.md",
+          "mode": "100644",
+          "digest": "d4e9cee6072ee5580fb8f582fcf5a930b285471c9cfbfc85181cf8acd0b28d1d"
+        },
+        {
+          "path": "_examples/remotes/main.go",
+          "mode": "100644",
+          "digest": "ead81b6432cdc6a5b3bff2526eee20d5f859e72ca5e5b52e0359614f93fd7970"
+        },
+        {
+          "path": "_examples/revision/main.go",
+          "mode": "100644",
+          "digest": "4c79bfb274c9649fe33116e2db13ec4a409d0fbe41187f3904853dd934b49f93"
+        },
+        {
+          "path": "_examples/showcase/main.go",
+          "mode": "100644",
+          "digest": "0326ab465e3078cd096c62ef4044d932da7b3a976cf0f54ba2e450a4c248b761"
+        },
+        {
+          "path": "_examples/storage/README.md",
+          "mode": "100644",
+          "digest": "8a501d5616fd97a15bca2610215b45e236e3c395f16474c42d1da7c1981eb252"
+        },
+        {
+          "path": "_examples/tag/main.go",
+          "mode": "100644",
+          "digest": "e97d869250352106b5f086e7da4293065715efa62c02686dc61b03300051550b"
+        },
+        {
+          "path": ".github/workflows/test.yml",
+          "mode": "100644",
+          "digest": "44b58d0b914fe6abc15588313364706faca5552fa4bd954f45ad378136d51ddf"
+        },
+        {
+          "path": ".gitignore",
+          "mode": "100644",
+          "digest": "f8664031f274631b608a3806032b32ce67f11ae7ae2545d26dc78c21bb5711c4"
+        },
+        {
+          "path": "blame_test.go",
+          "mode": "100644",
+          "digest": "9d838bd99ff7c95324c838d06692b5b7159eb4bcfcbcb171b08c0a617c448138"
+        },
+        {
+          "path": "blame.go",
+          "mode": "100644",
+          "digest": "25becc1b858fa5c99c37fc707341125d64b4652ba47feaeed4465c75fdb614f6"
+        },
+        {
+          "path": "cli/go-git/main.go",
+          "mode": "100644",
+          "digest": "c73dc512743613057022cf32a68a8757959363423e7da0efca9be61b3063727d"
+        },
+        {
+          "path": "cli/go-git/receive_pack.go",
+          "mode": "100644",
+          "digest": "60bfbd96f0bb2d306b85abe67de6bc11798f3a040048cecd61132a0ddbd47a57"
+        },
+        {
+          "path": "cli/go-git/upload_pack.go",
+          "mode": "100644",
+          "digest": "c040f96a83fd7c57fc84a8e705978fe2a08b294f7afb428bad5415294094ad0e"
+        },
+        {
+          "path": "cli/go-git/version.go",
+          "mode": "100644",
+          "digest": "09f102ec67797133ae185443408eade2672b73efc9e7cff79dedfc4c9e1c1403"
+        },
+        {
+          "path": "CODE_OF_CONDUCT.md",
+          "mode": "100644",
+          "digest": "a6019defb84a67df55b59e58380b22432c73f41bcad27b6f5f2614c0760538d0"
+        },
+        {
+          "path": "common_test.go",
+          "mode": "100644",
+          "digest": "73bfe100472aa20c9b42c0e61df5ebd55401a1f6e5a443f61cb7ed547f8195ad"
+        },
+        {
+          "path": "common.go",
+          "mode": "100644",
+          "digest": "b83ba5eac1e209dba48427d5ccff75a5d619d5604c966392cc36905c67bb2a64"
+        },
+        {
+          "path": "COMPATIBILITY.md",
+          "mode": "100644",
+          "digest": "b03e1d516789eabc3e020d42313f7bd2544de9939466ffc3a4db0415c0ca513a"
+        },
+        {
+          "path": "config/branch_test.go",
+          "mode": "100644",
+          "digest": "bb12c76bcdaaf42c4620634b2602735f4cc14bcb7c7e6e25756703144eb0db1e"
+        },
+        {
+          "path": "config/branch.go",
+          "mode": "100644",
+          "digest": "482a4bf4d0bb2f6d360e0c498b72f789286485712d11b9ee23d58ec3b45b4cab"
+        },
+        {
+          "path": "config/config_test.go",
+          "mode": "100644",
+          "digest": "e7d6e9f7435c7f639c06fb2f7af5fca79a58fbf3fb55a90ffcd0eda8e1ac63da"
+        },
+        {
+          "path": "config/config.go",
+          "mode": "100644",
+          "digest": "abea0c6ecdcbcf3fcc0b887fa6f61b60b64825adb53a76bea22cce36a28d27f9"
+        },
+        {
+          "path": "config/modules_test.go",
+          "mode": "100644",
+          "digest": "9b09fbd84fc24284160b927d6664dc0ac960213f1db5c5efec6178facf377c27"
+        },
+        {
+          "path": "config/modules.go",
+          "mode": "100644",
+          "digest": "410ca6650aa0b514affc508e7429ade73b88a70229041face72c3abf7d565b5d"
+        },
+        {
+          "path": "config/refspec_test.go",
+          "mode": "100644",
+          "digest": "55959d2ab23dd53c8810183a08092f187106240fee05ee96c55f27a638e81dda"
+        },
+        {
+          "path": "config/refspec.go",
+          "mode": "100644",
+          "digest": "1a3e2f9ecbc81a5449cad581de5616803e4afd6647a919ea602fdbfcebe5e3f5"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "mode": "100644",
+          "digest": "13767b5b3d9bf171c9db9537c4777dd56161b82eb9ef64260ac7551b3669d754"
+        },
+        {
+          "path": "doc.go",
+          "mode": "100644",
+          "digest": "aa95db1db2df91bd7200a892dd1c03bc2704c4793400d016b3ca08c148b0f7c1"
+        },
+        {
+          "path": "example_test.go",
+          "mode": "100644",
+          "digest": "f03afed0ec28942d3594652e117ea19a4593b38364746cfcdb487f8332571d9f"
+        },
+        {
+          "path": "go.mod",
+          "mode": "100644",
+          "digest": "f7dc50ba5a49b3837e52c58b06051c9ab23838016103c216fd7e06e2b47bcf8a"
+        },
+        {
+          "path": "go.sum",
+          "mode": "100644",
+          "digest": "125f9727744d77c56b5dbe37d7955bf56e93ce1e11af10a57abb20f92947352e"
+        },
+        {
+          "path": "internal/revision/parser_test.go",
+          "mode": "100644",
+          "digest": "24da0dbda523931abf82bdfe83945c1ed60e58ba8fb301d94b68b14cf4d34569"
+        },
+        {
+          "path": "internal/revision/parser.go",
+          "mode": "100644",
+          "digest": "6c2cb56304330aeca708a59914ea58901b8aac2e1184b3c905ca7675dde73d35"
+        },
+        {
+          "path": "internal/revision/scanner_test.go",
+          "mode": "100644",
+          "digest": "16de1bab773dc212e3bfca54536284f6b46748569747b3fe5d858349b8762de3"
+        },
+        {
+          "path": "internal/revision/scanner.go",
+          "mode": "100644",
+          "digest": "afd583edee31ef8b4c8d87430f55653a01ff6bb28652d5459fe00235629dcedf"
+        },
+        {
+          "path": "internal/revision/token.go",
+          "mode": "100644",
+          "digest": "a784a592548b0afc0bc576adf6ca1c91b01172d1446294f17c408a14bab5ee84"
+        },
+        {
+          "path": "internal/url/url_test.go",
+          "mode": "100755",
+          "digest": "225dc2e767836af1a43372d10e6e99d3f701101e263da0938fb37d05a6705114"
+        },
+        {
+          "path": "internal/url/url.go",
+          "mode": "100644",
+          "digest": "3f5314bc7949b8b5531f97ef56a7c0a614a8f3d562a5756b63b118000df20f0a"
+        },
+        {
+          "path": "LICENSE",
+          "mode": "100644",
+          "digest": "fecc274e9b67f7e128c7d2ba1ad68fcf23b18fe0448d3c3671e943763502d504"
+        },
+        {
+          "path": "Makefile",
+          "mode": "100644",
+          "digest": "3acc0764d38ea948105794c743eb46457e3d9c0e2cd8dd42d0e589f2ad8fc260"
+        },
+        {
+          "path": "object_walker.go",
+          "mode": "100644",
+          "digest": "d0f8c768962418d5dc14ec713939f3a41e51e97296c66dbed6e2e69a58e231eb"
+        },
+        {
+          "path": "options_test.go",
+          "mode": "100644",
+          "digest": "6722a347782e68fd21957ce03266dcba5e996189913268326a369c9f7e34fb2a"
+        },
+        {
+          "path": "options.go",
+          "mode": "100644",
+          "digest": "27fecdb2d7b0c4a4a950c50db929f45a7f6214354ea23fdf074afa58a4a62e75"
+        },
+        {
+          "path": "plumbing/cache/buffer_lru.go",
+          "mode": "100644",
+          "digest": "e6d478e2a0bc49c1af61daac07ea30394a2ff829b8b62bd3e4cdbc13ea70378c"
+        },
+        {
+          "path": "plumbing/cache/buffer_test.go",
+          "mode": "100644",
+          "digest": "f6bc9599433180e5d8112d3523ec93d3e34a9c0cba9898ff010e525af5f57fc6"
+        },
+        {
+          "path": "plumbing/cache/common.go",
+          "mode": "100644",
+          "digest": "6dfd925f2ce55420dda8203b7bd2c3c07a4db73780c605417a1d56588cc9a3a4"
+        },
+        {
+          "path": "plumbing/cache/object_lru.go",
+          "mode": "100644",
+          "digest": "9b2e44f73c28eead22316c45aff5329afc609ad26f13da46442ec63afbf0a80b"
+        },
+        {
+          "path": "plumbing/cache/object_test.go",
+          "mode": "100644",
+          "digest": "a9a18ce1a4c184534e0794e609552dbaaebab21c834f9b23f96612eaf22ca8c0"
+        },
+        {
+          "path": "plumbing/error.go",
+          "mode": "100644",
+          "digest": "47064cd6c8dff6c1d039b54eb4516430eb6c81df7162074930832be8c49e6492"
+        },
+        {
+          "path": "plumbing/filemode/filemode_test.go",
+          "mode": "100644",
+          "digest": "aabcc88137bf161eda4613265f7739ecc817ed7daed5e85135cc5b8aa5ac6f8c"
+        },
+        {
+          "path": "plumbing/filemode/filemode.go",
+          "mode": "100644",
+          "digest": "58b24d7aa1e0a10476dc13d545e3277940dd5acc9b23fb4591126200e15a8844"
+        },
+        {
+          "path": "plumbing/format/commitgraph/commitgraph_test.go",
+          "mode": "100644",
+          "digest": "b622fa6cc3001367d40bb299a11b20ca5d57deb2ccd3957242e9862324eec295"
+        },
+        {
+          "path": "plumbing/format/commitgraph/commitgraph.go",
+          "mode": "100644",
+          "digest": "527e431661ea00c67dfc01f3b9680a24baf42cfdc8d3845a8339741cb7441cca"
+        },
+        {
+          "path": "plumbing/format/commitgraph/doc.go",
+          "mode": "100644",
+          "digest": "ebed45974e04a0a7cc1f2b080a1140cc1d7b798902b82bb41c2465ba2afb66e3"
+        },
+        {
+          "path": "plumbing/format/commitgraph/encoder.go",
+          "mode": "100644",
+          "digest": "3af4ac5fe90c185d82290f976050addca218d5fc4d801ea8097e929e93c7b83e"
+        },
+        {
+          "path": "plumbing/format/commitgraph/file.go",
+          "mode": "100644",
+          "digest": "290fe8506af86550d6af1539c7b94f1b556e2151c3df8a6276ca7c1bfa083fb1"
+        },
+        {
+          "path": "plumbing/format/commitgraph/memory.go",
+          "mode": "100644",
+          "digest": "850796f4bd9f028ec92e6112fea62fbded0a0153d4460400dd9071508ee205aa"
+        },
+        {
+          "path": "plumbing/format/config/common_test.go",
+          "mode": "100644",
+          "digest": "f65a0438634c20a7a2fe759b661ccc2f07bad289b40ed18033da339d6a824318"
+        },
+        {
+          "path": "plumbing/format/config/common.go",
+          "mode": "100644",
+          "digest": "1cff0987884f53b96c601c6c88ab28b0175bba8d136237b0c3aea9a3f0c32656"
+        },
+        {
+          "path": "plumbing/format/config/decoder_test.go",
+          "mode": "100644",
+          "digest": "c7752afcf9d274b761c561b8f505008c4f10206310d5cef4e2abf2637761c0e9"
+        },
+        {
+          "path": "plumbing/format/config/decoder.go",
+          "mode": "100644",
+          "digest": "e5878190c8e2c5f7c5a145ac68b925b2c751684f9b120a2c9f186a3b5ac9df81"
+        },
+        {
+          "path": "plumbing/format/config/doc.go",
+          "mode": "100644",
+          "digest": "e318f1a9de52ced2a93cebd276028f3fc06043a1ab957b74b61e9c316daff267"
+        },
+        {
+          "path": "plumbing/format/config/encoder_test.go",
+          "mode": "100644",
+          "digest": "721fef16fa89ae4f3fac458c2589a9c3c88f9a0836bdc7d15acb668ed07d7d37"
+        },
+        {
+          "path": "plumbing/format/config/encoder.go",
+          "mode": "100644",
+          "digest": "dd1eec2603a245635be6d50f1e2292b6455b6e047341d7c2c0c1baef111e9aee"
+        },
+        {
+          "path": "plumbing/format/config/fixtures_test.go",
+          "mode": "100644",
+          "digest": "26dbb021612bd720a2c2a6c95da448ddc9f076b3293382cae7f58c72dc2f15eb"
+        },
+        {
+          "path": "plumbing/format/config/option_test.go",
+          "mode": "100644",
+          "digest": "7006e510df054eeae851fb4d2b56cf1299f62f2d164b59c61d00497bd03baf5e"
+        },
+        {
+          "path": "plumbing/format/config/option.go",
+          "mode": "100644",
+          "digest": "343af3f339a68ed214cbc0b4b9953a823d7d8433b3159cba2705f477b11960fe"
+        },
+        {
+          "path": "plumbing/format/config/section_test.go",
+          "mode": "100644",
+          "digest": "40cf91c205be89b6e9282eaaaf052edeb074c553d7c774a59af34b8551201c91"
+        },
+        {
+          "path": "plumbing/format/config/section.go",
+          "mode": "100644",
+          "digest": "b9107b020f01af74003bd0856fb4e3943d748162172f71ec203f9f9c391f8079"
+        },
+        {
+          "path": "plumbing/format/diff/patch.go",
+          "mode": "100644",
+          "digest": "f0fc170bfe7e88b196af1a98f2776bf59bb5cd699466c6f31cd35dd6f346344c"
+        },
+        {
+          "path": "plumbing/format/diff/unified_encoder_test.go",
+          "mode": "100644",
+          "digest": "7ca3f1f431f314606bd502347567f17f78339ad73037c24766a60eeacf26089b"
+        },
+        {
+          "path": "plumbing/format/diff/unified_encoder.go",
+          "mode": "100644",
+          "digest": "c10df605cfaae8e13d4569a27a3bf14a8c8d9eaef24669fd6f1ac96c59dbde85"
+        },
+        {
+          "path": "plumbing/format/gitattributes/attributes_test.go",
+          "mode": "100644",
+          "digest": "05cddac9d8196ab34ea1019fbc1fb356f828ecc555b79443a5647760e4c09b85"
+        },
+        {
+          "path": "plumbing/format/gitattributes/attributes.go",
+          "mode": "100644",
+          "digest": "67a0e1bb45816f574949a714d715c21dc37ccc378c0d27276e40efc9cd8e8f48"
+        },
+        {
+          "path": "plumbing/format/gitattributes/dir_test.go",
+          "mode": "100644",
+          "digest": "05af3361920dcadb6e49498c854b4d1ee1ebc5162f66f7ad286ce8dee802c949"
+        },
+        {
+          "path": "plumbing/format/gitattributes/dir.go",
+          "mode": "100644",
+          "digest": "6456977ebe2b7f11364510e6b4f2cad5727003baaa9e9dd9d4c2ccdb43162381"
+        },
+        {
+          "path": "plumbing/format/gitattributes/matcher_test.go",
+          "mode": "100644",
+          "digest": "36a0ef7b8610c35105f849a6285d45f99d7fffd7f24ee40b170ca41bde971c32"
+        },
+        {
+          "path": "plumbing/format/gitattributes/matcher.go",
+          "mode": "100644",
+          "digest": "3462e933f3b953104cd8f680ff7707deb6e39afb37506183384a2393b1405a01"
+        },
+        {
+          "path": "plumbing/format/gitattributes/pattern_test.go",
+          "mode": "100644",
+          "digest": "f6b0945a6c22b17cdd3d9017b662d23cf0f649f8189e7e719177d34f63a3246e"
+        },
+        {
+          "path": "plumbing/format/gitattributes/pattern.go",
+          "mode": "100644",
+          "digest": "a7a7571411264ae064e6260e7e8dee9025cebb613e0cac2c02a18ffcd2e8a78a"
+        },
+        {
+          "path": "plumbing/format/gitignore/dir_test.go",
+          "mode": "100644",
+          "digest": "f7e6175924462dfcb4507045f93317a83db154ec3978f97f5a89c009dce4963b"
+        },
+        {
+          "path": "plumbing/format/gitignore/dir.go",
+          "mode": "100644",
+          "digest": "ce21b805a88260db4a0c8ee9e5d0c4697af174a365b43a612f7f4a14e7d5360e"
+        },
+        {
+          "path": "plumbing/format/gitignore/doc.go",
+          "mode": "100644",
+          "digest": "28d8cc28e3793361bfe9d069d346541060f60d369af6eb004f4e09336f08f65d"
+        },
+        {
+          "path": "plumbing/format/gitignore/matcher_test.go",
+          "mode": "100644",
+          "digest": "b796ee14803430b90a83380ab19e8e3ddf28b5bbd183f4d2b8208ab8e176b9a1"
+        },
+        {
+          "path": "plumbing/format/gitignore/matcher.go",
+          "mode": "100644",
+          "digest": "e104fc611ae78c88a9202fce457ef6ced879982c1d6eb179fd828996e06e69f3"
+        },
+        {
+          "path": "plumbing/format/gitignore/pattern_test.go",
+          "mode": "100644",
+          "digest": "47e4dce0d19d8ee9be8852a936fd1e329da087208f744efc37e06941b28fd819"
+        },
+        {
+          "path": "plumbing/format/gitignore/pattern.go",
+          "mode": "100644",
+          "digest": "af6c40599e47bae89d447c8ba150e89bbb2a8e781317fae0794ccf8520823ae1"
+        },
+        {
+          "path": "plumbing/format/idxfile/decoder_test.go",
+          "mode": "100644",
+          "digest": "276e55b08f41a317941fe3750e31c7acd4bb3be472ff45956556d80a596b0fd3"
+        },
+        {
+          "path": "plumbing/format/idxfile/decoder.go",
+          "mode": "100644",
+          "digest": "5c82735d452ecfeee2368691c4c76eb43790de63aadea231111a1edc52b56be5"
+        },
+        {
+          "path": "plumbing/format/idxfile/doc.go",
+          "mode": "100644",
+          "digest": "e3a60b1122f25e79f3785d94f095485df05675c40549ec992ad377127a06ecf4"
+        },
+        {
+          "path": "plumbing/format/idxfile/encoder_test.go",
+          "mode": "100644",
+          "digest": "d4c744b3f589c0131204390ca4a6c3e2506f1f72e7460ca7cc99e8477b3d2b06"
+        },
+        {
+          "path": "plumbing/format/idxfile/encoder.go",
+          "mode": "100644",
+          "digest": "9fa5d1635850f50b2eb0ddb7554c33a5efa9f65113ed80bc6dcd3cb397dab56b"
+        },
+        {
+          "path": "plumbing/format/idxfile/idxfile_test.go",
+          "mode": "100644",
+          "digest": "84e0764923a30e9693d7224b44011254a984dc69dc6b3d641363be828930a4af"
+        },
+        {
+          "path": "plumbing/format/idxfile/idxfile.go",
+          "mode": "100644",
+          "digest": "03bd79749d9f9550760005fada2c3f42078ba501f9bfc64e28cc6234ef939c2b"
+        },
+        {
+          "path": "plumbing/format/idxfile/writer_test.go",
+          "mode": "100644",
+          "digest": "97d929c2ce3763fa8ae0582ba43a8bf460aea843a932c2a42d36516f6b0915c9"
+        },
+        {
+          "path": "plumbing/format/idxfile/writer.go",
+          "mode": "100644",
+          "digest": "a1d1d7d235446de2593e6a18081959c0e4236a1cf54f264b9c0d63b64d107ffc"
+        },
+        {
+          "path": "plumbing/format/index/decoder_test.go",
+          "mode": "100644",
+          "digest": "747f58ca237028209798ed308fe34c5eb803a9c2f4933ee74532ca48252ccc1f"
+        },
+        {
+          "path": "plumbing/format/index/decoder.go",
+          "mode": "100644",
+          "digest": "81f37072d7b91e05d3113e6eff340feec5e5ff2ea3df31b32b50590b8d8fa827"
+        },
+        {
+          "path": "plumbing/format/index/doc.go",
+          "mode": "100644",
+          "digest": "60cb8dff36e1fd29cb22136d081e54e0d56af2ccf7a0c51e31bcf82cb8a6fde7"
+        },
+        {
+          "path": "plumbing/format/index/encoder_test.go",
+          "mode": "100644",
+          "digest": "7c81c375a1ec2a0ffc5523a7f0554d819e092adc11b1bfddc5eccb7825ec50d7"
+        },
+        {
+          "path": "plumbing/format/index/encoder.go",
+          "mode": "100644",
+          "digest": "408f8732d04e2725861799a0335fae8d06fd46ca66ed97f3a8b2455fe35056c2"
+        },
+        {
+          "path": "plumbing/format/index/index_test.go",
+          "mode": "100644",
+          "digest": "aa53cd63a8347fc3adb46682bc09779d0bee67df95748f4271ace608ef55b439"
+        },
+        {
+          "path": "plumbing/format/index/index.go",
+          "mode": "100644",
+          "digest": "5edd116680ddad18b92d5855cf3a048e69bf92aab6a53b9d7b9e54e5d80f9131"
+        },
+        {
+          "path": "plumbing/format/index/match.go",
+          "mode": "100644",
+          "digest": "ace8dd9a7241447803707fe788b8f1d711f81139dffff0020ac33771980d4a32"
+        },
+        {
+          "path": "plumbing/format/objfile/common_test.go",
+          "mode": "100644",
+          "digest": "a49355af6fbd23816a092cd0c1d57756c7c1d292cd452355c1cdef62e825ea19"
+        },
+        {
+          "path": "plumbing/format/objfile/doc.go",
+          "mode": "100644",
+          "digest": "bb4e7fd6f4294696436fdf547befdf50351f15bc95734c276ab576818c2055be"
+        },
+        {
+          "path": "plumbing/format/objfile/reader_test.go",
+          "mode": "100644",
+          "digest": "5b71718e2e6fd3e78197555d738a41a88ecc4b4c29f48e65f4b40391e794acbf"
+        },
+        {
+          "path": "plumbing/format/objfile/reader.go",
+          "mode": "100644",
+          "digest": "142f92cc50dd412ac1e7cfd121118bb59cc4d42014c40a5832872fed5bca0c01"
+        },
+        {
+          "path": "plumbing/format/objfile/writer_test.go",
+          "mode": "100644",
+          "digest": "949fa148672c631f5dc828b9ab4cc3cfa84517fc3125119b5b160beafca64b21"
+        },
+        {
+          "path": "plumbing/format/objfile/writer.go",
+          "mode": "100644",
+          "digest": "56827de4f9b593b484e823ca43ba842143ffed0f3ee1f4e3018b6ea03bbb03a1"
+        },
+        {
+          "path": "plumbing/format/packfile/common_test.go",
+          "mode": "100644",
+          "digest": "98ecb3100791793c865327fa9e9e252d1465d1874d426749e56d6a977fb6c60e"
+        },
+        {
+          "path": "plumbing/format/packfile/common.go",
+          "mode": "100644",
+          "digest": "84f62527cfa1283eeb1449d920408a0a67e45ce55a0a504d1d3f1a0882213356"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_index.go",
+          "mode": "100644",
+          "digest": "e2e6c3a60e592c888cdc181a62fffaf62915a0b3c5142b965d14d3d1abffde44"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_selector_test.go",
+          "mode": "100644",
+          "digest": "99b430ed5747c3a756e98cbc4fe5274e0115699ec095195d0c2a99e61dbaef3f"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_selector.go",
+          "mode": "100644",
+          "digest": "48ecd5890e784638a2377d04c0d7cbd06f5cf44984a96ac3c2c9693aae11218f"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_test.go",
+          "mode": "100644",
+          "digest": "806c8446660c5d1403bb29566a5e446c3f3cf7eed93fb5cf8971930d0fe3fa69"
+        },
+        {
+          "path": "plumbing/format/packfile/diff_delta.go",
+          "mode": "100644",
+          "digest": "1f74397f19e0911c82d87adf576083ad5d2253e4cc3899a634de5fab308d7dcf"
+        },
+        {
+          "path": "plumbing/format/packfile/doc.go",
+          "mode": "100644",
+          "digest": "5c33757f688bdf7f94cc67858be280d25fb090eac416251309cdc2609d838c10"
+        },
+        {
+          "path": "plumbing/format/packfile/encoder_advanced_test.go",
+          "mode": "100644",
+          "digest": "2823c1480bb22daa273bdde9a10ac73ef4abd2d24ac4579672a09b089a3bacc5"
+        },
+        {
+          "path": "plumbing/format/packfile/encoder_test.go",
+          "mode": "100644",
+          "digest": "1f9a7098b07e4bb485f22aca6484f256468b59dff09daa790ce9c78e43dbe6a7"
+        },
+        {
+          "path": "plumbing/format/packfile/encoder.go",
+          "mode": "100644",
+          "digest": "423bf7d32b54b98fb6a3be6d2904aa81167ebd8324bba71bd516268f47ae77b7"
+        },
+        {
+          "path": "plumbing/format/packfile/error.go",
+          "mode": "100644",
+          "digest": "b560b987dcef029a0a4c492d3b4a5b90f304fc1b55160c28644bd8580f425d4c"
+        },
+        {
+          "path": "plumbing/format/packfile/fsobject.go",
+          "mode": "100644",
+          "digest": "3321fa107b69a489fc0cf5030a6a3953c6f59319694834d4f7849bd78e6e3f85"
+        },
+        {
+          "path": "plumbing/format/packfile/object_pack_test.go",
+          "mode": "100644",
+          "digest": "fb9ab609d6f491ede1f780886da07b692c7a486159587d3fab2b9bafcd86c6c2"
+        },
+        {
+          "path": "plumbing/format/packfile/object_pack.go",
+          "mode": "100644",
+          "digest": "e490c4c75c2a73d250de2a2d9f25e8f7ca51df65616463519d7b5283f6859d1d"
+        },
+        {
+          "path": "plumbing/format/packfile/packfile_test.go",
+          "mode": "100644",
+          "digest": "97b319c7cf118e005021c5f3203c26f47d6f420527fc5cd1200174008145f75b"
+        },
+        {
+          "path": "plumbing/format/packfile/packfile.go",
+          "mode": "100644",
+          "digest": "86d9bd9cdfba5e8257a8515328f8757b4522ded8c3c0038a580bddf84af41d58"
+        },
+        {
+          "path": "plumbing/format/packfile/parser_test.go",
+          "mode": "100644",
+          "digest": "592cbe854394455e4e959ae1ae7f656b583033a53046e9138f1b5b92e49e5c17"
+        },
+        {
+          "path": "plumbing/format/packfile/parser.go",
+          "mode": "100644",
+          "digest": "fe67cf00afd3a6149e03e87a4989a49863e7b36c837febfb256994d4ee18be1e"
+        },
+        {
+          "path": "plumbing/format/packfile/patch_delta.go",
+          "mode": "100644",
+          "digest": "38bbecf5d2152d5eb485c98ab2c9e12790bcf06f4d6b6a71e401af919c5251ba"
+        },
+        {
+          "path": "plumbing/format/packfile/scanner_test.go",
+          "mode": "100644",
+          "digest": "5b3b2d29765fad6645d27f674e1fbc150197aba850c0176170273c70482a078a"
+        },
+        {
+          "path": "plumbing/format/packfile/scanner.go",
+          "mode": "100644",
+          "digest": "5705298d8e0043bf456760f324cb114f2db8a766bf5c82f8f57dcfa4430b5182"
+        },
+        {
+          "path": "plumbing/format/pktline/encoder_test.go",
+          "mode": "100644",
+          "digest": "3e280b3669a23fb812b8c2e21dd824817e28dd2ebb8db2fe8fd197b2971db9cb"
+        },
+        {
+          "path": "plumbing/format/pktline/encoder.go",
+          "mode": "100644",
+          "digest": "5dfe406939b6ae1d26629f587802060fe6efc7c4ddfde03e7e44958d24b94d79"
+        },
+        {
+          "path": "plumbing/format/pktline/scanner_test.go",
+          "mode": "100644",
+          "digest": "434904eafe9c899e3e622a80418601d8ea283d3fa9c00638368a772eef044571"
+        },
+        {
+          "path": "plumbing/format/pktline/scanner.go",
+          "mode": "100644",
+          "digest": "e13eeb4beff2d921d0a4607c929385a0f8e63d2b2845f4b06634d12b808a0340"
+        },
+        {
+          "path": "plumbing/hash_test.go",
+          "mode": "100644",
+          "digest": "4bf1456741c926c437ff06b95eeb5c9bd64f99c165efabf616e234fcc8e8aa5d"
+        },
+        {
+          "path": "plumbing/hash.go",
+          "mode": "100644",
+          "digest": "b0c7c18d88c98897266e2e97dfeae614528ac022a41516a58116369797071e2e"
+        },
+        {
+          "path": "plumbing/memory_test.go",
+          "mode": "100644",
+          "digest": "221d2f076da4e5a5501b5532b399b34aca15843fcea7c75647f6503d703f9436"
+        },
+        {
+          "path": "plumbing/memory.go",
+          "mode": "100644",
+          "digest": "cb41782ae4fa4e1339ac518faa49e3c04a1691b7c0fa32e665834d551efbb9f0"
+        },
+        {
+          "path": "plumbing/object_test.go",
+          "mode": "100644",
+          "digest": "169fada57fea9c68fc6f3a1b2219613bcde18cdc4d64587eaeb4bdc57f5c502b"
+        },
+        {
+          "path": "plumbing/object.go",
+          "mode": "100644",
+          "digest": "1b521fc99cf8f0aa8ef992e0ea9944c7f927e6a8be00b47974f80443f8f352ae"
+        },
+        {
+          "path": "plumbing/object/blob_test.go",
+          "mode": "100644",
+          "digest": "3ea74fe2bb53906aec4efa431b067175810272f5bfba69d98272c53bd45f67c8"
+        },
+        {
+          "path": "plumbing/object/blob.go",
+          "mode": "100644",
+          "digest": "f34a47607c3b58511a049d12455a50ad034fa1fd2015ecce8dc6a4caeb44ddb8"
+        },
+        {
+          "path": "plumbing/object/change_adaptor_test.go",
+          "mode": "100644",
+          "digest": "e3f42338f4fc51bde82ca82d6dbd8077f7badfacf7ec17e00d0e47b104820015"
+        },
+        {
+          "path": "plumbing/object/change_adaptor.go",
+          "mode": "100644",
+          "digest": "305197baafc31c41100ff90feba3bba835db6d7564236b11f553a1dfdf7c9773"
+        },
+        {
+          "path": "plumbing/object/change_test.go",
+          "mode": "100644",
+          "digest": "00727c088c41de7346cf1cca2acc58b8be9041af403bb4618d8fa6a3bc6e25ce"
+        },
+        {
+          "path": "plumbing/object/change.go",
+          "mode": "100644",
+          "digest": "b3d1985b40245282131ab2249a945dd8fc845d9b2e46f9ed703a8032bf3b2b20"
+        },
+        {
+          "path": "plumbing/object/commit_stats_test.go",
+          "mode": "100644",
+          "digest": "8fe5a408e824a233fd4cd057faa9f56871e816cb4ec75ec01a231712c7a2296a"
+        },
+        {
+          "path": "plumbing/object/commit_test.go",
+          "mode": "100644",
+          "digest": "22c50f3d57aebfec92817c1d101f348e1fad25f2db74bda1945e99118a384521"
+        },
+        {
+          "path": "plumbing/object/commit_walker_bfs_filtered_test.go",
+          "mode": "100644",
+          "digest": "5936de7ae41ce8e41afe561499c1645cf93268a6587453deb35339b1f45746bc"
+        },
+        {
+          "path": "plumbing/object/commit_walker_bfs_filtered.go",
+          "mode": "100644",
+          "digest": "cfa83e53b010b83aba8e0a131c79155bb66c32359dd7c9bdf3626d84d6b0dc4c"
+        },
+        {
+          "path": "plumbing/object/commit_walker_bfs.go",
+          "mode": "100644",
+          "digest": "9eb50edaa2acb9396fc6bb1a8d7f7cf3de2969f9ea909914ac8f668b217c2ee5"
+        },
+        {
+          "path": "plumbing/object/commit_walker_ctime.go",
+          "mode": "100644",
+          "digest": "4a4e56caad3ad2b66f9b78deb132716c527b5957f5355da49c1b2de51435e25b"
+        },
+        {
+          "path": "plumbing/object/commit_walker_limit.go",
+          "mode": "100644",
+          "digest": "e5fe52ea3433ff1cfa5d7fee12154a02a30efb3fa8322740fd1b2ac243e3c07c"
+        },
+        {
+          "path": "plumbing/object/commit_walker_path.go",
+          "mode": "100644",
+          "digest": "575465e06acd9cf2d6dc45ae5b39d24866f76145e33ffc9e97953892feef95a5"
+        },
+        {
+          "path": "plumbing/object/commit_walker_test.go",
+          "mode": "100644",
+          "digest": "e09c45290f8aabade90ca508e22efb4c6b52c3349552c7c1ea24496f5172d25b"
+        },
+        {
+          "path": "plumbing/object/commit_walker.go",
+          "mode": "100644",
+          "digest": "9b5cbe1972beb2c6d823a17ef54924a9fe8968519b40dd3d123e430d46114bff"
+        },
+        {
+          "path": "plumbing/object/commit.go",
+          "mode": "100644",
+          "digest": "db00cc2638708d7a5bba3b14e30614fc6ef48cec23dd94d47143c37ba1d5f527"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_graph.go",
+          "mode": "100644",
+          "digest": "89b3102b2e52c00a5ffa6f706c465c7191f7bdf8b23d95bca1b639a3692307f0"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_object.go",
+          "mode": "100644",
+          "digest": "b52160b5c74368cc1ec6a6b661c111eee985c4a6e90b744cae063820c51e5c96"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_test.go",
+          "mode": "100644",
+          "digest": "7ef0b75c4845d965218cafdc380d604150f0c05261d9f29f41ba7bc9a1033c16"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_ctime.go",
+          "mode": "100644",
+          "digest": "00589651c1ac6dffe955aa7a330a2124703860cf609a7cf4b1ffd4df675e7ed5"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode.go",
+          "mode": "100644",
+          "digest": "afc0c74cea201b3180620ee47c853072ccbecf345a6b4491b94bbac7193eaa0b"
+        },
+        {
+          "path": "plumbing/object/commitgraph/doc.go",
+          "mode": "100644",
+          "digest": "4af368ca8c60591d5f974b61967c627b034c0e9ce4a3cc95fc1010a53e0cc80b"
+        },
+        {
+          "path": "plumbing/object/common.go",
+          "mode": "100644",
+          "digest": "70e2c81ea3190c15c08a2bfe0dbd6b3d9aaf0e95925925deda642e3b1cee9bae"
+        },
+        {
+          "path": "plumbing/object/difftree_test.go",
+          "mode": "100644",
+          "digest": "e0f5f25b84d440bbbf64edcf7374e5f560540bafdb24f3dcb1a79696d344b085"
+        },
+        {
+          "path": "plumbing/object/difftree.go",
+          "mode": "100644",
+          "digest": "0d2f67854a83e07898378f0d09aa56237133eaf32d38445603236dd0e9f89de6"
+        },
+        {
+          "path": "plumbing/object/file_test.go",
+          "mode": "100644",
+          "digest": "15ea4a8aabec5486ff3b8778ca74e959f4277e8008499795dd47759cf9de11cc"
+        },
+        {
+          "path": "plumbing/object/file.go",
+          "mode": "100644",
+          "digest": "0a1da5601aba0f690015ff57f3299309505c102f9121e63edef18091d5ee722e"
+        },
+        {
+          "path": "plumbing/object/merge_base_test.go",
+          "mode": "100644",
+          "digest": "ef54e2ac927670f6d7211aa3fa7c342d0fe54b3d7f613b0a3b72df7ddce7ee22"
+        },
+        {
+          "path": "plumbing/object/merge_base.go",
+          "mode": "100644",
+          "digest": "138146d3aeb4a9f57bf8a2fa1c245b8f76dfddd96625b48a8a74ccbecd6a7bae"
+        },
+        {
+          "path": "plumbing/object/object_test.go",
+          "mode": "100644",
+          "digest": "a01708df210fc85021e23bc7a3f2d920ce17b2244584116ca75365c7e5da1725"
+        },
+        {
+          "path": "plumbing/object/object.go",
+          "mode": "100644",
+          "digest": "915ce2063c0747c1d8bf73cfcce2e1c9f67528df0ccc4932829af264e1e2096c"
+        },
+        {
+          "path": "plumbing/object/patch_test.go",
+          "mode": "100644",
+          "digest": "4dd116132bece4da364aea2b5a8bf602c2399d8463461b5a068c12dcbae2c392"
+        },
+        {
+          "path": "plumbing/object/patch.go",
+          "mode": "100644",
+          "digest": "9fe0e025cca9582208bce7a080dc544ba7bbc1e9728f2acfdf487735d0a95aca"
+        },
+        {
+          "path": "plumbing/object/tag_test.go",
+          "mode": "100644",
+          "digest": "e3de7d0307cd6c08a693a75372763bbb1eb07f2a415a780f717208698cf3ad81"
+        },
+        {
+          "path": "plumbing/object/tag.go",
+          "mode": "100644",
+          "digest": "1b2b5028e00ebc5d7506840a8e28f7324f00c629fd4f0b7c9a10b214f6d096ba"
+        },
+        {
+          "path": "plumbing/object/tree_test.go",
+          "mode": "100644",
+          "digest": "bb1b01f7f332f967efbc87377b298c7ff4e97157a6c030113c559f13fa72be97"
+        },
+        {
+          "path": "plumbing/object/tree.go",
+          "mode": "100644",
+          "digest": "fc94c1e505cdb9131b776518574a40f077abb71b1a3c2863a66b71b888300de2"
+        },
+        {
+          "path": "plumbing/object/treenoder.go",
+          "mode": "100644",
+          "digest": "a716e619fb603bbd16038a86df9365182295918b8659f64994c1a2b84d997e3e"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_decode_test.go",
+          "mode": "100644",
+          "digest": "a108d5fedd3152d8093cfb52179bb78125cfef07488fb909dae23e27a3223ef8"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_decode.go",
+          "mode": "100644",
+          "digest": "0e1f50b19341e5ca91ae81c79712d66649700c00482498ba2bea4b4842549b27"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_encode_test.go",
+          "mode": "100644",
+          "digest": "8a47059fd5a0711dca5ab52c221a85017474bad5da4cfc612ee6726c33be11e1"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_encode.go",
+          "mode": "100644",
+          "digest": "d39581862654c11727c10fc656727e54745d7ac84e50d5598dab12705892015d"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_test.go",
+          "mode": "100644",
+          "digest": "7b337baa5e34c8cc5bf9538d9db979fee85d92a95dcde30e7fd0d5882fba3c74"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs.go",
+          "mode": "100644",
+          "digest": "7504af5d35fc06456decabc180c5f2ee7d246b127182cb746d5b799f04fced13"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/capability.go",
+          "mode": "100644",
+          "digest": "b5085518ea50f854ece85439b897f4fed1da5d7ea9fee79a24ba86a668b248a2"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/list_test.go",
+          "mode": "100644",
+          "digest": "a12b0f740508ffaa4f15b1681c96f28c73cd56a4bebe52c4a8bbc25ff180aedb"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/list.go",
+          "mode": "100644",
+          "digest": "0782e3e96708fc8c26505397b29d0084c5c4a3b25dd51a964de4cb7932c4c923"
+        },
+        {
+          "path": "plumbing/protocol/packp/common_test.go",
+          "mode": "100644",
+          "digest": "ffbcb906cb99e277c9cbcdfa61e9cf8e2abe29276f6055336b6bc133323c8a5f"
+        },
+        {
+          "path": "plumbing/protocol/packp/common.go",
+          "mode": "100644",
+          "digest": "26fff2892def6ea82ccbb1ed66413e6de8ee0bada1a0648859e57136a4668fe7"
+        },
+        {
+          "path": "plumbing/protocol/packp/doc.go",
+          "mode": "100644",
+          "digest": "bae4d796456991c45b295fc89b7565c9aae92f82fb955f9f8243e9d650ad5e3a"
+        },
+        {
+          "path": "plumbing/protocol/packp/report_status_test.go",
+          "mode": "100644",
+          "digest": "3d265a8ff309a7ec13937186a44be67fe1f0f44136788a455c50012f05fc8b5a"
+        },
+        {
+          "path": "plumbing/protocol/packp/report_status.go",
+          "mode": "100644",
+          "digest": "183fbf74295d5af2a3b17fe38a7783786399c1656bb988283b0153abc4950f4d"
+        },
+        {
+          "path": "plumbing/protocol/packp/shallowupd_test.go",
+          "mode": "100644",
+          "digest": "d9572a6c88d147b02d3b0910d930c9b56fec8e00a0de31662e8284cedb80d24e"
+        },
+        {
+          "path": "plumbing/protocol/packp/shallowupd.go",
+          "mode": "100644",
+          "digest": "20c9c4b17344e0ba3b190b361010bafd906abc9994c62e025078b721c6eeeb23"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/common.go",
+          "mode": "100644",
+          "digest": "a164ea047e2da01f3914095784995928369573e186f535b9c503e9dbad079cc3"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/demux_test.go",
+          "mode": "100644",
+          "digest": "640b8977e7664a34d5fbe29e174a34f0281f43c8465ac5904ac5984b3a8ef932"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/demux.go",
+          "mode": "100644",
+          "digest": "ff33311754e33cb39fb63e9a948f95d7b3495eb707df3da91670b3bb207a3b07"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/doc.go",
+          "mode": "100644",
+          "digest": "48db6b84c9ba43db0fec401c3488aa35391b52fb9cf18586b4c2c418748c50e5"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/muxer_test.go",
+          "mode": "100644",
+          "digest": "991d3938cab22bee0df32489924382adff13f0feab5813a48131d143f0765b45"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/muxer.go",
+          "mode": "100644",
+          "digest": "1be3e868263d10ed655d12953c947f0fa174643904ef25acf0506c70512fb32e"
+        },
+        {
+          "path": "plumbing/protocol/packp/srvresp_test.go",
+          "mode": "100644",
+          "digest": "998bdb4667bb5ccd9060ca7363eb5b47ca46aeb2bc3a92c9226f9bb3ac678722"
+        },
+        {
+          "path": "plumbing/protocol/packp/srvresp.go",
+          "mode": "100644",
+          "digest": "dae652c443f789c237491e0c80c5e490e1248d35636b9529972c6cf5e03ed065"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_decode_test.go",
+          "mode": "100644",
+          "digest": "06ee67eb06f3b639fa126b3353721bea3da919526d9f4f352ba4e33622523d10"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_decode.go",
+          "mode": "100644",
+          "digest": "76bc0b13f9e0117c9faaea5fca0e13cad46730e91be429a5ae2d08ede9cf10c2"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_encode_test.go",
+          "mode": "100644",
+          "digest": "9fe0cdf2374cc20c8f5222cf1d58c71f8d0e79aea55cffa1c04aeb08ad6d21b1"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_encode.go",
+          "mode": "100644",
+          "digest": "1808405aff401aebb011dc5b05d1bac01b3ec80f3acc0cdefa68e194c204147a"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_test.go",
+          "mode": "100644",
+          "digest": "706a952689168639bb80ad07802a2f34193c52a91b813ceb6901ec672be5af3a"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq.go",
+          "mode": "100644",
+          "digest": "735b6eab66bb1b15da218776f7b70fcd50766693ee6911b8d7158e0ad3250eb1"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_decode_test.go",
+          "mode": "100644",
+          "digest": "353d9171a6577a5b03c72b79600f768ff1b3811464211012aee63f2743a03657"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_decode.go",
+          "mode": "100644",
+          "digest": "fde127b0173b33d7984877f866829fc634e73810bef619a13505e7f58d5651e1"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_encode_test.go",
+          "mode": "100644",
+          "digest": "5008f07bbbbc1f1557412db2bea25c0f236b5f1f0b7538a60befe0dff613ec6e"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_encode.go",
+          "mode": "100644",
+          "digest": "8ec5f1cf89a18c029c7850a50a46ef619c4a29aa74fd8ed5d028c6bfad43c0d9"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_test.go",
+          "mode": "100644",
+          "digest": "5467c5ba683434164d7d363777242d5452363d70f6b4691700b13f780a8d5937"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq.go",
+          "mode": "100644",
+          "digest": "e29c635d85718dcc4d2837fc2fd243f81c1434ed30704cc85496a7473710aaab"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackreq_test.go",
+          "mode": "100644",
+          "digest": "f2b0cdd5f71784279314b0a10962c4ce56a1d115e1106fa1ff3ff6c446704b00"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackreq.go",
+          "mode": "100644",
+          "digest": "0938baa3386cb8d618642fa0c2c68ada40fe1e5638d9176aa85ab0a5ac5b86a0"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackresp_test.go",
+          "mode": "100644",
+          "digest": "6da8060301b57beee7cef13abb6c3561d8e49133a8169d1b467490095480e49d"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackresp.go",
+          "mode": "100644",
+          "digest": "3f2f31065c252e6a7196e46c0bb13810fd021f1c4f8a6c9bbae4ac7e283ef5c2"
+        },
+        {
+          "path": "plumbing/reference_test.go",
+          "mode": "100644",
+          "digest": "ab81d2fb95d75cc6d485061780e8cf432a2f4ed7f18ebf8f2281b2b51ab6a992"
+        },
+        {
+          "path": "plumbing/reference.go",
+          "mode": "100644",
+          "digest": "e905761ae8e964419588d65bf03c116de323dfda79ab130e60edbce609e18665"
+        },
+        {
+          "path": "plumbing/revision.go",
+          "mode": "100644",
+          "digest": "ca4bd5ee46344d3491f3d4836f1b883f604b8c6359056b603ba9e2ed2c773242"
+        },
+        {
+          "path": "plumbing/revlist/revlist_test.go",
+          "mode": "100644",
+          "digest": "5c6ac1897c7481301ba36773653f5f748b59dccb4f56d714ab0df897da9e3435"
+        },
+        {
+          "path": "plumbing/revlist/revlist.go",
+          "mode": "100644",
+          "digest": "e95de6d0b829a297407345435e87d7135d5e4e4c339024dff0dd3e9b08cdf951"
+        },
+        {
+          "path": "plumbing/storer/doc.go",
+          "mode": "100644",
+          "digest": "8c30a94a1e71e62c3f12306b601faa7c7bcefacd306a9effe10f97a66728f47e"
+        },
+        {
+          "path": "plumbing/storer/index.go",
+          "mode": "100644",
+          "digest": "0ae1039b77e0c7a72521f64c34fc6d73aa32ca862ee0b5c241f1fd83f947ec4e"
+        },
+        {
+          "path": "plumbing/storer/object_test.go",
+          "mode": "100644",
+          "digest": "16ba73b596558a84f1a009db74035be39c16701d434826406fc4dc70b3579318"
+        },
+        {
+          "path": "plumbing/storer/object.go",
+          "mode": "100644",
+          "digest": "aace8f1a2c31ad3ecbc68ed7e99979dc13ffce319c84d7056866718c9743419d"
+        },
+        {
+          "path": "plumbing/storer/reference_test.go",
+          "mode": "100644",
+          "digest": "5c32b9e24512c2830c4e0cd5402837eb817273457baede8b31926404a052d865"
+        },
+        {
+          "path": "plumbing/storer/reference.go",
+          "mode": "100644",
+          "digest": "fd0aa42d94bfc0f205db1bde2a56767d9ec284bf85d103ef55dfafe3042bc7f4"
+        },
+        {
+          "path": "plumbing/storer/shallow.go",
+          "mode": "100644",
+          "digest": "0c441f9f24afbe8dc529d8df2022d7adc16e4264a79720c21275a663acaa8235"
+        },
+        {
+          "path": "plumbing/storer/storer.go",
+          "mode": "100644",
+          "digest": "c92e9be1267d8e24464e14329ecc1339da08bc86beaddf36e882be1a58327c9d"
+        },
+        {
+          "path": "plumbing/transport/client/client_test.go",
+          "mode": "100644",
+          "digest": "591217ce4f629a783969cb50aa497f4c4f733f8f6b97e339adffe79d82e92faa"
+        },
+        {
+          "path": "plumbing/transport/client/client.go",
+          "mode": "100644",
+          "digest": "85826252fc685d804cc85c208aa45050c5d4266af4e0a1aadda59e177cf6434f"
+        },
+        {
+          "path": "plumbing/transport/client/example_test.go",
+          "mode": "100644",
+          "digest": "529d3f74d455e27da869dd4899352457ab88df4373da0c91186d21df904fddba"
+        },
+        {
+          "path": "plumbing/transport/common_test.go",
+          "mode": "100644",
+          "digest": "e4191ccf805a8f6055d3e503ab7037b389eb085025480be56b5b7002d8519350"
+        },
+        {
+          "path": "plumbing/transport/common.go",
+          "mode": "100644",
+          "digest": "da3913b9e9ecf3c913b5a1217eba3f533f617d87cf88dce0c4a6e42ce00fbde7"
+        },
+        {
+          "path": "plumbing/transport/file/client_test.go",
+          "mode": "100644",
+          "digest": "c4e648fdd903853cb9013ab4dc25de41a561c01f18ce4c6cc87b258f0cf613da"
+        },
+        {
+          "path": "plumbing/transport/file/client.go",
+          "mode": "100644",
+          "digest": "80111732a22227712dc23b1dcb84216a63798e8f9d27be784769797686d0d185"
+        },
+        {
+          "path": "plumbing/transport/file/common_test.go",
+          "mode": "100644",
+          "digest": "7a0635eb45b5bcf43fe0538116aa6e6f7ef6e0fdfc3e21a56883f48405b32820"
+        },
+        {
+          "path": "plumbing/transport/file/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "ca03992e9611b86bfe94949bcf7370cab695cf7a3f70fa1624e5111fedc3a0bd"
+        },
+        {
+          "path": "plumbing/transport/file/server_test.go",
+          "mode": "100644",
+          "digest": "da88efa3cf92cd1a56407c43a220b7396a8bcdb510439e1cd49964e429c12571"
+        },
+        {
+          "path": "plumbing/transport/file/server.go",
+          "mode": "100644",
+          "digest": "9d226dd35c1d580a9e3d5b0a9a4a32c59a62c6c6c50f724db8ba4ffdab894a3a"
+        },
+        {
+          "path": "plumbing/transport/file/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "8f8a1d775ed8c8e241888b742bc12a7b01be4fc6a879dae975430ccd613018da"
+        },
+        {
+          "path": "plumbing/transport/git/common_test.go",
+          "mode": "100644",
+          "digest": "1aaa455bfcd5a73bad9411bc3ecb06c8d384d6d489f994c0efee81d20f36aefa"
+        },
+        {
+          "path": "plumbing/transport/git/common.go",
+          "mode": "100644",
+          "digest": "38a53046bc8f91fda83bd68567f252aa9f2d9211abebf263ad0df435a8aaa45c"
+        },
+        {
+          "path": "plumbing/transport/git/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "52b54ca478ae9a55453d947e9f03c3bb83a35349e675cc2ada991cebfa48d747"
+        },
+        {
+          "path": "plumbing/transport/git/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "7a2dfd9c80fbe1205944a50b76f2f743865d80022e6786f05a8a1aa19cbebe0c"
+        },
+        {
+          "path": "plumbing/transport/http/common_test.go",
+          "mode": "100644",
+          "digest": "9920b848f8d78cb39247905979fab8a0dd742929545939dea3d2ed4aaf1ee483"
+        },
+        {
+          "path": "plumbing/transport/http/common.go",
+          "mode": "100644",
+          "digest": "ad0775215547d4fa32cb322a25fede3eb51cd27ee97d2d0250e68dee190c8dfe"
+        },
+        {
+          "path": "plumbing/transport/http/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "afaa6392ee975c447834c0ad59dc1c6822c7e9d8632349838fdfefb42207741e"
+        },
+        {
+          "path": "plumbing/transport/http/receive_pack.go",
+          "mode": "100644",
+          "digest": "3690ffb45fbda012af0293e116b4077bccef7e96a89cac8317258f0e73349932"
+        },
+        {
+          "path": "plumbing/transport/http/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "87edba9d0d30485e3c7d2480b39bbbbe683dedaf3944b4d9b502ee4db163039f"
+        },
+        {
+          "path": "plumbing/transport/http/upload_pack.go",
+          "mode": "100644",
+          "digest": "80dc86c4c29d6a34d879ea2bedaaf49ef00b7936452a6d11fd5f77bb05ee08c1"
+        },
+        {
+          "path": "plumbing/transport/internal/common/common_test.go",
+          "mode": "100644",
+          "digest": "a1d9571dbbbb0bf378a1f68f3374adedc4c546f30ce44b5e3b4b7fe7ed37bc1b"
+        },
+        {
+          "path": "plumbing/transport/internal/common/common.go",
+          "mode": "100644",
+          "digest": "a1c12d0611167adc6f7ea0cf2937650124ccc448e6410551225321607f2d3f22"
+        },
+        {
+          "path": "plumbing/transport/internal/common/server.go",
+          "mode": "100644",
+          "digest": "3fa3601093c69c648fb275e211ed9b5430029c790599f59f4c789ece8f94e86d"
+        },
+        {
+          "path": "plumbing/transport/server/loader_test.go",
+          "mode": "100644",
+          "digest": "8d81c26cf1eab3e293a6f4087acb910db3c835c6c8653f5b94d3f52cc59db159"
+        },
+        {
+          "path": "plumbing/transport/server/loader.go",
+          "mode": "100644",
+          "digest": "d33103ab795829f1aed8c37b73d4c1a6e9ad3fc4806914f58aaa0c4aa9e1a1cd"
+        },
+        {
+          "path": "plumbing/transport/server/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "9c207baccc9902a780ec910ddd4777e764a68acf369be6bfbc42640685dabc83"
+        },
+        {
+          "path": "plumbing/transport/server/server_test.go",
+          "mode": "100644",
+          "digest": "b7b7dd2d7bec40a057a9bd597654bd80246b00631737e1eb6be944598a320c61"
+        },
+        {
+          "path": "plumbing/transport/server/server.go",
+          "mode": "100644",
+          "digest": "ee2769ddf6a51689e366aea252f1940ac9d30a38c3f0c98fb6a3b156020954a7"
+        },
+        {
+          "path": "plumbing/transport/server/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "b6193a9330fc4d4f0d76298cff05ba4d30fda42111136ef47a7c184bf36cecf9"
+        },
+        {
+          "path": "plumbing/transport/ssh/auth_method_test.go",
+          "mode": "100644",
+          "digest": "1c1826e51f62346c13243d20b53e44a8a16f9430c731df90b0fd02d8a3af010e"
+        },
+        {
+          "path": "plumbing/transport/ssh/auth_method.go",
+          "mode": "100644",
+          "digest": "98fcb23a20328fb2ff942e80d36d18965c8146232aeb70592dc09540a2c76f82"
+        },
+        {
+          "path": "plumbing/transport/ssh/common_test.go",
+          "mode": "100644",
+          "digest": "3f5244f886c3343cc9206cb72fb690cf5b37bab6f40b237d1600b8e81253bf16"
+        },
+        {
+          "path": "plumbing/transport/ssh/common.go",
+          "mode": "100644",
+          "digest": "7911f1f1654507c8589d9b53704694a1385db82e410de229cee8ad906e3572af"
+        },
+        {
+          "path": "plumbing/transport/ssh/proxy_test.go",
+          "mode": "100644",
+          "digest": "e692cfbe7f7ed95680effee3da9c808189dd24d22387144b27cc825b62cbd0cd"
+        },
+        {
+          "path": "plumbing/transport/ssh/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "665479cc9fd62c8c3aae01e11d25d30623d0e89763f506bf5982e17aad9eaf4a"
+        },
+        {
+          "path": "plumbing/transport/test/receive_pack.go",
+          "mode": "100644",
+          "digest": "1dba9032eb73f01439b24e2b2fe4bbd7e42d768f53e0daf53c31338ed98367ff"
+        },
+        {
+          "path": "plumbing/transport/test/upload_pack.go",
+          "mode": "100644",
+          "digest": "3b599d9c6b5fcca8376ab026424c1fe2804850dc356893b19d25674b077742d4"
+        },
+        {
+          "path": "prune_test.go",
+          "mode": "100644",
+          "digest": "3f54836f6d7dd8e0e619a4874c144860a77661721f233211a746a99025a33940"
+        },
+        {
+          "path": "prune.go",
+          "mode": "100644",
+          "digest": "72e4062a7731f91f53e35f5f010e0f9d1f042d053cc9dcb05b19dcb4033a76bc"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "digest": "50d20845a8d1ff34d4e62152768a71546847086290ae2dbc55b69445aaf64f14"
+        },
+        {
+          "path": "references_test.go",
+          "mode": "100644",
+          "digest": "6a152bdec037b05c2c2071d953f7d698bba1bb175bac956667604fcd7d121639"
+        },
+        {
+          "path": "references.go",
+          "mode": "100644",
+          "digest": "e058348ee495cdaa32519d96bc820b5b04a1aeee35c8351add13ff30090d40a6"
+        },
+        {
+          "path": "remote_test.go",
+          "mode": "100644",
+          "digest": "76d7ed9a6d82cd6387b493dedade780f5a6f1be4f017df4c214eb131b3593a87"
+        },
+        {
+          "path": "remote.go",
+          "mode": "100644",
+          "digest": "fc33ba2b87ab9ab343f6f5de393337b93ada7324c6b16e94a24eae2d1c6b5f01"
+        },
+        {
+          "path": "repository_plan9_test.go",
+          "mode": "100644",
+          "digest": "23e7a7e481b00571b63c2a7d0432f9733dd85d18a9841a3d7b96743100da5824"
+        },
+        {
+          "path": "repository_test.go",
+          "mode": "100644",
+          "digest": "315f8dc082e03e798e3bb0af026b4797b0e27f1b10f082065ab217781dca5b63"
+        },
+        {
+          "path": "repository_unix_test.go",
+          "mode": "100644",
+          "digest": "8b9f04080b0c40f7ad2a6bb5e5296cd6c06e730dffce87a0375ae7bd0f85f86e"
+        },
+        {
+          "path": "repository_windows_test.go",
+          "mode": "100644",
+          "digest": "384a745f3b14edc89526a98b96b3247b2b548541c755aadee7664352ed7f12ae"
+        },
+        {
+          "path": "repository.go",
+          "mode": "100644",
+          "digest": "095e8d8a6f53c709fbb1b85e21dde948220e172210f3e205e171c20d2fee182f"
+        },
+        {
+          "path": "status.go",
+          "mode": "100644",
+          "digest": "b68c8a82cd5b839917e1058570a0408819b81d16dbab81db118cc8dfc3def044"
+        },
+        {
+          "path": "storage/filesystem/config_test.go",
+          "mode": "100644",
+          "digest": "f851d068332a13642a73ac29840ebaf8bc318c575db70d6d716a23c46bd93d74"
+        },
+        {
+          "path": "storage/filesystem/config.go",
+          "mode": "100644",
+          "digest": "dfe23252eb8f1d51d611f2e745dace75bc6c4f6487cd3b540824b5902f89a3fd"
+        },
+        {
+          "path": "storage/filesystem/deltaobject.go",
+          "mode": "100644",
+          "digest": "f799dd741d84bcb99c0521523177822410754dc3097f3408f05e921d6d27f09a"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit_rewrite_packed_refs.go",
+          "mode": "100644",
+          "digest": "82c01acd3d8e09593f8e65277eed208f737fde4e256bbb208817dae2ae4e41ce"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit_setref.go",
+          "mode": "100644",
+          "digest": "95e9606c00b329ed5d98a04bfd2f73fad69310b2c718480f6dcc3f7afcbcb9e8"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit_test.go",
+          "mode": "100644",
+          "digest": "132972005badc537ae9a50d20d888be7094d68c3629fdcb06927e97e2e4f2a24"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit.go",
+          "mode": "100644",
+          "digest": "dfc392099867219f7277ac372dbbc769e4e941a8014e5a674593cda1b693384b"
+        },
+        {
+          "path": "storage/filesystem/dotgit/writers_test.go",
+          "mode": "100644",
+          "digest": "8811d0e0f82c9f1e61482eb0745423f53538f5f03d72e852b07a440906d07ffa"
+        },
+        {
+          "path": "storage/filesystem/dotgit/writers.go",
+          "mode": "100644",
+          "digest": "3bcc25c3f7163c0be43d4d8cabd31883f242c90c9065ea79379a2583be0a4619"
+        },
+        {
+          "path": "storage/filesystem/index.go",
+          "mode": "100644",
+          "digest": "2ce1f8271ec768807777536ceabc4946ce9456e04a433de395cbbd8def389892"
+        },
+        {
+          "path": "storage/filesystem/module.go",
+          "mode": "100644",
+          "digest": "18c9920ee9a297a923a41844907cbcae9d1218b8d4803fed3cba60037b1b4ee6"
+        },
+        {
+          "path": "storage/filesystem/object_test.go",
+          "mode": "100644",
+          "digest": "b82b423429b174067df536b6eb612a6b61b849959cd9409313960bc929a08fbb"
+        },
+        {
+          "path": "storage/filesystem/object.go",
+          "mode": "100644",
+          "digest": "c326f42938d1c6bebd7d7fac884a3bd579301018a2934fd905527d482356dc56"
+        },
+        {
+          "path": "storage/filesystem/reference.go",
+          "mode": "100644",
+          "digest": "99465c4257e0fac1c93a5efe28a36a5c336e96f9d72b02e58d7d0db1b8e5ee20"
+        },
+        {
+          "path": "storage/filesystem/shallow.go",
+          "mode": "100644",
+          "digest": "23ec545bb3a50dc6a100779a7872f93f25427b7fba3b2b09fa8150554fc45209"
+        },
+        {
+          "path": "storage/filesystem/storage_test.go",
+          "mode": "100644",
+          "digest": "4557a314364dbae86b5f4aa082b1e5c72594044bc037815c274b1e031340424a"
+        },
+        {
+          "path": "storage/filesystem/storage.go",
+          "mode": "100644",
+          "digest": "1f5fd3d91e7c3534982a8dc5ec9403a7888b31d1e585c2214e277eae978d68f9"
+        },
+        {
+          "path": "storage/memory/storage_test.go",
+          "mode": "100644",
+          "digest": "ce672970edaaeda7fa600a9de7dcabc60841915d63f73e14e9d3b3debafb4dd0"
+        },
+        {
+          "path": "storage/memory/storage.go",
+          "mode": "100644",
+          "digest": "3857a0e1ffb4132f43dfa76f22e3b082ad8ff1a39b3335dea7d4e1d4bae41426"
+        },
+        {
+          "path": "storage/storer.go",
+          "mode": "100644",
+          "digest": "12cbbd8eb02be7d34ac723fd87b750257460d7cbcf96c1b0cb00de66837cfadd"
+        },
+        {
+          "path": "storage/test/storage_suite.go",
+          "mode": "100644",
+          "digest": "7d7edd67d1b114676ba85dcacbc358e4b692bdaa091954693775a8c83bc6f81c"
+        },
+        {
+          "path": "storage/transactional/config_test.go",
+          "mode": "100644",
+          "digest": "79bc6da46b848507d3ac0855baa8a5d68ed10369c34853dbd8f75d5ef08c027a"
+        },
+        {
+          "path": "storage/transactional/config.go",
+          "mode": "100644",
+          "digest": "dbfe671e290b0010903b7e5f306ec9487007b6097c06809271c385513b4efad4"
+        },
+        {
+          "path": "storage/transactional/doc.go",
+          "mode": "100644",
+          "digest": "7fab5333b1c0642bf3a1313951b1b6c4cc57cdd3f86ad4229f0956b795151674"
+        },
+        {
+          "path": "storage/transactional/index_test.go",
+          "mode": "100644",
+          "digest": "cb3338b3eff134108cdc247490562ef44bc75886dd9aa4b3f00c4877676910bf"
+        },
+        {
+          "path": "storage/transactional/index.go",
+          "mode": "100644",
+          "digest": "b60553d821369fa11a460442261e873742f909bbb4b0900b1a4edbe498b8a58d"
+        },
+        {
+          "path": "storage/transactional/object_test.go",
+          "mode": "100644",
+          "digest": "4dbf295d3b836ab5b4a044b8473552d6d22b2c997605a4a1eead0503a11e9b1d"
+        },
+        {
+          "path": "storage/transactional/object.go",
+          "mode": "100644",
+          "digest": "8f2e116e9fd47cedee40b3194b13f6c26c7da8243fac88cd02817b8ffed65344"
+        },
+        {
+          "path": "storage/transactional/reference_test.go",
+          "mode": "100644",
+          "digest": "d9f1a086199fcf530e25c686e2e722cd9d16247837f8b2103d7f382cb69dad7f"
+        },
+        {
+          "path": "storage/transactional/reference.go",
+          "mode": "100644",
+          "digest": "95e4413c5a1a444c230441c6a139aee1c023ad3fe90c99e0a5ea35ad32789a41"
+        },
+        {
+          "path": "storage/transactional/shallow_test.go",
+          "mode": "100644",
+          "digest": "8cc7f31106250d0371661a910602461b93eec68fc3834ec4f32eab955fd0b032"
+        },
+        {
+          "path": "storage/transactional/shallow.go",
+          "mode": "100644",
+          "digest": "d4fd92fb11c0f91f304fc01bb0ed51415e7bedb4558ad5f6b45e4415740e771e"
+        },
+        {
+          "path": "storage/transactional/storage_test.go",
+          "mode": "100644",
+          "digest": "e7f3e4be90b264988f6d36b080bf1cd09aa0a0b2589c3f022f373503d1c6054e"
+        },
+        {
+          "path": "storage/transactional/storage.go",
+          "mode": "100644",
+          "digest": "b1c2dd50ec775ec5a8855ae1b7757774484d615fdf924ced063342b20664194a"
+        },
+        {
+          "path": "submodule_test.go",
+          "mode": "100644",
+          "digest": "a2af89fc592b707659bc6ef91a885c04d6e8e9116681b3af5fc3aaa35dee8625"
+        },
+        {
+          "path": "submodule.go",
+          "mode": "100644",
+          "digest": "4f5410f5ffe628518a9a896117d7ba0b00cd9ded605ee8535a8d8814a1a40ebc"
+        },
+        {
+          "path": "utils/binary/read_test.go",
+          "mode": "100644",
+          "digest": "80585c7102d7e39b4ef83f88e1155a479d8e5a8b30b31bffafff1c5cea2d9bb8"
+        },
+        {
+          "path": "utils/binary/read.go",
+          "mode": "100644",
+          "digest": "ed9eb4e81868f1044340b1b45d52a12f34fed2e3c313220f53325a880826a7e9"
+        },
+        {
+          "path": "utils/binary/write_test.go",
+          "mode": "100644",
+          "digest": "e8d60b495e19d9a77d21c18523d869eb11eb472a5dbc6d16c0216b2ed6e9b04c"
+        },
+        {
+          "path": "utils/binary/write.go",
+          "mode": "100644",
+          "digest": "1df840ad1cf7f4d3ccf91134aae4167c7cb6a30165b29ffc85ba3fea245d7f21"
+        },
+        {
+          "path": "utils/blame2humantest.bash",
+          "mode": "100755",
+          "digest": "ff956d95c5377b44c1ac812a900265d7762600877e58c5f8ed49367933616a3e"
+        },
+        {
+          "path": "utils/diff/diff_ext_test.go",
+          "mode": "100644",
+          "digest": "1782266378e178b6532a486cc851827162f571cf934a2ea6808fde991bf4b2d2"
+        },
+        {
+          "path": "utils/diff/diff.go",
+          "mode": "100644",
+          "digest": "daa127b620996ff78eaeb018951f2d842aaafbfcd08311a6dabc69b0332851e2"
+        },
+        {
+          "path": "utils/ioutil/common_test.go",
+          "mode": "100644",
+          "digest": "6a3148183c121d2288ade57486ba06db3ab38f5c1dbdfedfcbb69e09b3ce7ef5"
+        },
+        {
+          "path": "utils/ioutil/common.go",
+          "mode": "100644",
+          "digest": "0b88d8687d9dfcd29bae44e99e1cb498e93835d3729f3ecb4a4466a4030cb566"
+        },
+        {
+          "path": "utils/merkletrie/change_test.go",
+          "mode": "100644",
+          "digest": "c39c7cf45dc824ff919ac8919e75a6da29faea47cc687c8eea2f02ba37a5d410"
+        },
+        {
+          "path": "utils/merkletrie/change.go",
+          "mode": "100644",
+          "digest": "dd600f839dfbfd3641b229a35e89048edd3e8a84bf20c7f9672d197be13e7486"
+        },
+        {
+          "path": "utils/merkletrie/difftree_test.go",
+          "mode": "100644",
+          "digest": "d7effd42846f8def5cdd182ef1bb4e316d097ae8fd0a2d32d4039d450a1bc4e0"
+        },
+        {
+          "path": "utils/merkletrie/difftree.go",
+          "mode": "100644",
+          "digest": "295305f46f1fa874477a39c406c5294f85955a4daa51daf586e4db8a06fc2d97"
+        },
+        {
+          "path": "utils/merkletrie/doc.go",
+          "mode": "100644",
+          "digest": "ae60c7ca3af8aab115d157e209f38ddec88d908abd2908776787360b1102eb98"
+        },
+        {
+          "path": "utils/merkletrie/doubleiter.go",
+          "mode": "100644",
+          "digest": "bb53f013153249dd4c888a17ce3cfb9df12239e0d42b17c175becb130dca4e2b"
+        },
+        {
+          "path": "utils/merkletrie/filesystem/node_test.go",
+          "mode": "100644",
+          "digest": "8c625ecda9b4ad52b9fe0cf535234acae78d01c956fdd9355a76d3926df12279"
+        },
+        {
+          "path": "utils/merkletrie/filesystem/node.go",
+          "mode": "100644",
+          "digest": "7de9da7834f56feed4d18eb030befecfc3ef945f08cae577a51d44c7c2e95a47"
+        },
+        {
+          "path": "utils/merkletrie/index/node_test.go",
+          "mode": "100644",
+          "digest": "73edbfc9ac0f43933dc346ec517aa66da7ab3ffa39a29a06ccaef940a9a5cb41"
+        },
+        {
+          "path": "utils/merkletrie/index/node.go",
+          "mode": "100644",
+          "digest": "9cd4a56c791ce973be645ef58158e6819a09237b0315a4932d8e7c0442e85e59"
+        },
+        {
+          "path": "utils/merkletrie/internal/frame/frame_test.go",
+          "mode": "100644",
+          "digest": "10f2c82ca3740d9475c2c1dc677a84e8268200b5042e222903fb9dbaae38b5ed"
+        },
+        {
+          "path": "utils/merkletrie/internal/frame/frame.go",
+          "mode": "100644",
+          "digest": "1404ffe2e6d3de9fcf54350aa49a2d22b84ea4d71611447cfbe09613d468c8d3"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/dir_test.go",
+          "mode": "100644",
+          "digest": "0802abaf43d5218082ccaa2be75176b9bb48efbd0d0b56e8d06bd481569fd17e"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/dir.go",
+          "mode": "100644",
+          "digest": "fa26a52c5c215cbe34fe926622fc5a8198a4291423530e85ce085c785fc23f23"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/doc.go",
+          "mode": "100644",
+          "digest": "9a5cc20bf2debafd89590f10becd49997dad4a50b055d81ef1dca0f091406417"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/file_test.go",
+          "mode": "100644",
+          "digest": "bc86c8745f57798273aaaa4dbc80e02e80e764cb06cb0a3e28d6b8256aecf298"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/file.go",
+          "mode": "100644",
+          "digest": "f2b54f240aee2962ef9010f9c7b8e63c310df96634439d90a084c9621c909fb9"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/new_test.go",
+          "mode": "100644",
+          "digest": "498595ed89789ef69a9fdcec458966f7428a55a4989d10db3d54d98884cbdfe2"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/new.go",
+          "mode": "100644",
+          "digest": "5b723f5627adaac770e952b7b05288651417c967253c7a03c92c11e10ba287e1"
+        },
+        {
+          "path": "utils/merkletrie/iter_test.go",
+          "mode": "100644",
+          "digest": "3c8bd956313b1b34279688161ae5326f341ba46d2a4c18d661e8a204d57ca30d"
+        },
+        {
+          "path": "utils/merkletrie/iter.go",
+          "mode": "100644",
+          "digest": "c391cfd5fb6d1c09d7eb8f618cade3a648aa54959e813a8fa67d1aab8070a81f"
+        },
+        {
+          "path": "utils/merkletrie/noder/noder_test.go",
+          "mode": "100644",
+          "digest": "43658c802e6bdee4f2dfae2921ba5057788cf3e5c1e2b0446cc657cdc906afb8"
+        },
+        {
+          "path": "utils/merkletrie/noder/noder.go",
+          "mode": "100644",
+          "digest": "21aceafd64d3f65ae06a1ddfc6908e8f17b738d40ba45c4d85f11cd6136b2161"
+        },
+        {
+          "path": "utils/merkletrie/noder/path_test.go",
+          "mode": "100644",
+          "digest": "5a7bf3ed6c56194dd4bd145c2e43a4a65bdf5b3ddebf069c72bef6c1f90f84c2"
+        },
+        {
+          "path": "utils/merkletrie/noder/path.go",
+          "mode": "100644",
+          "digest": "cca4ef2f4cd5fc6421a666499a6ebb39d26eeae2aa2dca26dcf248cc72973007"
+        },
+        {
+          "path": "utils/revlist2humantest.bash",
+          "mode": "100755",
+          "digest": "1574821ceaca859bbeff04520f0565029ae2dc731d1a0db1c9ea16571b0ef99f"
+        },
+        {
+          "path": "worktree_bsd.go",
+          "mode": "100644",
+          "digest": "d37cd076919277a1ecbc8e15bdb76eb4bcfe8735cba5bc9afd1dce76de33ee10"
+        },
+        {
+          "path": "worktree_commit_test.go",
+          "mode": "100644",
+          "digest": "ad7122de6f365436cfdcddf6c2e7205a26b48065820305b54935892568511a3a"
+        },
+        {
+          "path": "worktree_commit.go",
+          "mode": "100644",
+          "digest": "4b03899b95d36b55f3659fd2bcb8d9854e914fbafd3bc7ed482197af45dfd980"
+        },
+        {
+          "path": "worktree_linux.go",
+          "mode": "100644",
+          "digest": "6ec530652899564138979586289ac5974540a247b395511cb333d4dad72e4401"
+        },
+        {
+          "path": "worktree_plan9.go",
+          "mode": "100644",
+          "digest": "a7c6ec6f6569e22d2fa6e8281639d27c59b633ea00ad8ef27a43171cc985fbda"
+        },
+        {
+          "path": "worktree_status.go",
+          "mode": "100644",
+          "digest": "0cad1a35825d574b0277db427aa26caeec945c270954bfc692fc8a78e579f875"
+        },
+        {
+          "path": "worktree_test.go",
+          "mode": "100644",
+          "digest": "43340ba87a35797b768ab989cc051bb64dedfe3fa2fecc8dc52bb7c204d9ece7"
+        },
+        {
+          "path": "worktree_unix_other.go",
+          "mode": "100644",
+          "digest": "e2dcd7c83a34e4789eaf001f040b43ee08975ee8ea5c3c487bfbdb9623a23663"
+        },
+        {
+          "path": "worktree_windows.go",
+          "mode": "100644",
+          "digest": "3a00a29e08d29454b5197662f70ccab5699b0ce8c85af7fbf511b8915d97cfd0"
+        },
+        {
+          "path": "worktree.go",
+          "mode": "100644",
+          "digest": "b53730e056e1779e9bee77562ca7044e1bbdf36a8545411bc98fdc7d3863f1b8"
+        }
+      ],
+      "contentDigest": "12a0ca21d89de3e9760ac22ab9125d6e4f5aee191bbb956f779c577aed1925c1"
+    },
+    "patched": {
+      "revision": "5e23dfd02db92644dc4a3358ceb297fce875b772",
+      "directory": "patched",
+      "files": [
+        {
+          "path": "_examples/azure_devops/main.go",
+          "mode": "100644",
+          "digest": "ab1fde7529fbc010f93224c7234ebe60e26476163dbb79f5d21ba895571508e5"
+        },
+        {
+          "path": "_examples/blame/main.go",
+          "mode": "100644",
+          "digest": "9a8404b17f62c4dab021c34de1d818a0c8c4294fa57f4b86e1154a720538c284"
+        },
+        {
+          "path": "_examples/branch/main.go",
+          "mode": "100644",
+          "digest": "b89c85704a9e7fca1b45634978170caf495b35dd0954f243c0b27f0f2c573c45"
+        },
+        {
+          "path": "_examples/checkout-branch/main.go",
+          "mode": "100644",
+          "digest": "dda067f53c91c3811270cf95678571c285de5641d3b069d69623731fba906d2e"
+        },
+        {
+          "path": "_examples/checkout/main.go",
+          "mode": "100644",
+          "digest": "09ef0837345420982f760037bc837f2b2476fbdae37de5ec07aac768c8f697ce"
+        },
+        {
+          "path": "_examples/clone/auth/basic/access_token/main.go",
+          "mode": "100644",
+          "digest": "ce4483622e669dd4cb38938f6fa674ecd471cc45c5d538f0daa53aab9d03803f"
+        },
+        {
+          "path": "_examples/clone/auth/basic/username_password/main.go",
+          "mode": "100644",
+          "digest": "466c280041bb96315774fa6a1af1db765860f078b27540e45b9d6da8e3b06001"
+        },
+        {
+          "path": "_examples/clone/auth/ssh/private_key/main.go",
+          "mode": "100644",
+          "digest": "2bc79c4085fef0c608e55ded604da25573161891e94d8927a7c4a579fc5f208b"
+        },
+        {
+          "path": "_examples/clone/auth/ssh/ssh_agent/main.go",
+          "mode": "100644",
+          "digest": "faf428b88d49f575da4c933a5cc05d03aae938b28e28f77ae1782e9037ae04fb"
+        },
+        {
+          "path": "_examples/clone/main.go",
+          "mode": "100644",
+          "digest": "1562211fe546d3cda794f183234ddc49e044b04d39b9ebc665c619ea756bf761"
+        },
+        {
+          "path": "_examples/commit/main.go",
+          "mode": "100644",
+          "digest": "5ce4d645ff96a9bde9a32437126df43d694fe4025f4bae2ce7609d2c0d49e8ec"
+        },
+        {
+          "path": "_examples/common_test.go",
+          "mode": "100644",
+          "digest": "08d37bfa908a50ca5ab03b3af61e9e5e2ae82966d365a182362b30dc70b327da"
+        },
+        {
+          "path": "_examples/common.go",
+          "mode": "100644",
+          "digest": "26aed227c7e5321a756685d7e8fa595479ab9af7b0c21c5c5e1b8897e6dd451e"
+        },
+        {
+          "path": "_examples/context/main.go",
+          "mode": "100644",
+          "digest": "a6a34b921b613fdd59bcd397e890b52b26307765c33e772b33722460b2ba33ca"
+        },
+        {
+          "path": "_examples/custom_http/main.go",
+          "mode": "100644",
+          "digest": "7f7bb5754dfac37956ee8dd0688b366365aeadee6783f63495913237dd8dec97"
+        },
+        {
+          "path": "_examples/find-if-any-tag-point-head/main.go",
+          "mode": "100644",
+          "digest": "e66e4b8d25680434ec061fa18bd147c31170caa0f16ab8fa7df9ab0ac4b06d75"
+        },
+        {
+          "path": "_examples/log/main.go",
+          "mode": "100644",
+          "digest": "dcc27513ac72c4b642a3bdc0e9b07a6f3861d6ee39d8dc45202165eccadf3093"
+        },
+        {
+          "path": "_examples/ls-remote/main.go",
+          "mode": "100644",
+          "digest": "d68aeab228f1a731581184cdccc82424443e386a07a3644c74fe38ca1819ab98"
+        },
+        {
+          "path": "_examples/ls/main.go",
+          "mode": "100644",
+          "digest": "3a7e0d6c2b41af817eae08c2235ad9d3e003fd46b3982dc374bf5187d7adec0f"
+        },
+        {
+          "path": "_examples/merge_base/help-long.msg.go",
+          "mode": "100644",
+          "digest": "8e44c1093268124559cb943b8f7380d8165357d67aa0d66d5d1771ba35f1ebec"
+        },
+        {
+          "path": "_examples/merge_base/helpers.go",
+          "mode": "100644",
+          "digest": "ef01fb5f3a3c7a3bfc582af0c179798cf9af105737ddb12a397136f075f7ae5d"
+        },
+        {
+          "path": "_examples/merge_base/main.go",
+          "mode": "100644",
+          "digest": "f9d8c8ce2ab1482492c6edd38923845a5043fc86361d373c9f54504a43256e44"
+        },
+        {
+          "path": "_examples/open/main.go",
+          "mode": "100644",
+          "digest": "4d3856b3b70d042db206c90098c7458f1bf536b8ac4e8eb8e09a972cb84c4b95"
+        },
+        {
+          "path": "_examples/progress/main.go",
+          "mode": "100644",
+          "digest": "1470c63e103111faecae000ba1021a83079b68d237dc029c47c85659aee09576"
+        },
+        {
+          "path": "_examples/pull/main.go",
+          "mode": "100644",
+          "digest": "2bb5884b1d1c7711ae3ffee16b25445d17eed279f06a94aeee56dc4b62bf301c"
+        },
+        {
+          "path": "_examples/push/main.go",
+          "mode": "100644",
+          "digest": "09c494ca6fa63fc14f65b5ed7337ab96af81f81fd1285f9536cff0217cb8cfc3"
+        },
+        {
+          "path": "_examples/README.md",
+          "mode": "100644",
+          "digest": "dd3ffeca987b42efa3d74b3a08679613b3d4fcbc0edb05981836ab6ef42367ac"
+        },
+        {
+          "path": "_examples/remotes/main.go",
+          "mode": "100644",
+          "digest": "2f517de2ca184b19043fe9b8aea65e6c67ce16638ef7f82b2b259b2760668980"
+        },
+        {
+          "path": "_examples/restore/main.go",
+          "mode": "100644",
+          "digest": "b18a2c942c86df7644d172e4668a864ae52fd06cf6ac7619b1e2e6c583b3ad66"
+        },
+        {
+          "path": "_examples/revision/main.go",
+          "mode": "100644",
+          "digest": "4c79bfb274c9649fe33116e2db13ec4a409d0fbe41187f3904853dd934b49f93"
+        },
+        {
+          "path": "_examples/sha256/main.go",
+          "mode": "100644",
+          "digest": "9f65ec7b435fcba28ddc9641b2429995c513f5c75c69a1c36add60d2ccbcbce9"
+        },
+        {
+          "path": "_examples/showcase/main.go",
+          "mode": "100644",
+          "digest": "0326ab465e3078cd096c62ef4044d932da7b3a976cf0f54ba2e450a4c248b761"
+        },
+        {
+          "path": "_examples/sparse-checkout/main.go",
+          "mode": "100644",
+          "digest": "7a86f4ff0670a6854ef69c088318f40663b89abd70deab0b6a649f333badbda7"
+        },
+        {
+          "path": "_examples/storage/README.md",
+          "mode": "100644",
+          "digest": "8a501d5616fd97a15bca2610215b45e236e3c395f16474c42d1da7c1981eb252"
+        },
+        {
+          "path": "_examples/submodule/main.go",
+          "mode": "100644",
+          "digest": "f7a9fa9a4f7ddabb7902b35a88ef081b5071bf4e3ec2d8449722eb8e980e3ab3"
+        },
+        {
+          "path": "_examples/tag-create-push/main.go",
+          "mode": "100644",
+          "digest": "7aa50f1db4b96db37d671c6f9ecb60c2a8217792f3a809263be083c86ef3d1bc"
+        },
+        {
+          "path": "_examples/tag/main.go",
+          "mode": "100644",
+          "digest": "e97d869250352106b5f086e7da4293065715efa62c02686dc61b03300051550b"
+        },
+        {
+          "path": ".github/dependabot.yaml",
+          "mode": "100644",
+          "digest": "917a5e40741688815051e93b63e9569942fe7cecb5a6640a398439fbe0c49227"
+        },
+        {
+          "path": ".github/workflows/codeql.yml",
+          "mode": "100644",
+          "digest": "449c22c106a991f8a0fead869fccf25fcff93a363ee9c3a64943af4487c03531"
+        },
+        {
+          "path": ".github/workflows/git.yml",
+          "mode": "100644",
+          "digest": "f1040f99eabb97443d7747128432ca803d67647a832100ae102a7bd4eb87f9b2"
+        },
+        {
+          "path": ".github/workflows/pr-validation.yml",
+          "mode": "100644",
+          "digest": "b28175d4fc9d8c7fc95f9bc1464d2fa717f125c758a78c01211553340fb995eb"
+        },
+        {
+          "path": ".github/workflows/stale-issues-bot.yaml",
+          "mode": "100644",
+          "digest": "384336ba885cb40c64060bdd8662dc8cb49aac1c097326e7af0da698c2ab4f06"
+        },
+        {
+          "path": ".github/workflows/test.yml",
+          "mode": "100644",
+          "digest": "71a3ebdef56e6da4e16b2d5c1cbe3c612dc6138f918a34bd585adae68778f803"
+        },
+        {
+          "path": ".gitignore",
+          "mode": "100644",
+          "digest": "f2aaa956d40714d6a73d20ac84716205d157ada4bc164f5cd6fe46ea12947190"
+        },
+        {
+          "path": "blame_test.go",
+          "mode": "100644",
+          "digest": "7095c59f8bf46e12c21d2d9da344cfe383fae18d26f3ae4d4ab7b71e3d0ddfae"
+        },
+        {
+          "path": "blame.go",
+          "mode": "100644",
+          "digest": "1133de9f215e8350378c33635a3726b7478a2aaaeea1f3930047e4a0f61f4f06"
+        },
+        {
+          "path": "cli/go-git/go.mod",
+          "mode": "100644",
+          "digest": "7ec125db6ac1dbff9542502e6efe4fe4bdb2c0db029261bcd52d8a12e6367697"
+        },
+        {
+          "path": "cli/go-git/go.sum",
+          "mode": "100644",
+          "digest": "708225f39b211ee81098d2bfb0128f5772d5898c931655417511da14f4e31eeb"
+        },
+        {
+          "path": "cli/go-git/main.go",
+          "mode": "100644",
+          "digest": "a1352c18834bc45a3f9e55fda083914e026aacc58d59aee1ea0830f4965a1d1c"
+        },
+        {
+          "path": "cli/go-git/receive_pack.go",
+          "mode": "100644",
+          "digest": "60bfbd96f0bb2d306b85abe67de6bc11798f3a040048cecd61132a0ddbd47a57"
+        },
+        {
+          "path": "cli/go-git/update_server_info.go",
+          "mode": "100644",
+          "digest": "d8ee4f2ad97a7b4ecd2b57ce95243888db6316c552731cb8eff0bf45b56d22b1"
+        },
+        {
+          "path": "cli/go-git/upload_pack.go",
+          "mode": "100644",
+          "digest": "c040f96a83fd7c57fc84a8e705978fe2a08b294f7afb428bad5415294094ad0e"
+        },
+        {
+          "path": "cli/go-git/version.go",
+          "mode": "100644",
+          "digest": "09f102ec67797133ae185443408eade2672b73efc9e7cff79dedfc4c9e1c1403"
+        },
+        {
+          "path": "CODE_OF_CONDUCT.md",
+          "mode": "100644",
+          "digest": "a6019defb84a67df55b59e58380b22432c73f41bcad27b6f5f2614c0760538d0"
+        },
+        {
+          "path": "common_test.go",
+          "mode": "100644",
+          "digest": "d3ea47459d6c73f3dc9d36752d5e8364b515106dc5c496dd2ffefee4edcfd990"
+        },
+        {
+          "path": "common.go",
+          "mode": "100644",
+          "digest": "25a395cb62f7656294e40a001ee19fefcdf3013d265dfcf4b744cd2549891dec"
+        },
+        {
+          "path": "COMPATIBILITY.md",
+          "mode": "100644",
+          "digest": "141b5b7195cacfb1a2d8909620ec77cd1262dc2bbbd08e2a624387658805a772"
+        },
+        {
+          "path": "config/branch_test.go",
+          "mode": "100644",
+          "digest": "14a76d7098ae678c0bc8f1638f72c3bd1f88b5771e35b3327d1cdae3020285a6"
+        },
+        {
+          "path": "config/branch.go",
+          "mode": "100644",
+          "digest": "0b26d46c75f513aaa330a936d73906ea234bc5af87df879581106755f62ec5f0"
+        },
+        {
+          "path": "config/config_test.go",
+          "mode": "100644",
+          "digest": "e8d1f93d7bd6eea90933b19c1ee4d987ad14c0e39468b919706599ef9e26d80b"
+        },
+        {
+          "path": "config/config.go",
+          "mode": "100644",
+          "digest": "91b644c4a60dc4224caf18baaa95ee7d155fb02cd75aac8aa5d7c86f7baa4a9a"
+        },
+        {
+          "path": "config/modules_test.go",
+          "mode": "100644",
+          "digest": "9b09fbd84fc24284160b927d6664dc0ac960213f1db5c5efec6178facf377c27"
+        },
+        {
+          "path": "config/modules.go",
+          "mode": "100644",
+          "digest": "410ca6650aa0b514affc508e7429ade73b88a70229041face72c3abf7d565b5d"
+        },
+        {
+          "path": "config/refspec_test.go",
+          "mode": "100644",
+          "digest": "cbd770153b68faf4b506691695bbbd1b31a3529442bec36ae240aa874584034c"
+        },
+        {
+          "path": "config/refspec.go",
+          "mode": "100644",
+          "digest": "da1a8a24e2c74648fcc394d2bcc70435624519b2d7a1762c85217ecf83752676"
+        },
+        {
+          "path": "config/url_test.go",
+          "mode": "100644",
+          "digest": "6b49060294a1be1fb3ef76c086bd7f53f99cf15413996aab210ccf0832ca93b0"
+        },
+        {
+          "path": "config/url.go",
+          "mode": "100644",
+          "digest": "cbc8010dfe9235e12e60fe4e7aa9879836eaed335ebb36cfe5eeda024cbdd031"
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "mode": "100644",
+          "digest": "1a407f9f691c2f5e0656b3b8b9609a9b219eae604e5ebcbc537fff934ea7706c"
+        },
+        {
+          "path": "doc.go",
+          "mode": "100644",
+          "digest": "aa95db1db2df91bd7200a892dd1c03bc2704c4793400d016b3ca08c148b0f7c1"
+        },
+        {
+          "path": "example_test.go",
+          "mode": "100644",
+          "digest": "0416cae353bf70122b1fff8e3595304c217b6f71a6a772bc2d5b6ad71bc5b092"
+        },
+        {
+          "path": "EXTENDING.md",
+          "mode": "100644",
+          "digest": "1ad5580ffeb9c3d6add4e42bdab0b70c25b574dec69ee3da07b8736ae2b240ab"
+        },
+        {
+          "path": "go.mod",
+          "mode": "100644",
+          "digest": "867ef621b038cb23dc12a18ccba8346d891b86d58baf852ef4c59b8157e9195c"
+        },
+        {
+          "path": "go.sum",
+          "mode": "100644",
+          "digest": "033c1492639f42de5efbd61659f6279d521a18997d3f37445806b0f14f83a83c"
+        },
+        {
+          "path": "internal/path_util/path_util.go",
+          "mode": "100644",
+          "digest": "9eadfc5a10cb0ca171c4d6a5768fc2234ca1f371f9cddc155c71bd5db3c33a0d"
+        },
+        {
+          "path": "internal/reference/sort.go",
+          "mode": "100644",
+          "digest": "440b607847980e0cdfc25fd91d112f831d3c602d265d776938247d0a651b3736"
+        },
+        {
+          "path": "internal/revision/parser_test.go",
+          "mode": "100644",
+          "digest": "55dc564ddbf336a90a75792cf235af7183629f292f9aa8bafc91427dac4949bc"
+        },
+        {
+          "path": "internal/revision/parser.go",
+          "mode": "100644",
+          "digest": "e266675964df366e9b47d8bd0b034ad536c44afa434a9934ec54ea92b256b4bb"
+        },
+        {
+          "path": "internal/revision/scanner_test.go",
+          "mode": "100644",
+          "digest": "16de1bab773dc212e3bfca54536284f6b46748569747b3fe5d858349b8762de3"
+        },
+        {
+          "path": "internal/revision/scanner.go",
+          "mode": "100644",
+          "digest": "80c38b4f7c25635df5c2a0ff04b995dc3f6df0fd57d0f018e138654ca6150664"
+        },
+        {
+          "path": "internal/revision/token.go",
+          "mode": "100644",
+          "digest": "a784a592548b0afc0bc576adf6ca1c91b01172d1446294f17c408a14bab5ee84"
+        },
+        {
+          "path": "internal/test/checkers.go",
+          "mode": "100644",
+          "digest": "3277961bb2fae4006eac74b8a3bc0e96e135d4e9a8194e2aebb6964d81fcbb3d"
+        },
+        {
+          "path": "internal/url/url_test.go",
+          "mode": "100755",
+          "digest": "96c6e3f5cbec9b9713d2e674e180a5854c276c7757f3fcf42a67b099944d0b31"
+        },
+        {
+          "path": "internal/url/url.go",
+          "mode": "100644",
+          "digest": "65bab00ec882887b4054aa74f309debec4e905b37fe65c4003dc4f68eb0eb24b"
+        },
+        {
+          "path": "LICENSE",
+          "mode": "100644",
+          "digest": "fecc274e9b67f7e128c7d2ba1ad68fcf23b18fe0448d3c3671e943763502d504"
+        },
+        {
+          "path": "Makefile",
+          "mode": "100644",
+          "digest": "7e3e48a3867d0055c5522c7d3ea68656848adb484d92421291811c146d586de9"
+        },
+        {
+          "path": "object_walker.go",
+          "mode": "100644",
+          "digest": "d0afc0e64171140eb7902110f807a1beaa38a603d4312fd4bd14a5db2784ba62"
+        },
+        {
+          "path": "options_test.go",
+          "mode": "100644",
+          "digest": "6584398faf00d2de631a2362030163bcfe26007351296a6388c7f3c0cc82b17c"
+        },
+        {
+          "path": "options.go",
+          "mode": "100644",
+          "digest": "4585563119f89696e5cc51e16da903f89b89f8a386d67fa91f6143c867e82242"
+        },
+        {
+          "path": "oss-fuzz.sh",
+          "mode": "100644",
+          "digest": "0871eb5442d29e5e84e8626aea471fe78568bd78272b375af2ea3bf8e07141fe"
+        },
+        {
+          "path": "plumbing/cache/buffer_lru.go",
+          "mode": "100644",
+          "digest": "e6d478e2a0bc49c1af61daac07ea30394a2ff829b8b62bd3e4cdbc13ea70378c"
+        },
+        {
+          "path": "plumbing/cache/buffer_test.go",
+          "mode": "100644",
+          "digest": "f6bc9599433180e5d8112d3523ec93d3e34a9c0cba9898ff010e525af5f57fc6"
+        },
+        {
+          "path": "plumbing/cache/common.go",
+          "mode": "100644",
+          "digest": "6dfd925f2ce55420dda8203b7bd2c3c07a4db73780c605417a1d56588cc9a3a4"
+        },
+        {
+          "path": "plumbing/cache/object_lru.go",
+          "mode": "100644",
+          "digest": "9b2e44f73c28eead22316c45aff5329afc609ad26f13da46442ec63afbf0a80b"
+        },
+        {
+          "path": "plumbing/cache/object_test.go",
+          "mode": "100644",
+          "digest": "a9a18ce1a4c184534e0794e609552dbaaebab21c834f9b23f96612eaf22ca8c0"
+        },
+        {
+          "path": "plumbing/color/color.go",
+          "mode": "100644",
+          "digest": "ec8e583416805579d85479a9387064dbaaf3dcfc0d3e03b45bf6164258041334"
+        },
+        {
+          "path": "plumbing/error.go",
+          "mode": "100644",
+          "digest": "47064cd6c8dff6c1d039b54eb4516430eb6c81df7162074930832be8c49e6492"
+        },
+        {
+          "path": "plumbing/filemode/filemode_test.go",
+          "mode": "100644",
+          "digest": "aabcc88137bf161eda4613265f7739ecc817ed7daed5e85135cc5b8aa5ac6f8c"
+        },
+        {
+          "path": "plumbing/filemode/filemode.go",
+          "mode": "100644",
+          "digest": "cc688045123454f693894375f36081712d479534922619e4aac9eeab0151fd0a"
+        },
+        {
+          "path": "plumbing/format/commitgraph/commitgraph_test.go",
+          "mode": "100644",
+          "digest": "c689a8446fac2219e0f07f407f1dce93a147874f94029a87c262647d17ae27fd"
+        },
+        {
+          "path": "plumbing/format/commitgraph/commitgraph.go",
+          "mode": "100644",
+          "digest": "79f05ea3ae479519592ffd85ae2228f18b13e227aef84819d3515a08e82d3cd3"
+        },
+        {
+          "path": "plumbing/format/commitgraph/doc.go",
+          "mode": "100644",
+          "digest": "90ba2c120729ecdd0230aca03772ff7dc401885689f3c55dff2d376773691f54"
+        },
+        {
+          "path": "plumbing/format/commitgraph/encoder.go",
+          "mode": "100644",
+          "digest": "2bb886169b4f31638c9e9f42ec6f8664b9993c4896c7a16798d9869df031ae43"
+        },
+        {
+          "path": "plumbing/format/commitgraph/file.go",
+          "mode": "100644",
+          "digest": "4e7f336294e18b198dfc7e8df00a420eef7342b0f50ed37a087199d620dda47c"
+        },
+        {
+          "path": "plumbing/format/commitgraph/memory.go",
+          "mode": "100644",
+          "digest": "71977e14110dcc5fe67f32c036a3b4ea97a34e732054c1b1a0ef49409e38b817"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/chain_test.go",
+          "mode": "100644",
+          "digest": "a2199d43ea3cc54ce2b02771ddd6dead4683a55b6c249c13ce1e373d728356b1"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/chain.go",
+          "mode": "100644",
+          "digest": "54855e838ee7c0c3f6b8e1c3ffe279e84c0a448ff621c2cb43f43fc58a3f33bf"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/chunk.go",
+          "mode": "100644",
+          "digest": "24b2ec094b3c43a2579957b96f4a128e2444ed8832c39eef3a786987e01b227b"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/commitgraph_test.go",
+          "mode": "100644",
+          "digest": "233b3669ea4daf81b930f71928d66ce71e2b1eb549f0f8a1df6ffaaa9037091a"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/commitgraph.go",
+          "mode": "100644",
+          "digest": "791b6495507a130aa2db634ed0ec226e2600a89a778992ec4512c3a1c3fe8ea0"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/doc.go",
+          "mode": "100644",
+          "digest": "4860359914757cb79c9eddbd47a8105457d2fa9a57fa83c4150d0d1c2eeeb358"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/encoder.go",
+          "mode": "100644",
+          "digest": "0510bb09569fb579303f878470fd292cb02334d387ff1f2e99ab1c7ec1b0786f"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/file.go",
+          "mode": "100644",
+          "digest": "240582b8385ff7ea63265c320c95abcfcc252b901b92f43fc1ea5c7b126d7e81"
+        },
+        {
+          "path": "plumbing/format/commitgraph/v2/memory.go",
+          "mode": "100644",
+          "digest": "5e82346e32e683423840fc0c0512e572a5550d766744088bd2ee333e8a709da7"
+        },
+        {
+          "path": "plumbing/format/config/common_test.go",
+          "mode": "100644",
+          "digest": "9febb435af9ad0671cab6d3d3c659ca781ea7f75bb98da9fa0ee3540830262e4"
+        },
+        {
+          "path": "plumbing/format/config/common.go",
+          "mode": "100644",
+          "digest": "9b9280d5b8524e0314567af0234a37b3ddcd2654c1af629599ca0e756a829aa4"
+        },
+        {
+          "path": "plumbing/format/config/decoder_test.go",
+          "mode": "100644",
+          "digest": "564dc73a9483d78484d53713aafd5e42425c3d79649f21433c1959d16d3e8296"
+        },
+        {
+          "path": "plumbing/format/config/decoder.go",
+          "mode": "100644",
+          "digest": "e5878190c8e2c5f7c5a145ac68b925b2c751684f9b120a2c9f186a3b5ac9df81"
+        },
+        {
+          "path": "plumbing/format/config/doc.go",
+          "mode": "100644",
+          "digest": "e318f1a9de52ced2a93cebd276028f3fc06043a1ab957b74b61e9c316daff267"
+        },
+        {
+          "path": "plumbing/format/config/encoder_test.go",
+          "mode": "100644",
+          "digest": "721fef16fa89ae4f3fac458c2589a9c3c88f9a0836bdc7d15acb668ed07d7d37"
+        },
+        {
+          "path": "plumbing/format/config/encoder.go",
+          "mode": "100644",
+          "digest": "a8249761bfdbe1270febd141f148e7ac78d8b234f4caa8afbfd3cbeabf357c52"
+        },
+        {
+          "path": "plumbing/format/config/fixtures_test.go",
+          "mode": "100644",
+          "digest": "8e5bb61f7bd9e2d42619aec1bc04b259674c2d7f4a5546ddcdf45a28549f4e8c"
+        },
+        {
+          "path": "plumbing/format/config/format.go",
+          "mode": "100644",
+          "digest": "cf36c12615b490ec213818810c2f0728f4be7e75384ce72f218ab89745ef9ca5"
+        },
+        {
+          "path": "plumbing/format/config/option_test.go",
+          "mode": "100644",
+          "digest": "25bddb34cba8beb5e6d39e6d273449cea1a2be89a5821b3e28894a8fbda3bfa6"
+        },
+        {
+          "path": "plumbing/format/config/option.go",
+          "mode": "100644",
+          "digest": "1b630072d26684df243fcf8197ab235ea527a33462f46f36045c0f5d2dfc97ab"
+        },
+        {
+          "path": "plumbing/format/config/section_test.go",
+          "mode": "100644",
+          "digest": "e77c26b3a1be9ec0e3cfcedcd20a8ed30a4b8f907499b2c34981eef201137446"
+        },
+        {
+          "path": "plumbing/format/config/section.go",
+          "mode": "100644",
+          "digest": "deb99b5629ed7fed41ff8aabd75ccced923693816a0bff95ffbf042d889a505b"
+        },
+        {
+          "path": "plumbing/format/diff/colorconfig.go",
+          "mode": "100644",
+          "digest": "87cd4d241ac9eb3b3eadccab2f6f4115bd214f5cb0242b6d36f55b6053e62a82"
+        },
+        {
+          "path": "plumbing/format/diff/patch.go",
+          "mode": "100644",
+          "digest": "ca624cc58c616f5d90996a3f647f46795629f54be527e55e6ac6223c5eef87de"
+        },
+        {
+          "path": "plumbing/format/diff/unified_encoder_test.go",
+          "mode": "100644",
+          "digest": "12dfe38d35278781a2bd8f8cecffcafd0557f21406dfd01dc89f4dbd3d1ecf72"
+        },
+        {
+          "path": "plumbing/format/diff/unified_encoder.go",
+          "mode": "100644",
+          "digest": "73dd42b669ae035d214bf611c558d38ce0f49a4e7d590d793acb10514ca0d922"
+        },
+        {
+          "path": "plumbing/format/gitattributes/attributes_test.go",
+          "mode": "100644",
+          "digest": "05cddac9d8196ab34ea1019fbc1fb356f828ecc555b79443a5647760e4c09b85"
+        },
+        {
+          "path": "plumbing/format/gitattributes/attributes.go",
+          "mode": "100644",
+          "digest": "8f4f553cdc82b159794755dc869811d2c52554f7afb982d58a1c80ddcd189c40"
+        },
+        {
+          "path": "plumbing/format/gitattributes/dir_test.go",
+          "mode": "100644",
+          "digest": "5e07dd4e563eedeb8b58a29ad3cbf49a9819a92e93dc2d7d24e281947c47022c"
+        },
+        {
+          "path": "plumbing/format/gitattributes/dir.go",
+          "mode": "100644",
+          "digest": "c9a1c97803d46ad70ff3c4b49b64eb705958b8629a5c2650388a3cbb3a3fa331"
+        },
+        {
+          "path": "plumbing/format/gitattributes/matcher_test.go",
+          "mode": "100644",
+          "digest": "36a0ef7b8610c35105f849a6285d45f99d7fffd7f24ee40b170ca41bde971c32"
+        },
+        {
+          "path": "plumbing/format/gitattributes/matcher.go",
+          "mode": "100644",
+          "digest": "3462e933f3b953104cd8f680ff7707deb6e39afb37506183384a2393b1405a01"
+        },
+        {
+          "path": "plumbing/format/gitattributes/pattern_test.go",
+          "mode": "100644",
+          "digest": "cd7df47d0c430d6c6ac90c61d1ccf6086888c03293dc32ca85046872139a5974"
+        },
+        {
+          "path": "plumbing/format/gitattributes/pattern.go",
+          "mode": "100644",
+          "digest": "c2064ef39f208894a9a50ad2f8a52da84dd051aed2ac0898032745ead5a40fcf"
+        },
+        {
+          "path": "plumbing/format/gitignore/dir_test.go",
+          "mode": "100644",
+          "digest": "91da72ab6bf7a17a96d0c2194d90d3bdb2c92da1e3619475f241ae8aa45e9a0c"
+        },
+        {
+          "path": "plumbing/format/gitignore/dir.go",
+          "mode": "100644",
+          "digest": "287f49d5b8b99360efb382c06a971d42f7dcdafd5f882c176d3da1f88b3fcb16"
+        },
+        {
+          "path": "plumbing/format/gitignore/doc.go",
+          "mode": "100644",
+          "digest": "28d8cc28e3793361bfe9d069d346541060f60d369af6eb004f4e09336f08f65d"
+        },
+        {
+          "path": "plumbing/format/gitignore/matcher_test.go",
+          "mode": "100644",
+          "digest": "b796ee14803430b90a83380ab19e8e3ddf28b5bbd183f4d2b8208ab8e176b9a1"
+        },
+        {
+          "path": "plumbing/format/gitignore/matcher.go",
+          "mode": "100644",
+          "digest": "e104fc611ae78c88a9202fce457ef6ced879982c1d6eb179fd828996e06e69f3"
+        },
+        {
+          "path": "plumbing/format/gitignore/pattern_test.go",
+          "mode": "100644",
+          "digest": "47e4dce0d19d8ee9be8852a936fd1e329da087208f744efc37e06941b28fd819"
+        },
+        {
+          "path": "plumbing/format/gitignore/pattern.go",
+          "mode": "100644",
+          "digest": "6c8442cc541e54bc05db87c228f959249b357ffbf2487e457615fc06cb8a73ee"
+        },
+        {
+          "path": "plumbing/format/idxfile/decoder_test.go",
+          "mode": "100644",
+          "digest": "f0b06f3139a711bbc3c68cbe1f293f424e821e1340f82a8fad71d9bea541591a"
+        },
+        {
+          "path": "plumbing/format/idxfile/decoder.go",
+          "mode": "100644",
+          "digest": "5608ac5f1b25a953054b05f6cb58af2f36a79ecb9d09437b91ed0dc33078b0b2"
+        },
+        {
+          "path": "plumbing/format/idxfile/doc.go",
+          "mode": "100644",
+          "digest": "e3a60b1122f25e79f3785d94f095485df05675c40549ec992ad377127a06ecf4"
+        },
+        {
+          "path": "plumbing/format/idxfile/encoder_test.go",
+          "mode": "100644",
+          "digest": "f19ec2166299b59eff152696c20390233473f32295acdd302bca7cb75832160f"
+        },
+        {
+          "path": "plumbing/format/idxfile/encoder.go",
+          "mode": "100644",
+          "digest": "c348da82c4728c3e2cbbc709e503a0d9fba6603fbdc432b88227ab294a55fe7d"
+        },
+        {
+          "path": "plumbing/format/idxfile/idxfile_test.go",
+          "mode": "100644",
+          "digest": "61de56ce07543fbcdabb9f071a4a268d181b2a9347e22ce9f27a5ce62b5e9cb2"
+        },
+        {
+          "path": "plumbing/format/idxfile/idxfile.go",
+          "mode": "100644",
+          "digest": "25eedc3a238f279f078f1a1a1b85a1e14413165e3bc4bfffebdad48338289a09"
+        },
+        {
+          "path": "plumbing/format/idxfile/writer_test.go",
+          "mode": "100644",
+          "digest": "0915f4a0aeb58a3795c76560c35dc63274af4dbf49d75fbd437968bcbe7faa20"
+        },
+        {
+          "path": "plumbing/format/idxfile/writer.go",
+          "mode": "100644",
+          "digest": "36d0c464d07febb2292e70f12e7a3364b4e736c687e017dabcbcae0069f9916f"
+        },
+        {
+          "path": "plumbing/format/index/decoder_test.go",
+          "mode": "100644",
+          "digest": "d7d0467cc45d995a7424414dcd6ec0c84f368f0e7c7a94c033c7887953d4f6ab"
+        },
+        {
+          "path": "plumbing/format/index/decoder.go",
+          "mode": "100644",
+          "digest": "c2ebc6d625a17071ccc3f6e98ea424a29204167f0b324c8b670cb3fd4db74f2f"
+        },
+        {
+          "path": "plumbing/format/index/doc.go",
+          "mode": "100644",
+          "digest": "60cb8dff36e1fd29cb22136d081e54e0d56af2ccf7a0c51e31bcf82cb8a6fde7"
+        },
+        {
+          "path": "plumbing/format/index/encoder_test.go",
+          "mode": "100644",
+          "digest": "e057fa531cf4c6f43151a662616d10f4c7291e63ad9bd6d7ba7e8edfc7219177"
+        },
+        {
+          "path": "plumbing/format/index/encoder.go",
+          "mode": "100644",
+          "digest": "2b06923bf7c85f1d23ee8a02d773c8086acb5cd8fbcc459268648fcc0af1ec21"
+        },
+        {
+          "path": "plumbing/format/index/index_test.go",
+          "mode": "100644",
+          "digest": "aa53cd63a8347fc3adb46682bc09779d0bee67df95748f4271ace608ef55b439"
+        },
+        {
+          "path": "plumbing/format/index/index.go",
+          "mode": "100644",
+          "digest": "e623330b42ccf20916c1b627ee5fb33e9f018b06d645a5ad9f4b176650f3f331"
+        },
+        {
+          "path": "plumbing/format/index/match.go",
+          "mode": "100644",
+          "digest": "ace8dd9a7241447803707fe788b8f1d711f81139dffff0020ac33771980d4a32"
+        },
+        {
+          "path": "plumbing/format/objfile/common_test.go",
+          "mode": "100644",
+          "digest": "4ebf0da259bbaa2cd31bcf6754766d5b1c0de0e2f9f98bfd892871dac3ce47fb"
+        },
+        {
+          "path": "plumbing/format/objfile/doc.go",
+          "mode": "100644",
+          "digest": "bb4e7fd6f4294696436fdf547befdf50351f15bc95734c276ab576818c2055be"
+        },
+        {
+          "path": "plumbing/format/objfile/reader_test.go",
+          "mode": "100644",
+          "digest": "0b68fcddc2f70ad414767e379c59bec2c3c304bc80d9621abbf8005210289c78"
+        },
+        {
+          "path": "plumbing/format/objfile/reader.go",
+          "mode": "100644",
+          "digest": "546f9d2e1888722361ce7cf49d120f25a9323f298e508ac2f33f5251e7c58850"
+        },
+        {
+          "path": "plumbing/format/objfile/writer_test.go",
+          "mode": "100644",
+          "digest": "c8a9dc0355e02bc71100055f233bd0751774432582c5522db7e1247e722cf511"
+        },
+        {
+          "path": "plumbing/format/objfile/writer.go",
+          "mode": "100644",
+          "digest": "b0137a539f3a0db1c5b32bdbb0d4af86bb274dcf113f95d3a3743bf3285fb8c7"
+        },
+        {
+          "path": "plumbing/format/packfile/common_test.go",
+          "mode": "100644",
+          "digest": "98ecb3100791793c865327fa9e9e252d1465d1874d426749e56d6a977fb6c60e"
+        },
+        {
+          "path": "plumbing/format/packfile/common.go",
+          "mode": "100644",
+          "digest": "757257e51cb433d4eb7fff4252bd7f2e7d59b049bb17b97d32b004e69bddf16d"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_index.go",
+          "mode": "100644",
+          "digest": "3c380ee2f2246bbbd9c222766da05f3326ddfa8ac7a8d90e10ff7cd22412c1b4"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_selector_test.go",
+          "mode": "100644",
+          "digest": "99b430ed5747c3a756e98cbc4fe5274e0115699ec095195d0c2a99e61dbaef3f"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_selector.go",
+          "mode": "100644",
+          "digest": "48ecd5890e784638a2377d04c0d7cbd06f5cf44984a96ac3c2c9693aae11218f"
+        },
+        {
+          "path": "plumbing/format/packfile/delta_test.go",
+          "mode": "100644",
+          "digest": "c2092aa6b04a8cb26205c22ffd664ea2ee161aa3ad4ce55db1de6dfde58212db"
+        },
+        {
+          "path": "plumbing/format/packfile/diff_delta.go",
+          "mode": "100644",
+          "digest": "522691ce8b017ddf2ea4bc308957b24b15fb8859e0f00a8c115a306e8f2fc7a7"
+        },
+        {
+          "path": "plumbing/format/packfile/doc.go",
+          "mode": "100644",
+          "digest": "5c33757f688bdf7f94cc67858be280d25fb090eac416251309cdc2609d838c10"
+        },
+        {
+          "path": "plumbing/format/packfile/encoder_advanced_test.go",
+          "mode": "100644",
+          "digest": "ca72343c63a93deb111ac8b1a7a858f7d0dce739e89fd0b491a904a140d60d7f"
+        },
+        {
+          "path": "plumbing/format/packfile/encoder_test.go",
+          "mode": "100644",
+          "digest": "5968b76ae9338969a80a5b91f3115eed012a991316b53131d12ce4611bdfc413"
+        },
+        {
+          "path": "plumbing/format/packfile/encoder.go",
+          "mode": "100644",
+          "digest": "c1f8a234050043bc73b2060e90647edad5749b1ef3ef07ce072aa4a9bd06d85d"
+        },
+        {
+          "path": "plumbing/format/packfile/error.go",
+          "mode": "100644",
+          "digest": "b560b987dcef029a0a4c492d3b4a5b90f304fc1b55160c28644bd8580f425d4c"
+        },
+        {
+          "path": "plumbing/format/packfile/fsobject.go",
+          "mode": "100644",
+          "digest": "5809aa0c999a1e43869d4ecc0b7640ddcd8eddcd240085b0df511e89ae2496b9"
+        },
+        {
+          "path": "plumbing/format/packfile/object_pack_test.go",
+          "mode": "100644",
+          "digest": "fb9ab609d6f491ede1f780886da07b692c7a486159587d3fab2b9bafcd86c6c2"
+        },
+        {
+          "path": "plumbing/format/packfile/object_pack.go",
+          "mode": "100644",
+          "digest": "e490c4c75c2a73d250de2a2d9f25e8f7ca51df65616463519d7b5283f6859d1d"
+        },
+        {
+          "path": "plumbing/format/packfile/packfile_test.go",
+          "mode": "100644",
+          "digest": "651e00a6da698a65b8af2d49ac04d89e3da3d262899e7a70e629f170d0032620"
+        },
+        {
+          "path": "plumbing/format/packfile/packfile.go",
+          "mode": "100644",
+          "digest": "9775bff36ebd55b6e9badc984b6ca137d7d715d254d2e21c998bec654dfaed81"
+        },
+        {
+          "path": "plumbing/format/packfile/parser_test.go",
+          "mode": "100644",
+          "digest": "90f98d78cfd7c3a3b8a4c8ec89e73e26ee5ff388e17006d6faabca0487c0bc26"
+        },
+        {
+          "path": "plumbing/format/packfile/parser.go",
+          "mode": "100644",
+          "digest": "1f00e3912250d0da00777b5691d2a403cd96e5effa7241312beaf9439da8d8bc"
+        },
+        {
+          "path": "plumbing/format/packfile/patch_delta_test.go",
+          "mode": "100644",
+          "digest": "b3504eded6438e55a4c0452f42ecbc694c5f5d54edc2d748a1c09cf0504740ea"
+        },
+        {
+          "path": "plumbing/format/packfile/patch_delta.go",
+          "mode": "100644",
+          "digest": "f70295d4cb2ee9f4c87cfc202243f00e0ff7493919bca7d5f6eb7a3af1b37f8b"
+        },
+        {
+          "path": "plumbing/format/packfile/scanner_test.go",
+          "mode": "100644",
+          "digest": "683c4fa105d74c90ce6fbb98ab35487b01088774c10f54361f14291dc2f6adf3"
+        },
+        {
+          "path": "plumbing/format/packfile/scanner.go",
+          "mode": "100644",
+          "digest": "e954a3d63b6a1f68cc1ad7661af69a48376645cadfa1fefa89fd1a3344efc2cd"
+        },
+        {
+          "path": "plumbing/format/pktline/encoder_test.go",
+          "mode": "100644",
+          "digest": "eeca328a4d216bffedf3ee4798bd123d6cfbbc19574e3031e9730b3f8ceffc92"
+        },
+        {
+          "path": "plumbing/format/pktline/encoder.go",
+          "mode": "100644",
+          "digest": "ba8628584e7cf197b575b0e70c4c7f0000072fd8e28ce9d2b80b002790882b6c"
+        },
+        {
+          "path": "plumbing/format/pktline/error_test.go",
+          "mode": "100644",
+          "digest": "6911ee511ebec7edd041372b7cf0cff7f94d0605de37f8026876c7b3fcad565a"
+        },
+        {
+          "path": "plumbing/format/pktline/error.go",
+          "mode": "100644",
+          "digest": "18afc29df779a1667e219fa6e38ca173e726fc844d663417c44b1f43500c3fd3"
+        },
+        {
+          "path": "plumbing/format/pktline/scanner_test.go",
+          "mode": "100644",
+          "digest": "7b5626a2bd90d6046aa125139ecd3589d6b9798ca846bb3fa810c4ae436b049a"
+        },
+        {
+          "path": "plumbing/format/pktline/scanner.go",
+          "mode": "100644",
+          "digest": "481b5adec18521bb4fb1a8a11fe3243ea31917a07c72adb43739df1c65e9a5c4"
+        },
+        {
+          "path": "plumbing/hash_test.go",
+          "mode": "100644",
+          "digest": "8c764074f5eda686b93316c8c771d4fc7e9abe3797fcb49143e39d6ed648c5d4"
+        },
+        {
+          "path": "plumbing/hash.go",
+          "mode": "100644",
+          "digest": "e28d8d1fa7f972b988ea68c626c20875852ce944dd9a633032df966a0977d75f"
+        },
+        {
+          "path": "plumbing/hash/hash_sha1.go",
+          "mode": "100644",
+          "digest": "005c8b66d300d7dbd5bec54c2a581d7d1de5d8da1fa19b2d05df39aba0ecd083"
+        },
+        {
+          "path": "plumbing/hash/hash_sha256.go",
+          "mode": "100644",
+          "digest": "f9fd07ba0842f066d57ba3d07b3b2fca7f94200a5ed093b01ce800e9ac29ae4d"
+        },
+        {
+          "path": "plumbing/hash/hash_test.go",
+          "mode": "100644",
+          "digest": "88d7fcde082ff063edd052a881210a59c43d9e3938e1f9afecfadb5cdbb285c3"
+        },
+        {
+          "path": "plumbing/hash/hash.go",
+          "mode": "100644",
+          "digest": "2276a4c264fe55a301567d2ea0288a6db36480bb805c48ac2e7c860841e25839"
+        },
+        {
+          "path": "plumbing/memory_test.go",
+          "mode": "100644",
+          "digest": "390f86d38069235373b89ceb4108849989e9e800befc885f0c1bcb7bdc0b71a7"
+        },
+        {
+          "path": "plumbing/memory.go",
+          "mode": "100644",
+          "digest": "7642895557f526ad049ff6fab1cbc0509cc4591d0dc77adb520165be975d1971"
+        },
+        {
+          "path": "plumbing/object_test.go",
+          "mode": "100644",
+          "digest": "169fada57fea9c68fc6f3a1b2219613bcde18cdc4d64587eaeb4bdc57f5c502b"
+        },
+        {
+          "path": "plumbing/object.go",
+          "mode": "100644",
+          "digest": "356b7f2c1a46c8ea18d77fdf31dbd2fcfabbbe7843acf6f14920245a0b1fad2f"
+        },
+        {
+          "path": "plumbing/object/blob_test.go",
+          "mode": "100644",
+          "digest": "22a3f7a7382b19319a132a2647e11884a215f6b55903570e39904f8861c00035"
+        },
+        {
+          "path": "plumbing/object/blob.go",
+          "mode": "100644",
+          "digest": "f34a47607c3b58511a049d12455a50ad034fa1fd2015ecce8dc6a4caeb44ddb8"
+        },
+        {
+          "path": "plumbing/object/change_adaptor_test.go",
+          "mode": "100644",
+          "digest": "e3f42338f4fc51bde82ca82d6dbd8077f7badfacf7ec17e00d0e47b104820015"
+        },
+        {
+          "path": "plumbing/object/change_adaptor.go",
+          "mode": "100644",
+          "digest": "7dee07c5f55748d928910bf6c790e729b00b41c0ab4465efd96a2da46f14e851"
+        },
+        {
+          "path": "plumbing/object/change_test.go",
+          "mode": "100644",
+          "digest": "9d31b7d23e852f0f8896ca0109c7236d4d10fe2e7975c7e05c397534a67118bc"
+        },
+        {
+          "path": "plumbing/object/change.go",
+          "mode": "100644",
+          "digest": "3e07becb34f71a799e31a2b391837f6f27c2d8074dd32ef526dfe6bdb5c369b0"
+        },
+        {
+          "path": "plumbing/object/commit_stats_test.go",
+          "mode": "100644",
+          "digest": "49267bf4d3794dfdc529e8089500145b3abf5c4befffe2d4afd3d1dd7620586c"
+        },
+        {
+          "path": "plumbing/object/commit_test.go",
+          "mode": "100644",
+          "digest": "5400d46ee9fc48d663635a8676baec3548feb7498c5a041d744ed61d311f628d"
+        },
+        {
+          "path": "plumbing/object/commit_walker_bfs_filtered_test.go",
+          "mode": "100644",
+          "digest": "5936de7ae41ce8e41afe561499c1645cf93268a6587453deb35339b1f45746bc"
+        },
+        {
+          "path": "plumbing/object/commit_walker_bfs_filtered.go",
+          "mode": "100644",
+          "digest": "9015bfc65596a936c662b9da6f6a02ce4a661a1e0e7401180ff3c2e578c78c92"
+        },
+        {
+          "path": "plumbing/object/commit_walker_bfs.go",
+          "mode": "100644",
+          "digest": "9eb50edaa2acb9396fc6bb1a8d7f7cf3de2969f9ea909914ac8f668b217c2ee5"
+        },
+        {
+          "path": "plumbing/object/commit_walker_ctime.go",
+          "mode": "100644",
+          "digest": "4a4e56caad3ad2b66f9b78deb132716c527b5957f5355da49c1b2de51435e25b"
+        },
+        {
+          "path": "plumbing/object/commit_walker_limit.go",
+          "mode": "100644",
+          "digest": "e5fe52ea3433ff1cfa5d7fee12154a02a30efb3fa8322740fd1b2ac243e3c07c"
+        },
+        {
+          "path": "plumbing/object/commit_walker_path.go",
+          "mode": "100644",
+          "digest": "42720fba1a526a7d8f2be34a1b47a86db0ec94ba345cfbbcc99bafeb329789e2"
+        },
+        {
+          "path": "plumbing/object/commit_walker_test.go",
+          "mode": "100644",
+          "digest": "5dcbad18557b316f3327ce08370e7782a271d6f78adb28b4d8d23514e59823e7"
+        },
+        {
+          "path": "plumbing/object/commit_walker.go",
+          "mode": "100644",
+          "digest": "9b5cbe1972beb2c6d823a17ef54924a9fe8968519b40dd3d123e430d46114bff"
+        },
+        {
+          "path": "plumbing/object/commit.go",
+          "mode": "100644",
+          "digest": "fc328256c9a970548dda298efa59ed47de4be4b7e4c7ab75090ad582bbe72d38"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_graph.go",
+          "mode": "100644",
+          "digest": "51ea4724f883cb6dd1cdf66a8c5048ade1f19b97d445a161a2b20b9547579f95"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_object.go",
+          "mode": "100644",
+          "digest": "152daf66d28c35dcb0c01be799166ec0f7f00daab0c93508caf96e4995f288ae"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_test.go",
+          "mode": "100644",
+          "digest": "78a72935608b78b0213f86393116e0585aaec979736c62db8eb6e33947d079f2"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_author_order.go",
+          "mode": "100644",
+          "digest": "ef40dc67e292e86cf70916f1401084014cd508b1af5de12b1e1834abedc521b1"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_ctime.go",
+          "mode": "100644",
+          "digest": "5d21c8a56103ac8bb63caa4d9297a44250b79f56b24a7fed1cddad4b4b173045"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_date_order.go",
+          "mode": "100644",
+          "digest": "df6ff415123c6a1e1846ae65c531fe53127c5b70660bcff3456721a30983e410"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_helper.go",
+          "mode": "100644",
+          "digest": "d2251b79a6dbe14518d312651f93b61cb7b3520afc851cc9fe6b6ac04854bf73"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_test.go",
+          "mode": "100644",
+          "digest": "284835aa8a8f9d7ff3427ea380ecad16c65a9d9aa6d754ce574f6c3f9c3ad2b3"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode_walker_topo_order.go",
+          "mode": "100644",
+          "digest": "86de1ed22cb30656976594c81dcb6ac24261636eb1f71658449735002f46a4bf"
+        },
+        {
+          "path": "plumbing/object/commitgraph/commitnode.go",
+          "mode": "100644",
+          "digest": "1a7cbb3f68be7cd6541c6507d040247c4a79a300fc271faef30309e052064137"
+        },
+        {
+          "path": "plumbing/object/commitgraph/doc.go",
+          "mode": "100644",
+          "digest": "4af368ca8c60591d5f974b61967c627b034c0e9ce4a3cc95fc1010a53e0cc80b"
+        },
+        {
+          "path": "plumbing/object/difftree_test.go",
+          "mode": "100644",
+          "digest": "e0f5f25b84d440bbbf64edcf7374e5f560540bafdb24f3dcb1a79696d344b085"
+        },
+        {
+          "path": "plumbing/object/difftree.go",
+          "mode": "100644",
+          "digest": "7c8a1582c58ebbea1c9d6da993427f2100f128e3b216109897f3aa9fe1dbaa2a"
+        },
+        {
+          "path": "plumbing/object/file_test.go",
+          "mode": "100644",
+          "digest": "9e954d0a1f4a44a08b115de6af3e87de3f09e70718fb480c1ff92382feeecbb7"
+        },
+        {
+          "path": "plumbing/object/file.go",
+          "mode": "100644",
+          "digest": "0a1da5601aba0f690015ff57f3299309505c102f9121e63edef18091d5ee722e"
+        },
+        {
+          "path": "plumbing/object/merge_base_test.go",
+          "mode": "100644",
+          "digest": "ef54e2ac927670f6d7211aa3fa7c342d0fe54b3d7f613b0a3b72df7ddce7ee22"
+        },
+        {
+          "path": "plumbing/object/merge_base.go",
+          "mode": "100644",
+          "digest": "138146d3aeb4a9f57bf8a2fa1c245b8f76dfddd96625b48a8a74ccbecd6a7bae"
+        },
+        {
+          "path": "plumbing/object/object_test.go",
+          "mode": "100644",
+          "digest": "68a1845bc104fc62e9939a2720c484492dc3c439c0c1cc202259b640d38aade0"
+        },
+        {
+          "path": "plumbing/object/object.go",
+          "mode": "100644",
+          "digest": "915ce2063c0747c1d8bf73cfcce2e1c9f67528df0ccc4932829af264e1e2096c"
+        },
+        {
+          "path": "plumbing/object/patch_stats_test.go",
+          "mode": "100644",
+          "digest": "15a3aec84af3bd3b3a780831f6f916976349d9c5c6d06da48fbe8d21647bf6eb"
+        },
+        {
+          "path": "plumbing/object/patch_test.go",
+          "mode": "100644",
+          "digest": "4a7693f1240206541d326036b7be16e6068c3a4cb102847ed5f98b5e64b286c9"
+        },
+        {
+          "path": "plumbing/object/patch.go",
+          "mode": "100644",
+          "digest": "6ef6fc0360a6b48b9a8bf772985f8057dc2a3de1586563e9fe4a68e2c4569e74"
+        },
+        {
+          "path": "plumbing/object/rename_test.go",
+          "mode": "100644",
+          "digest": "41222eddb60e1b8cc69ef6ab5f1672c796bda9ec19ea681cf710f1a8c22c7874"
+        },
+        {
+          "path": "plumbing/object/rename.go",
+          "mode": "100644",
+          "digest": "3959f3185d747e4ad1ecf56220f9562e2c57193a378d20e1a21792398a02204e"
+        },
+        {
+          "path": "plumbing/object/signature_test.go",
+          "mode": "100644",
+          "digest": "491934db526b9aa7042c52cf8078d0bbd6864316cfa2b40b3a81bae0decf5c9f"
+        },
+        {
+          "path": "plumbing/object/signature.go",
+          "mode": "100644",
+          "digest": "d9d16e9b1436b83ec2acb1a1dfd7e1458200ee440763fe15eb2a869ec018a9a7"
+        },
+        {
+          "path": "plumbing/object/tag_test.go",
+          "mode": "100644",
+          "digest": "64c18374e82bcf2f8deaf610e154c72e170468115f521ee124043a8347c352c6"
+        },
+        {
+          "path": "plumbing/object/tag.go",
+          "mode": "100644",
+          "digest": "38ec39ccf981d279510453f71e484514a1732f8d8da32dec5e43335bd8e41786"
+        },
+        {
+          "path": "plumbing/object/tree_test.go",
+          "mode": "100644",
+          "digest": "cc9fdbc5023ca846fe5ca2cbb4822e35ff31c1f3e2822b4bcc67df60c0b21277"
+        },
+        {
+          "path": "plumbing/object/tree.go",
+          "mode": "100644",
+          "digest": "2a025b7c1c98f9261f8513fdfc8a8fa0fccb28a924720bde524e6ce58efe9f06"
+        },
+        {
+          "path": "plumbing/object/treenoder.go",
+          "mode": "100644",
+          "digest": "a4d5ee33d5a46718e2999c4867eaba6045f046bc6118e69e90891f3af1ddc70f"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_decode_test.go",
+          "mode": "100644",
+          "digest": "d8f7087cab94dfd737d15a7e4286e62762522668584ba2acd6346ffb25215878"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_decode.go",
+          "mode": "100644",
+          "digest": "1cc4eb797a1a024df24cff967817aaf26683c619215d1fb1a0c49b74892b4ee8"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_encode_test.go",
+          "mode": "100644",
+          "digest": "8a47059fd5a0711dca5ab52c221a85017474bad5da4cfc612ee6726c33be11e1"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_encode.go",
+          "mode": "100644",
+          "digest": "d39581862654c11727c10fc656727e54745d7ac84e50d5598dab12705892015d"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs_test.go",
+          "mode": "100644",
+          "digest": "edc3252edba158ee323d790c15e1815a8d669879bbb331d69b1bb5b44bf0d932"
+        },
+        {
+          "path": "plumbing/protocol/packp/advrefs.go",
+          "mode": "100644",
+          "digest": "96ff56330c79f9e7fe51b2196061f8f0deaf5c7be15fd79f8a28400f211986e0"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/capability_test.go",
+          "mode": "100644",
+          "digest": "be4ec891b14fd451770149e4bd74d15cdd3769c4919ab5f0a6f3c03a451c3b59"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/capability.go",
+          "mode": "100644",
+          "digest": "5c9e976d6ffd8054d63bfedf187b8d694fe2d01638b27f0088a665fbcd8a5e29"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/list_test.go",
+          "mode": "100644",
+          "digest": "df855c9ab62adc43488e6f0f7b40a300735f1fb94cce4851953375e5669d5b9e"
+        },
+        {
+          "path": "plumbing/protocol/packp/capability/list.go",
+          "mode": "100644",
+          "digest": "6f7806f29aed17be11e86b1b842e96379de0d3e769f8e7025e30f48ed80a4959"
+        },
+        {
+          "path": "plumbing/protocol/packp/common_test.go",
+          "mode": "100644",
+          "digest": "ffbcb906cb99e277c9cbcdfa61e9cf8e2abe29276f6055336b6bc133323c8a5f"
+        },
+        {
+          "path": "plumbing/protocol/packp/common.go",
+          "mode": "100644",
+          "digest": "3ce5cc4d08ea700f52bd9428b36fec8b8858baab3b6fba2e1981c19d7af47ecd"
+        },
+        {
+          "path": "plumbing/protocol/packp/doc.go",
+          "mode": "100644",
+          "digest": "bae4d796456991c45b295fc89b7565c9aae92f82fb955f9f8243e9d650ad5e3a"
+        },
+        {
+          "path": "plumbing/protocol/packp/filter_test.go",
+          "mode": "100644",
+          "digest": "2d9afcfc4836ade95deb6b6f9e7cf2136e37dd5198458febd751d476506422b4"
+        },
+        {
+          "path": "plumbing/protocol/packp/filter.go",
+          "mode": "100644",
+          "digest": "4d826fa6edcfc2c6838f7382f45dd22ccffe44eb8ea14c543add9b9c1f954137"
+        },
+        {
+          "path": "plumbing/protocol/packp/gitproto_test.go",
+          "mode": "100644",
+          "digest": "b2889d9797eca8f0bb2a8836d2ed43c2780ed650b3dd9107724e4aadee582f12"
+        },
+        {
+          "path": "plumbing/protocol/packp/gitproto.go",
+          "mode": "100644",
+          "digest": "d503654e89eef52acc7df4adf3bd594887d7344481eccf0ce281004b523fec39"
+        },
+        {
+          "path": "plumbing/protocol/packp/report_status_test.go",
+          "mode": "100644",
+          "digest": "3d265a8ff309a7ec13937186a44be67fe1f0f44136788a455c50012f05fc8b5a"
+        },
+        {
+          "path": "plumbing/protocol/packp/report_status.go",
+          "mode": "100644",
+          "digest": "183fbf74295d5af2a3b17fe38a7783786399c1656bb988283b0153abc4950f4d"
+        },
+        {
+          "path": "plumbing/protocol/packp/shallowupd_test.go",
+          "mode": "100644",
+          "digest": "d9572a6c88d147b02d3b0910d930c9b56fec8e00a0de31662e8284cedb80d24e"
+        },
+        {
+          "path": "plumbing/protocol/packp/shallowupd.go",
+          "mode": "100644",
+          "digest": "20c9c4b17344e0ba3b190b361010bafd906abc9994c62e025078b721c6eeeb23"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/common.go",
+          "mode": "100644",
+          "digest": "a164ea047e2da01f3914095784995928369573e186f535b9c503e9dbad079cc3"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/demux_test.go",
+          "mode": "100644",
+          "digest": "5e0bcf22fcf96576bce1f8655f80c91c0736b25a5fbd597aa3747f46fc18cdcd"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/demux.go",
+          "mode": "100644",
+          "digest": "115278554dd59dc9ee32e0f9f4e28f38b778e7553a1f9211864b7bd7952671e9"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/doc.go",
+          "mode": "100644",
+          "digest": "48db6b84c9ba43db0fec401c3488aa35391b52fb9cf18586b4c2c418748c50e5"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/muxer_test.go",
+          "mode": "100644",
+          "digest": "991d3938cab22bee0df32489924382adff13f0feab5813a48131d143f0765b45"
+        },
+        {
+          "path": "plumbing/protocol/packp/sideband/muxer.go",
+          "mode": "100644",
+          "digest": "1be3e868263d10ed655d12953c947f0fa174643904ef25acf0506c70512fb32e"
+        },
+        {
+          "path": "plumbing/protocol/packp/srvresp_test.go",
+          "mode": "100644",
+          "digest": "83490295efd31e0fa7cd9bd899ff84e688b7a99a177e676c1adad0aefd363971"
+        },
+        {
+          "path": "plumbing/protocol/packp/srvresp.go",
+          "mode": "100644",
+          "digest": "d4e17d0d72731f937584bc56f137e40c1da8e4aa5c63b65ec13f589faee4e3fc"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_decode_test.go",
+          "mode": "100644",
+          "digest": "797ad3d97a8fcf92e39d85d1405f197aa0ee78ac90d4d5a378801ddde162ce0d"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_decode.go",
+          "mode": "100644",
+          "digest": "906e9719e56fe55dee46591c9da823899ee7f7a23f13fb97d168afdd2267ce5b"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_encode_test.go",
+          "mode": "100644",
+          "digest": "035cdbd23f978d138064f1427ffee4761080f7d8402854fc4eea4ba1fdd8ac3d"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_encode.go",
+          "mode": "100644",
+          "digest": "aa3478f2c7358d12102c38d19566a21334e90f4f34664c1eabb5b43526b443b0"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq_test.go",
+          "mode": "100644",
+          "digest": "1f643df3247ad98dc7b8f225f9e12257bb5c783e116d65708952bbfef51b161b"
+        },
+        {
+          "path": "plumbing/protocol/packp/ulreq.go",
+          "mode": "100644",
+          "digest": "0bef99c8ff2292967cdb3caa01ecfc522b3f2ec6bb3110ba0dfe7634cd74554e"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_decode_test.go",
+          "mode": "100644",
+          "digest": "615af26427f697db628de4267fc71dd076eee4c97e76d439369c337199d9d50d"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_decode.go",
+          "mode": "100644",
+          "digest": "c6dad16184cce33b883169bfd7a355155beeb4bbc464c986e03291cf13297d3a"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_encode_test.go",
+          "mode": "100644",
+          "digest": "19603e6a169ed27bfb00de5764659b285e9b53f3dd5c9c75f8d7ffbec0bcd3ba"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_encode.go",
+          "mode": "100644",
+          "digest": "ca6c8577ac2b6b15ce62acf22febc76e58b273df00dba754fa5fe395843a0e7e"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq_test.go",
+          "mode": "100644",
+          "digest": "46460f76d0c980c92e32e08968c002cc0af5adb34184cccf4ede5ce4f5a6d3cb"
+        },
+        {
+          "path": "plumbing/protocol/packp/updreq.go",
+          "mode": "100644",
+          "digest": "221a619fdea875e6ad3a7fb6c41309d59cd583ce9b4b46afda2172dbb7b15f46"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackreq_test.go",
+          "mode": "100644",
+          "digest": "aaea06d7e145b7c1f39912e55bdbc7020d2735727fa54c8bfe251cc639ed1b7f"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackreq.go",
+          "mode": "100644",
+          "digest": "f36d95cc24311f9b24706967b0f51321efa48db6f39118198fb92812aca40c8e"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackresp_test.go",
+          "mode": "100644",
+          "digest": "54a96fbdb07f2308b85142441891774596f0e3bab6d6473ef59bf8d41c2bacf4"
+        },
+        {
+          "path": "plumbing/protocol/packp/uppackresp.go",
+          "mode": "100644",
+          "digest": "d74eb13a833f7e94157e76df2055d704fe448e2396e86f64df3fded2b6d67946"
+        },
+        {
+          "path": "plumbing/reference_test.go",
+          "mode": "100644",
+          "digest": "0e18226401ad2acf13c129b89cfc6cbc9cbca1c2030d0e672deca52613c47573"
+        },
+        {
+          "path": "plumbing/reference.go",
+          "mode": "100644",
+          "digest": "b8203a8cbad60caed6e74a93b818e5ab5bb375287a2054f12c5c285fedfe54a9"
+        },
+        {
+          "path": "plumbing/revision.go",
+          "mode": "100644",
+          "digest": "ca4bd5ee46344d3491f3d4836f1b883f604b8c6359056b603ba9e2ed2c773242"
+        },
+        {
+          "path": "plumbing/revlist/revlist_test.go",
+          "mode": "100644",
+          "digest": "0d0d6f29778fd4e01d740a900db5880268a8b5d013dda9816d5d8e16df4e14d5"
+        },
+        {
+          "path": "plumbing/revlist/revlist.go",
+          "mode": "100644",
+          "digest": "e95de6d0b829a297407345435e87d7135d5e4e4c339024dff0dd3e9b08cdf951"
+        },
+        {
+          "path": "plumbing/serverinfo/serverinfo_test.go",
+          "mode": "100644",
+          "digest": "429ab67d1c0125f03212fdd212e09d2f4a00bf70c8fca330d1bdaa0ab044a930"
+        },
+        {
+          "path": "plumbing/serverinfo/serverinfo.go",
+          "mode": "100644",
+          "digest": "33a86b0e574114df02d1f8b4f186c2a66c9e7170e8c6af7c7b688ee54387b24e"
+        },
+        {
+          "path": "plumbing/storer/doc.go",
+          "mode": "100644",
+          "digest": "8c30a94a1e71e62c3f12306b601faa7c7bcefacd306a9effe10f97a66728f47e"
+        },
+        {
+          "path": "plumbing/storer/index.go",
+          "mode": "100644",
+          "digest": "0ae1039b77e0c7a72521f64c34fc6d73aa32ca862ee0b5c241f1fd83f947ec4e"
+        },
+        {
+          "path": "plumbing/storer/object_test.go",
+          "mode": "100644",
+          "digest": "6a5ed4e56c37e2551ceca4dbc65a88279cf1681f2c6ffc256092fbda86ff0d18"
+        },
+        {
+          "path": "plumbing/storer/object.go",
+          "mode": "100644",
+          "digest": "a9fc99404366ddefb0c770c858dc532aec9dbfd0a105a658e9d2af1dfd18aeaf"
+        },
+        {
+          "path": "plumbing/storer/reference_test.go",
+          "mode": "100644",
+          "digest": "9bb4f9f6600121f1333d0a191f29dde20adccb95356b0dfe7365ddf8e710c7ab"
+        },
+        {
+          "path": "plumbing/storer/reference.go",
+          "mode": "100644",
+          "digest": "fd0aa42d94bfc0f205db1bde2a56767d9ec284bf85d103ef55dfafe3042bc7f4"
+        },
+        {
+          "path": "plumbing/storer/shallow.go",
+          "mode": "100644",
+          "digest": "0c441f9f24afbe8dc529d8df2022d7adc16e4264a79720c21275a663acaa8235"
+        },
+        {
+          "path": "plumbing/storer/storer.go",
+          "mode": "100644",
+          "digest": "c92e9be1267d8e24464e14329ecc1339da08bc86beaddf36e882be1a58327c9d"
+        },
+        {
+          "path": "plumbing/transport/client/client_test.go",
+          "mode": "100644",
+          "digest": "65e10e45ca9b210b6a631ae7df51b8bee763a7f973b3f3bbeafb44d06e0e0ca5"
+        },
+        {
+          "path": "plumbing/transport/client/client.go",
+          "mode": "100644",
+          "digest": "81c7fb6962a5678cbdf938746d393aac44b6b2d7b1e4557c1b195e747fd87c54"
+        },
+        {
+          "path": "plumbing/transport/client/example_test.go",
+          "mode": "100644",
+          "digest": "529d3f74d455e27da869dd4899352457ab88df4373da0c91186d21df904fddba"
+        },
+        {
+          "path": "plumbing/transport/common_test.go",
+          "mode": "100644",
+          "digest": "853b166a69fc30c0a634230aac2099ff675be0703b36366e357e2f4c4e09d4e8"
+        },
+        {
+          "path": "plumbing/transport/common.go",
+          "mode": "100644",
+          "digest": "416db14dd595b1ac5c5972688570ec3dab735a25315b7a9b1608ed7ede4e1766"
+        },
+        {
+          "path": "plumbing/transport/file/client_test.go",
+          "mode": "100644",
+          "digest": "c4e648fdd903853cb9013ab4dc25de41a561c01f18ce4c6cc87b258f0cf613da"
+        },
+        {
+          "path": "plumbing/transport/file/client.go",
+          "mode": "100644",
+          "digest": "48c770af9d91a2ee564b00dbe514b59cb8bb925cffacd9fdfdfb0407eb6833e5"
+        },
+        {
+          "path": "plumbing/transport/file/common_test.go",
+          "mode": "100644",
+          "digest": "3dee1b2f1c674c8aff5929dd9dc7b3521fdef8e9d18da1919f319457637e4f02"
+        },
+        {
+          "path": "plumbing/transport/file/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "a24603297ba4ad3af1efa99df881563f5664ef53f3658d5a729c90a5ce96f018"
+        },
+        {
+          "path": "plumbing/transport/file/server_test.go",
+          "mode": "100644",
+          "digest": "da88efa3cf92cd1a56407c43a220b7396a8bcdb510439e1cd49964e429c12571"
+        },
+        {
+          "path": "plumbing/transport/file/server.go",
+          "mode": "100644",
+          "digest": "9d226dd35c1d580a9e3d5b0a9a4a32c59a62c6c6c50f724db8ba4ffdab894a3a"
+        },
+        {
+          "path": "plumbing/transport/file/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "8f8a1d775ed8c8e241888b742bc12a7b01be4fc6a879dae975430ccd613018da"
+        },
+        {
+          "path": "plumbing/transport/git/common_test.go",
+          "mode": "100644",
+          "digest": "824206e3ef38796533d46cf7b79a5913302e373483b00a9f1839fe816b2ea602"
+        },
+        {
+          "path": "plumbing/transport/git/common.go",
+          "mode": "100644",
+          "digest": "7a5fc25e2780efe66af73e3e20567635d937e31c1464eb4554c8baef360f1e0e"
+        },
+        {
+          "path": "plumbing/transport/git/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "4a1fa7fe6c967297e80abd38e2798da354fa73bdd3464652654a667a6461f409"
+        },
+        {
+          "path": "plumbing/transport/git/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "9f57835824cc254cc7c2d0f8bf2794eff03d74fcd2337df145977a038e6a9834"
+        },
+        {
+          "path": "plumbing/transport/http/common_test.go",
+          "mode": "100644",
+          "digest": "0acda1a0920f6cd3c9fcc5af4dee955cfa3dbddb68dd4a6580d22d14255a08dd"
+        },
+        {
+          "path": "plumbing/transport/http/common.go",
+          "mode": "100644",
+          "digest": "64ce980d12f6ed5e819464d84bd6ebf356e6b58db77d8467250fcda321ce2a92"
+        },
+        {
+          "path": "plumbing/transport/http/internal/test/proxy_test.go",
+          "mode": "100644",
+          "digest": "53adf5cd96a731279cc9f63e698834eb3a5c7e3743fc4b137cdaaab9a102ff87"
+        },
+        {
+          "path": "plumbing/transport/http/internal/test/test_utils.go",
+          "mode": "100644",
+          "digest": "ba0a7b0a43518241e84002cbfb0bf9d1d27a22ea1c2921589cb36eca3eea63dd"
+        },
+        {
+          "path": "plumbing/transport/http/proxy_test.go",
+          "mode": "100644",
+          "digest": "ccefe437fb72202adc5142cbe41acad808087618921358fa213fc04ba6579151"
+        },
+        {
+          "path": "plumbing/transport/http/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "4a2acce16c4404893d89ba5c32c538b23ccf0e7bc711349ed5a6386f96bbb933"
+        },
+        {
+          "path": "plumbing/transport/http/receive_pack.go",
+          "mode": "100644",
+          "digest": "267911b15a728a569e372c591d4a160c5f3bec4fa777c7b6b3edc91751c7dcba"
+        },
+        {
+          "path": "plumbing/transport/http/testdata/certs/server.crt",
+          "mode": "100644",
+          "digest": "5c523b7b7bf316c1acdc382cd9f377b57cb30bc0598b080eb62f3f616843ce05"
+        },
+        {
+          "path": "plumbing/transport/http/testdata/certs/server.key",
+          "mode": "100644",
+          "digest": "e6a6c421db372da06d3a5e5849376a4b62ffcd233a33fbb068c55acb705d1395"
+        },
+        {
+          "path": "plumbing/transport/http/transport.go",
+          "mode": "100644",
+          "digest": "e374f0761642f31c22b91f788f464a127823dab8c546289304c6bcdff5853c1d"
+        },
+        {
+          "path": "plumbing/transport/http/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "7b1616d6b0cf5994d55e1ead9de07d419e0b2cd2ef10d30c2d2126528da9ae3d"
+        },
+        {
+          "path": "plumbing/transport/http/upload_pack.go",
+          "mode": "100644",
+          "digest": "b0337024a688566f7b48c471962c1817b53a7d4e3047d26a75f8430f3e13b5e4"
+        },
+        {
+          "path": "plumbing/transport/internal/common/common_test.go",
+          "mode": "100644",
+          "digest": "fe7d4ea29cda5292d84ad6f1db9bf49a25561bcf408d510054dbf44bf55fc6b6"
+        },
+        {
+          "path": "plumbing/transport/internal/common/common.go",
+          "mode": "100644",
+          "digest": "78d6138c9b6a586c1163de561fe8e7147c140928578fc738c5fd81e7816bbda9"
+        },
+        {
+          "path": "plumbing/transport/internal/common/mocks.go",
+          "mode": "100644",
+          "digest": "d6c76eb4732b1df94caf920bb74df77982367138db550463cfa10ffb8eee5474"
+        },
+        {
+          "path": "plumbing/transport/internal/common/server.go",
+          "mode": "100644",
+          "digest": "3fa3601093c69c648fb275e211ed9b5430029c790599f59f4c789ece8f94e86d"
+        },
+        {
+          "path": "plumbing/transport/server/loader_test.go",
+          "mode": "100644",
+          "digest": "2cf7eed98f87de798e2757f9b3237e92bcea075bc71215005d15d68b6a29cd25"
+        },
+        {
+          "path": "plumbing/transport/server/loader.go",
+          "mode": "100644",
+          "digest": "66d3a8f85d56ff941bd2505028c04a8f0b8d61860969ee4447586e750b74037e"
+        },
+        {
+          "path": "plumbing/transport/server/receive_pack_test.go",
+          "mode": "100644",
+          "digest": "6fe071ca3200b40557c718e8fc61a7336d1323796ad1ea401bce6db10212eb53"
+        },
+        {
+          "path": "plumbing/transport/server/server_test.go",
+          "mode": "100644",
+          "digest": "b7b7dd2d7bec40a057a9bd597654bd80246b00631737e1eb6be944598a320c61"
+        },
+        {
+          "path": "plumbing/transport/server/server.go",
+          "mode": "100644",
+          "digest": "d36d9f87f5dc2a35a7ea674583c670ba78a3bd33fdf1211a4cad4793cebe124f"
+        },
+        {
+          "path": "plumbing/transport/server/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "b6193a9330fc4d4f0d76298cff05ba4d30fda42111136ef47a7c184bf36cecf9"
+        },
+        {
+          "path": "plumbing/transport/ssh/auth_method_test.go",
+          "mode": "100644",
+          "digest": "d3d9ff4886f612190642c3edf8293cbe00fbed535971044a4a0758b08aa5d22a"
+        },
+        {
+          "path": "plumbing/transport/ssh/auth_method.go",
+          "mode": "100644",
+          "digest": "f63ecfeac2e1eb21fdadda3e17ed992e6c1173a81f4e05f47bc477b5811f05a0"
+        },
+        {
+          "path": "plumbing/transport/ssh/common_test.go",
+          "mode": "100644",
+          "digest": "a435854baebb1a7c7fcf7ebbdbc124efe771c1f1b9605e29cff5ddb4b8792158"
+        },
+        {
+          "path": "plumbing/transport/ssh/common.go",
+          "mode": "100644",
+          "digest": "be8822ea1444d9d6806cf657f40f016c6dbcf17c7e11cb90f89be06b0dd16573"
+        },
+        {
+          "path": "plumbing/transport/ssh/internal/test/proxy_test.go",
+          "mode": "100644",
+          "digest": "76b0b87f1d5e8806057084fc0918fd558f49b3744071972373ef9db9dafd33de"
+        },
+        {
+          "path": "plumbing/transport/ssh/internal/test/test_utils.go",
+          "mode": "100644",
+          "digest": "78ee2a4679c6c8f16ea717426defe032b077fdf9ed1d24689b34c410c1a7bef9"
+        },
+        {
+          "path": "plumbing/transport/ssh/proxy_test.go",
+          "mode": "100644",
+          "digest": "d9c45d45bb835a32d5c4a813dfed483e92824e21ea07031398a0fab61f44f710"
+        },
+        {
+          "path": "plumbing/transport/ssh/upload_pack_test.go",
+          "mode": "100644",
+          "digest": "e37b2a825b5bccec95d3588f1fb87069c1ca3e0e5bdb28a6c95c99de863468e6"
+        },
+        {
+          "path": "plumbing/transport/test/receive_pack.go",
+          "mode": "100644",
+          "digest": "31885d96493fa4647e1057ff10c3a4d4913eedad85b604e250903f339e750dd8"
+        },
+        {
+          "path": "plumbing/transport/test/upload_pack.go",
+          "mode": "100644",
+          "digest": "7d5cdf589704d86ed95594f303df5f79db6cc8cfe1b6111855acd1842a25c804"
+        },
+        {
+          "path": "prune_test.go",
+          "mode": "100644",
+          "digest": "60ea0753d2d4e828983528294be3f57e2a3ba37df4f59e3236133c9e2b17afc5"
+        },
+        {
+          "path": "prune.go",
+          "mode": "100644",
+          "digest": "6cf33782619b6ff0af9c081e46323f423f8b49bf3d043887c0549bef47d60f55"
+        },
+        {
+          "path": "README.md",
+          "mode": "100644",
+          "digest": "ed0eaf148106c393915fe3fc61662ac1499af7338f132707ca47c10b85e83cf1"
+        },
+        {
+          "path": "remote_test.go",
+          "mode": "100644",
+          "digest": "7ea267356fb2600609c96b652fa553f74e8d2402d3db3b1abe9ebb9da5dbee40"
+        },
+        {
+          "path": "remote.go",
+          "mode": "100644",
+          "digest": "91f1e6c11e5a7b8dd88c62562887e392dc87c8fc179ac2a18220c00126cb8644"
+        },
+        {
+          "path": "repository_extensions_test.go",
+          "mode": "100644",
+          "digest": "6a3eb78a81fadd79f364e883398b304f6258096895e339f36e26af1ac4be022e"
+        },
+        {
+          "path": "repository_extensions.go",
+          "mode": "100644",
+          "digest": "01eea4c2d022c41191675d2e9ff6391dcedafbde3b227f702e3f20212ef709c4"
+        },
+        {
+          "path": "repository_plan9_test.go",
+          "mode": "100644",
+          "digest": "23e7a7e481b00571b63c2a7d0432f9733dd85d18a9841a3d7b96743100da5824"
+        },
+        {
+          "path": "repository_test.go",
+          "mode": "100644",
+          "digest": "8f6107220f1c02a1873dd6011edfaceefdca357a8321d9201583ff1006dd68e5"
+        },
+        {
+          "path": "repository_unix_test.go",
+          "mode": "100644",
+          "digest": "8b9f04080b0c40f7ad2a6bb5e5296cd6c06e730dffce87a0375ae7bd0f85f86e"
+        },
+        {
+          "path": "repository_windows_test.go",
+          "mode": "100644",
+          "digest": "16ec2cb9e393bd0d28e20a267bda0e90169afcaa8e5f41ad555977b289b5be4e"
+        },
+        {
+          "path": "repository.go",
+          "mode": "100644",
+          "digest": "2b0e9d44e3ca1bb842e4f0c0d2daa938c4a3d48d27a88252b75717aa65f198c3"
+        },
+        {
+          "path": "SECURITY.md",
+          "mode": "100644",
+          "digest": "d65f95ab51fc4a1a13dd828c9ebc314233b2e6525e87a7b02bc9ce9281420490"
+        },
+        {
+          "path": "signer_test.go",
+          "mode": "100644",
+          "digest": "8b29cefb56ff9c20b94156163241c9583bfeb017b70eeeb1b1708c47ac7aa002"
+        },
+        {
+          "path": "signer.go",
+          "mode": "100644",
+          "digest": "8ebb6a05abc9a60086b8e6be47e7b1bafb76f86697e180f1d74dc9df909fdf3a"
+        },
+        {
+          "path": "status.go",
+          "mode": "100644",
+          "digest": "361b70676a6bbb9d6cd14bf3cf508b6f87e200d3febfe146f5ff83db5d078109"
+        },
+        {
+          "path": "storage/filesystem/config_test.go",
+          "mode": "100644",
+          "digest": "cd1770b529d2623315e665cadde8dab3fc8780a5a7ea4cc174a25861411d6566"
+        },
+        {
+          "path": "storage/filesystem/config.go",
+          "mode": "100644",
+          "digest": "980a724585863a66b09f1b7a682aa431a246ebe8bb5492660c109f571b6f444c"
+        },
+        {
+          "path": "storage/filesystem/deltaobject.go",
+          "mode": "100644",
+          "digest": "f799dd741d84bcb99c0521523177822410754dc3097f3408f05e921d6d27f09a"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit_rewrite_packed_refs.go",
+          "mode": "100644",
+          "digest": "82c01acd3d8e09593f8e65277eed208f737fde4e256bbb208817dae2ae4e41ce"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit_setref.go",
+          "mode": "100644",
+          "digest": "95e9606c00b329ed5d98a04bfd2f73fad69310b2c718480f6dcc3f7afcbcb9e8"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit_test.go",
+          "mode": "100644",
+          "digest": "19c48ceaea3964bd78934930d56ce756bd6af8429e165b2ae40193fcb77319a3"
+        },
+        {
+          "path": "storage/filesystem/dotgit/dotgit.go",
+          "mode": "100644",
+          "digest": "d7d94a44c99ee740bf3b87a7323a312d054edc613d30ecafeddaf5174f32baa5"
+        },
+        {
+          "path": "storage/filesystem/dotgit/reader.go",
+          "mode": "100644",
+          "digest": "8b249d44323bae429d067f59e8c488e4c7e541d9d70e878fcb9d146886288ed0"
+        },
+        {
+          "path": "storage/filesystem/dotgit/repository_filesystem_test.go",
+          "mode": "100644",
+          "digest": "12401579ff0e20adecc5013b9aff31f8b3cb814fa7d56c576112e114bdcbef06"
+        },
+        {
+          "path": "storage/filesystem/dotgit/repository_filesystem.go",
+          "mode": "100644",
+          "digest": "774e4eab62e6d1ff3831d9bddce9d6296e39f63ce794a3a8e7e218773cc33754"
+        },
+        {
+          "path": "storage/filesystem/dotgit/writers_test.go",
+          "mode": "100644",
+          "digest": "5336b08cb8d22299ab8e7cec42e85c47c21dbd4d6d04a4b4ee41aeed74b1a0fc"
+        },
+        {
+          "path": "storage/filesystem/dotgit/writers_unix.go",
+          "mode": "100644",
+          "digest": "f81c19a8f5d067b87aaf6d00c754c0fbdd9b44e78d206fe762489fdccfe06fbd"
+        },
+        {
+          "path": "storage/filesystem/dotgit/writers_windows.go",
+          "mode": "100644",
+          "digest": "9ab89dfd34d4e87f001dfab5e25199b2d17e7ca882c5ade0c652043554ef8fba"
+        },
+        {
+          "path": "storage/filesystem/dotgit/writers.go",
+          "mode": "100644",
+          "digest": "3691b1ed8a6d85b5bb680551e2308d279ba769905efe0de6bfb52e04f7f22acc"
+        },
+        {
+          "path": "storage/filesystem/index.go",
+          "mode": "100644",
+          "digest": "234a5cc56a968560c02374990dd66b168c9c314eb3855561d5a602ac0844d04f"
+        },
+        {
+          "path": "storage/filesystem/module.go",
+          "mode": "100644",
+          "digest": "18c9920ee9a297a923a41844907cbcae9d1218b8d4803fed3cba60037b1b4ee6"
+        },
+        {
+          "path": "storage/filesystem/object_test.go",
+          "mode": "100644",
+          "digest": "ac7dbd33408d9b05c703fabce4d8b24b82f47bc3f4be051bd64b31b409dd968b"
+        },
+        {
+          "path": "storage/filesystem/object.go",
+          "mode": "100644",
+          "digest": "2652888b137e151e0f122d05b406e99036a35ec144ae8d4f0aa584c5f5146d53"
+        },
+        {
+          "path": "storage/filesystem/reference.go",
+          "mode": "100644",
+          "digest": "99465c4257e0fac1c93a5efe28a36a5c336e96f9d72b02e58d7d0db1b8e5ee20"
+        },
+        {
+          "path": "storage/filesystem/shallow.go",
+          "mode": "100644",
+          "digest": "de200d1c48e6d083e057e5150d7ae7a4bcdbdf2e1b5f3678f9a5cf56481af8ba"
+        },
+        {
+          "path": "storage/filesystem/storage_test.go",
+          "mode": "100644",
+          "digest": "b8fc8ede7c3525b551c325b95f75deef75a936b0b5b1a94efe9d7006de3ed92f"
+        },
+        {
+          "path": "storage/filesystem/storage.go",
+          "mode": "100644",
+          "digest": "425a4e8f01c87ab9e4fb40f9c14f5fe04ee012c7d5663b6a8b374feccd4f170e"
+        },
+        {
+          "path": "storage/memory/storage_test.go",
+          "mode": "100644",
+          "digest": "ce672970edaaeda7fa600a9de7dcabc60841915d63f73e14e9d3b3debafb4dd0"
+        },
+        {
+          "path": "storage/memory/storage.go",
+          "mode": "100644",
+          "digest": "1d33f5a422387a85ac8ddd6d6de9679a4da8473676985409557529fb9b3bb272"
+        },
+        {
+          "path": "storage/storer.go",
+          "mode": "100644",
+          "digest": "12cbbd8eb02be7d34ac723fd87b750257460d7cbcf96c1b0cb00de66837cfadd"
+        },
+        {
+          "path": "storage/test/storage_suite.go",
+          "mode": "100644",
+          "digest": "2456c37275489c08a5e9f61b6b214715e27e4e282215823ce85a299932067a3b"
+        },
+        {
+          "path": "storage/transactional/config_test.go",
+          "mode": "100644",
+          "digest": "89d8e6f9c1406d29c4ee27115094ea4619342973fd85bae5fa135a377aaf53a5"
+        },
+        {
+          "path": "storage/transactional/config.go",
+          "mode": "100644",
+          "digest": "dbfe671e290b0010903b7e5f306ec9487007b6097c06809271c385513b4efad4"
+        },
+        {
+          "path": "storage/transactional/doc.go",
+          "mode": "100644",
+          "digest": "7fab5333b1c0642bf3a1313951b1b6c4cc57cdd3f86ad4229f0956b795151674"
+        },
+        {
+          "path": "storage/transactional/index_test.go",
+          "mode": "100644",
+          "digest": "2f5157791d09fdb6f6227b55dca26d1bcb647041f5b48960ec6ded2a15136810"
+        },
+        {
+          "path": "storage/transactional/index.go",
+          "mode": "100644",
+          "digest": "b60553d821369fa11a460442261e873742f909bbb4b0900b1a4edbe498b8a58d"
+        },
+        {
+          "path": "storage/transactional/object_test.go",
+          "mode": "100644",
+          "digest": "6bf3a0552091a78063a207305cb0eeb8d9046b114b6f517c087c93dd90e2c7b6"
+        },
+        {
+          "path": "storage/transactional/object.go",
+          "mode": "100644",
+          "digest": "1cd642fc3bc5844d12460d0a5c168ec57c0a824ac73734b5cae80fa5d75fef74"
+        },
+        {
+          "path": "storage/transactional/reference_test.go",
+          "mode": "100644",
+          "digest": "fa0ac9a1b61ea74948d721b69111c4217ee0473b5d55b73d6e416c21af1ee3f1"
+        },
+        {
+          "path": "storage/transactional/reference.go",
+          "mode": "100644",
+          "digest": "2bb0457a6147c7d68bcaa69be560b021edcc182d715b92d4dc7b10f49d0e5e3c"
+        },
+        {
+          "path": "storage/transactional/shallow_test.go",
+          "mode": "100644",
+          "digest": "98dc8ae365c2a152cfbffaef9576f8eeb7d556bc0e6043e67396cec2884cdffe"
+        },
+        {
+          "path": "storage/transactional/shallow.go",
+          "mode": "100644",
+          "digest": "d4fd92fb11c0f91f304fc01bb0ed51415e7bedb4558ad5f6b45e4415740e771e"
+        },
+        {
+          "path": "storage/transactional/storage_test.go",
+          "mode": "100644",
+          "digest": "e7f3e4be90b264988f6d36b080bf1cd09aa0a0b2589c3f022f373503d1c6054e"
+        },
+        {
+          "path": "storage/transactional/storage.go",
+          "mode": "100644",
+          "digest": "b1c2dd50ec775ec5a8855ae1b7757774484d615fdf924ced063342b20664194a"
+        },
+        {
+          "path": "submodule_test.go",
+          "mode": "100644",
+          "digest": "62b4d8a2d27eb350fcb33d3b366d074963b3f38b5829962b160732a1dee7ba1a"
+        },
+        {
+          "path": "submodule.go",
+          "mode": "100644",
+          "digest": "573e82fad1ef893838e7559fd69d62443f8124ebcf632e1d9515a2d12b098a92"
+        },
+        {
+          "path": "utils/binary/read_test.go",
+          "mode": "100644",
+          "digest": "b7abe923e60f8e6e3ad8ab06e42cc25f4507f4e4b35615e11f3da20faeb5a18c"
+        },
+        {
+          "path": "utils/binary/read.go",
+          "mode": "100644",
+          "digest": "f58c09c8749e0791cd8f758728b34d40d803012a57d65b466d5c620c041bfd4f"
+        },
+        {
+          "path": "utils/binary/write_test.go",
+          "mode": "100644",
+          "digest": "e8d60b495e19d9a77d21c18523d869eb11eb472a5dbc6d16c0216b2ed6e9b04c"
+        },
+        {
+          "path": "utils/binary/write.go",
+          "mode": "100644",
+          "digest": "1df840ad1cf7f4d3ccf91134aae4167c7cb6a30165b29ffc85ba3fea245d7f21"
+        },
+        {
+          "path": "utils/blame2humantest.bash",
+          "mode": "100755",
+          "digest": "ff956d95c5377b44c1ac812a900265d7762600877e58c5f8ed49367933616a3e"
+        },
+        {
+          "path": "utils/diff/diff_ext_test.go",
+          "mode": "100644",
+          "digest": "1782266378e178b6532a486cc851827162f571cf934a2ea6808fde991bf4b2d2"
+        },
+        {
+          "path": "utils/diff/diff.go",
+          "mode": "100644",
+          "digest": "acfaebaf9ca0342cbc49bc4cd7d060e9a656dcc48cc9bdc7c497ece39ee44185"
+        },
+        {
+          "path": "utils/ioutil/common_test.go",
+          "mode": "100644",
+          "digest": "2a1c754ee86a3214e2311063262c3c9469175824b357cee2a8631d384734e9fb"
+        },
+        {
+          "path": "utils/ioutil/common.go",
+          "mode": "100644",
+          "digest": "4b0132ec8fc1e1603e1f521ea65301d7671042fdb1e7be8ec27386278d05f059"
+        },
+        {
+          "path": "utils/merkletrie/change_test.go",
+          "mode": "100644",
+          "digest": "727164c2b9c4e2da12037cbf29ec872d9a73229f1e77ab7181b8ff718a551cac"
+        },
+        {
+          "path": "utils/merkletrie/change.go",
+          "mode": "100644",
+          "digest": "2f23818e1450bb273bb13beb70c1f33032c7018a5ed7cfc9e1b5f8509475682e"
+        },
+        {
+          "path": "utils/merkletrie/difftree_test.go",
+          "mode": "100644",
+          "digest": "d7effd42846f8def5cdd182ef1bb4e316d097ae8fd0a2d32d4039d450a1bc4e0"
+        },
+        {
+          "path": "utils/merkletrie/difftree.go",
+          "mode": "100644",
+          "digest": "7ea686e421fd47f644c23e5e2e3d2d029d3d201f492b995e9a5e710e972e0f2e"
+        },
+        {
+          "path": "utils/merkletrie/doc.go",
+          "mode": "100644",
+          "digest": "ae60c7ca3af8aab115d157e209f38ddec88d908abd2908776787360b1102eb98"
+        },
+        {
+          "path": "utils/merkletrie/doubleiter.go",
+          "mode": "100644",
+          "digest": "bb53f013153249dd4c888a17ce3cfb9df12239e0d42b17c175becb130dca4e2b"
+        },
+        {
+          "path": "utils/merkletrie/filesystem/node_test.go",
+          "mode": "100644",
+          "digest": "273069f69d885ad3a758a5a44db981c6f1c50a7645eb3af88b9458429a52a8a7"
+        },
+        {
+          "path": "utils/merkletrie/filesystem/node.go",
+          "mode": "100644",
+          "digest": "bb4f397542b2f85b8e196e966bbf071b57247c4086ee7cbb29825111cd55070a"
+        },
+        {
+          "path": "utils/merkletrie/index/node_test.go",
+          "mode": "100644",
+          "digest": "34c7becf1188243aabe646fce1779f321dc35388a548274d3a8b2d12b2218cfc"
+        },
+        {
+          "path": "utils/merkletrie/index/node.go",
+          "mode": "100644",
+          "digest": "7dc3d8950d564feb3ab2f7ef71e3907b4c414f3c0570d9381f4c9ee7c073258b"
+        },
+        {
+          "path": "utils/merkletrie/internal/frame/frame_test.go",
+          "mode": "100644",
+          "digest": "10f2c82ca3740d9475c2c1dc677a84e8268200b5042e222903fb9dbaae38b5ed"
+        },
+        {
+          "path": "utils/merkletrie/internal/frame/frame.go",
+          "mode": "100644",
+          "digest": "1404ffe2e6d3de9fcf54350aa49a2d22b84ea4d71611447cfbe09613d468c8d3"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/dir_test.go",
+          "mode": "100644",
+          "digest": "0802abaf43d5218082ccaa2be75176b9bb48efbd0d0b56e8d06bd481569fd17e"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/dir.go",
+          "mode": "100644",
+          "digest": "eb5edf8ae4688d5c5800faa761e10ed42184a0e00e65632d9353ac4c9a50af3d"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/doc.go",
+          "mode": "100644",
+          "digest": "9a5cc20bf2debafd89590f10becd49997dad4a50b055d81ef1dca0f091406417"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/file_test.go",
+          "mode": "100644",
+          "digest": "bc86c8745f57798273aaaa4dbc80e02e80e764cb06cb0a3e28d6b8256aecf298"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/file.go",
+          "mode": "100644",
+          "digest": "e5a2e28abb03f702e08afe1804bb742b6342f65934a684b5c5fce51af5239c66"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/new_test.go",
+          "mode": "100644",
+          "digest": "498595ed89789ef69a9fdcec458966f7428a55a4989d10db3d54d98884cbdfe2"
+        },
+        {
+          "path": "utils/merkletrie/internal/fsnoder/new.go",
+          "mode": "100644",
+          "digest": "5b723f5627adaac770e952b7b05288651417c967253c7a03c92c11e10ba287e1"
+        },
+        {
+          "path": "utils/merkletrie/iter_test.go",
+          "mode": "100644",
+          "digest": "3c8bd956313b1b34279688161ae5326f341ba46d2a4c18d661e8a204d57ca30d"
+        },
+        {
+          "path": "utils/merkletrie/iter.go",
+          "mode": "100644",
+          "digest": "c391cfd5fb6d1c09d7eb8f618cade3a648aa54959e813a8fa67d1aab8070a81f"
+        },
+        {
+          "path": "utils/merkletrie/noder/noder_test.go",
+          "mode": "100644",
+          "digest": "abf5230b1b02a752c82a9bfd193b816f01db87d3173e9671bdce4504e92ad441"
+        },
+        {
+          "path": "utils/merkletrie/noder/noder.go",
+          "mode": "100644",
+          "digest": "9625d574dea6c6c45c7deb24d730eed33ebdef074c0513df97e6d2e52b291820"
+        },
+        {
+          "path": "utils/merkletrie/noder/path_test.go",
+          "mode": "100644",
+          "digest": "5a7bf3ed6c56194dd4bd145c2e43a4a65bdf5b3ddebf069c72bef6c1f90f84c2"
+        },
+        {
+          "path": "utils/merkletrie/noder/path.go",
+          "mode": "100644",
+          "digest": "873ea5f0a3706a164f5749140ca9144d9308bf9e53c365e405c21a8e5abc88fb"
+        },
+        {
+          "path": "utils/revlist2humantest.bash",
+          "mode": "100755",
+          "digest": "1574821ceaca859bbeff04520f0565029ae2dc731d1a0db1c9ea16571b0ef99f"
+        },
+        {
+          "path": "utils/sync/bufio_test.go",
+          "mode": "100644",
+          "digest": "8eef2ed75e7ce5191bfc88c55d38f098820341ed03de66902147e910c8c8b45b"
+        },
+        {
+          "path": "utils/sync/bufio.go",
+          "mode": "100644",
+          "digest": "6c4a6b645b5d5f2c4a89043a02230f83872ea0fb850d235958a69166d3b05714"
+        },
+        {
+          "path": "utils/sync/bytes_test.go",
+          "mode": "100644",
+          "digest": "114cd495fc2cdbe90f54202c1393018e154ae45d70171cb047b9d4293dee9cda"
+        },
+        {
+          "path": "utils/sync/bytes.go",
+          "mode": "100644",
+          "digest": "312f733649ae3906f7f66ba93ac29f213d162ace9e688ff83933f15b56bbbd18"
+        },
+        {
+          "path": "utils/sync/zlib_test.go",
+          "mode": "100644",
+          "digest": "01a8f25912a87307246977c1bd95f1e4d775a46ae224043f56180a58e0beeea8"
+        },
+        {
+          "path": "utils/sync/zlib.go",
+          "mode": "100644",
+          "digest": "a65e6626f14be083437ae0adb462ff3ccc8a41217f79df3203ade30c3c9acbdf"
+        },
+        {
+          "path": "utils/trace/trace_test.go",
+          "mode": "100644",
+          "digest": "5417315594d1e8cb517d52b5c59b7bfa6ce1c15d168b14601721320a9b3916b7"
+        },
+        {
+          "path": "utils/trace/trace.go",
+          "mode": "100644",
+          "digest": "082873af0717fdfbbbe232ed274b9a86c5e6b086939f1243390495df35faa461"
+        },
+        {
+          "path": "worktree_bsd.go",
+          "mode": "100644",
+          "digest": "dd7fcba4c13b6ced0b6190cdb5861adcd08446a92d67f7ec0f02f9533e09bbb0"
+        },
+        {
+          "path": "worktree_commit_test.go",
+          "mode": "100644",
+          "digest": "c8ebb6b25a160d91cc736f42308b8bc5b4a38fb61baa121011e3cfdb70f78319"
+        },
+        {
+          "path": "worktree_commit.go",
+          "mode": "100644",
+          "digest": "77f0a3d2e4f75fc08c8ad13e50ab4aa3adbd167b60309eeedfcc8234ddf78a99"
+        },
+        {
+          "path": "worktree_js.go",
+          "mode": "100644",
+          "digest": "1dfa626ff1523b82e21a4c29476edcdc9a89842f3c7181f63a28cd4f46cc9923"
+        },
+        {
+          "path": "worktree_linux.go",
+          "mode": "100644",
+          "digest": "5e36dd713fdadc9975f9189ea4ef476c0541b27bbbafeffd78ce85361a18f6b5"
+        },
+        {
+          "path": "worktree_plan9.go",
+          "mode": "100644",
+          "digest": "a7c6ec6f6569e22d2fa6e8281639d27c59b633ea00ad8ef27a43171cc985fbda"
+        },
+        {
+          "path": "worktree_status_bench_test.go",
+          "mode": "100644",
+          "digest": "36e075fdf75887146a28cec0cb91f25a95e2847e111dc9b12bf6f491049ad44f"
+        },
+        {
+          "path": "worktree_status_test.go",
+          "mode": "100644",
+          "digest": "dd30971c28cd386ab081595842c8de15902a49dc18e8f72b837bc591a132a6f3"
+        },
+        {
+          "path": "worktree_status.go",
+          "mode": "100644",
+          "digest": "fa52e777387cc878ee8c048606826271384b4027283d208dabb4662c09295fa0"
+        },
+        {
+          "path": "worktree_test.go",
+          "mode": "100644",
+          "digest": "df9d61cc180c4af333d7e92897d9d43ced6a882cabd3ff78b901aca095448d52"
+        },
+        {
+          "path": "worktree_unix_other.go",
+          "mode": "100644",
+          "digest": "87f0ef81641da4fd3438dcaae4819f0c92a0ade54e262b21f9ded4575ff3f234"
+        },
+        {
+          "path": "worktree_windows.go",
+          "mode": "100644",
+          "digest": "3a00a29e08d29454b5197662f70ccab5699b0ce8c85af7fbf511b8915d97cfd0"
+        },
+        {
+          "path": "worktree.go",
+          "mode": "100644",
+          "digest": "02d0a576afc4b533f311c68656c5c15663255244818dc796ade53d9b81f20883"
+        }
+      ],
+      "contentDigest": "ca8d76415fa9688cea8bdcb7a3bbf085e69f7d1dc2522190d84e8371f991adf4"
+    }
+  },
+  "snapshotDigest": "37144fe74d4f4de5aa795a1451ed66be1ea243dcc2ad5cd1d61d844e8717922d"
+}

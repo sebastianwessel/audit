@@ -1,0 +1,10 @@
+from pathlib import Path
+
+
+def store_archive_entry(root: Path, entry_name: str, content: bytes) -> None:
+    root_path = root.resolve()
+    destination = (root_path / entry_name).resolve()
+    if root_path not in destination.parents:
+        raise ValueError("archive entry escapes its destination")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(content)

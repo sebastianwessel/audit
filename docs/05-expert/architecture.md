@@ -1,0 +1,33 @@
+# Architecture
+
+The product uses capability-owned vertical slices with a small platform boundary:
+
+~~~mermaid
+flowchart TB
+  CLI[CLI boundary] --> F[Feature use cases]
+  F --> S[Shared strict primitives]
+  F --> P[Feature ports]
+  P --> FS[Read-only filesystem adapter]
+  P --> H[Purista harness adapter]
+  P --> R[Artifact store]
+~~~
+
+Planning, evidence mapping, source posture, discovery, grounding, and verification each own their model contract and instructions in dedicated feature folders. When a valid executable plan is run, the mapper explores only that plan's file scope and records neutral source facts, controls, unanswered obligations, and limitations. It also declares the exact mapped controls for every review obligation, so a missing or stale inventory is visible incomplete coverage. Every review obligation is either represented by that map or explicitly marked unanswered before the later phases begin. Discovery produces a non-reportable, map- and posture-bound lead. The system, rather than a later model response, derives the lead’s posture links and backed map facts once from its plan obligations. Grounding either abandons that lead or turns it into a fully referenced candidate without changing its scope or evidence basis. Instead of recreating source locations, it selects an evidence item from each chosen map fact; the system projects the precise operation and unsafe-condition locations from those selections. The verifier independently challenges the same candidate in the same bounded scope. An accepted result selects its report, control, and prior-posture evidence from the map rather than recreating source locations. It must reconcile every exact plan obligation as well as every relevant posture assessment; if it cannot resolve either from bounded static evidence, the result is incomplete. When a structurally accepted candidate-aware result conflicts with a relevant candidate-blind `risk-contradicted` posture, the system keeps it in the non-gating human-review queue instead of calling it confirmed or discarding the evidence. An `inconclusive` posture remains open to later evidence and `risk-supported` is never proof by itself. Each obligation reconciliation must select source evidence from map facts bound to that same obligation. The system derives exact obligations, mapped controls, and required posture coverage. This preserves provenance and makes uncertainty visible without inventing a source-flow pointer or treating a structural relationship as proof. Entrypoint, root-control, and counterevidence labels organize explanation only; the deterministic layer does not interpret them. Mapping, posture, grounded candidates, and terminal results checkpoint separately, so an interrupted run resumes at the latest safe boundary. A provider context-window rejection also writes a source-free recovery topology: on resume, the reviewer safely skips only the already-rejected parent request, recreates the same smaller scopes from the immutable snapshot, and reuses a completed child only when its phase owns an exact validated artifact. Grounding uses a per-lead canonical outcome for this purpose, never a raw provider response or the non-reportable discovery lead. A saved grounding boundary also retains its source-free progress counts and stage cost observations, so retrying verification does not make earlier completed work disappear from the report. Deterministic code validates permissions, scope, selected source locations, fact-reference membership, complete obligation and posture coverage, redaction, and lifecycle state. It does not decide that a particular API, parser node, regular-expression match, language, or file extension is a security issue.
+
+The filesystem adapter enforces the jail. Before audit model work starts, target inventory creates a private immutable source and context snapshot; all later model tools read that snapshot rather than the mutable working tree. Snapshot publication and its per-run retention record share one lock, so a finishing run cannot remove bytes that a new resumable run is still publishing. The harness adapter enforces provider, tool, sandbox, timeout, telemetry, and provider-side cache-routing settings. A separate model-operations feature records a small, content-free ledger for planning, evidence mapping, vector investigation, verification, and optional evaluation-only stages. It keeps both a stage total and one numeric request record for each provider round, so a multi-step agent loop exposes its own token, cache, latency, and cost hot spots without storing prompts, source text, tool transcripts, or raw responses. Before an artifact retains or renders evidence or model-authored explanation, one shared safe-text projection redacts recognized secrets and personal identifiers and removes terminal control characters without shortening approved source evidence. The artifact store writes only validated public artifacts and feature-owned private recovery data.
+
+When candidate-blind and candidate-aware source review disagree, the reviewer preserves the redacted, source-backed item in a separate human-review queue. It is neither discarded nor called a confirmed vulnerability: it has `needs-review` status, no classification or urgency, and does not affect the CI finding gate.
+
+## Why schemas live with features
+
+Plans, findings, tools, and reports cross many module boundaries. A feature owns its schema so runtime validation and inferred TypeScript types cannot drift apart from its behavior. Only universal values such as ids and timestamps are shared.
+
+## Target-language neutrality
+
+The reviewer itself is written in TypeScript, but it does not restrict reviewed repositories to TypeScript or JavaScript. Every eligible regular UTF-8 source file can be read as evidence. A recognized language name is only a helpful label in the inventory and report; an unrecognized extension is still reviewable. When a check depends on language-specific semantics that are unavailable, the report records that limitation instead of silently skipping the file or claiming complete coverage.
+
+The reviewer does not rely on parser-specific security detectors. A future syntax service may help navigate code across several languages, but it will remain optional and cannot decide that something is vulnerable, determine urgency, restrict review scope, or exclude a file. The reviewer’s finding path always requires source evidence plus independent review of the security reasoning.
+
+## Test placement
+
+Unit tests sit next to the code they cover. Integration and end-to-end tests live separately because they intentionally cross feature and platform boundaries.

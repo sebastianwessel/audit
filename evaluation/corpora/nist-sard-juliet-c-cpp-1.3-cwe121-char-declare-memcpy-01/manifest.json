@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "offline-source-corpus-case",
+  "status": "ready",
+  "caseId": "nist-sard-juliet-c-cpp-1.3-cwe121-char-declare-memcpy-01",
+  "track": "c-cpp-synthetic-taxonomy",
+  "sourceLanguage": "c",
+  "difficulty": "easy",
+  "taxonomy": {
+    "category": "memory-safety",
+    "cwes": ["CWE-121"],
+    "weakness": "stack-based-buffer-overflow"
+  },
+  "retrievalDate": "2026-07-27",
+  "provenance": {
+    "dataset": "NIST SARD Juliet C/C++ 1.3",
+    "upstreamVersion": "Juliet C/C++ 1.3",
+    "archiveUrl": "https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-c-cplusplus-v1-3.zip",
+    "archiveSha256": "ada9d7e1c323d283446df3f55bdee0d00bda1fed786785fe98764d58688f38eb",
+    "upstreamLicense": {
+      "spdx": "CC0-1.0",
+      "licenseStatementUrl": "https://samate.nist.gov/SARD/test-suites/112",
+      "licenseStatement": "Public domain in the United States; CC0 1.0 for any claimed foreign rights."
+    }
+  },
+  "snapshots": [
+    {
+      "variant": "mixed-good-bad",
+      "path": "source/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_declare_memcpy_01.c",
+      "upstreamPath": "C/testcases/CWE121_Stack_Based_Buffer_Overflow/s03/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_declare_memcpy_01.c",
+      "sha256": "041cdd5041d0159850fbbbb3416dc43bf77b8b18f0628b5b8a4a054554bf9b29",
+      "upstreamSha256": "5e15c590e82aabd921a40a230bd67dfc80ec787ab6cb7550ab887c2c55bedb96",
+      "lineEndingTransformation": "CRLF normalized to LF before storage"
+    }
+  ],
+  "scope": {
+    "sourceOnly": true,
+    "targetExecution": "prohibited",
+    "omittedDependencies": ["std_testcase.h"]
+  },
+  "notes": "The source file contains explicit bad and good functions. The published archive SHA-256 was verified before extraction. The only transformation is CRLF-to-LF newline normalization; sha256 is the stored snapshot value and upstreamSha256 is the archive-extracted value."
+}

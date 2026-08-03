@@ -1,0 +1,7 @@
+# Evaluation evidence qualification
+
+The workflow finding gate evaluates one recorded provider run against its declared fixture thresholds. It previously had no persisted distinction from the much broader claim that a provider is reliable. On the current seed this is materially misleading: the corpus readiness report has zero dual-reviewed real-world pairs, so even a passing workflow gate could not support a provider-quality claim.
+
+Every newly written evaluation run therefore derives exactly one qualification from corpus readiness and the selected split: `diagnostic` when the corpus is not pilot-ready or the selected split has no approved claim meaning; `development-pilot` only for a pilot-ready development split; and `private-holdout` only when an externally managed private pack carries a verified detached Ed25519 attestation. The source-free attestation binds exact pack id/version/manifest digest to a frozen readiness-report digest and persists only an attestation reference. The report renders the workflow finding gate and qualification separately. An absent qualification on a legacy v2 artifact is non-qualifying.
+
+This is evaluator-only metadata. It changes no target view, answer key, prompt, provider route, model behavior, score, baseline threshold, security rule, parser, language handling, or report finding. It prevents accidental overclaiming while independent source licensing, human adjudication, and private-holdout acquisition remain the required path to evidence.

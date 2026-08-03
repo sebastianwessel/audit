@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseId": "php-image-conversion",
+  "reviewer": "private research corpus author",
+  "reviewedAt": "2026-07-31T12:00:00.000Z",
+  "notes": "Evaluator-owned scope guidance for a source-only image allocation review. It contains no expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review image allocation resource bounds",
+      "rationale": "Caller-controlled dimensions used for allocation require source-visible size and total-work bounds.",
+      "enabled": true,
+      "scopeGlobs": ["**/*"],
+      "reviewObligations": [
+        {
+          "obligationId": "private-obligation-01",
+          "riskStatement": "Caller-controlled image dimensions may reach allocation without source-visible per-dimension and total-work bounds.",
+          "evidenceRequirement": "The review identifies allocation and a source-visible missing or ineffective resource bound."
+        }
+      ],
+      "limitations": [
+        "Static review cannot allocate an image or establish runtime memory availability."
+      ]
+    }
+  ]
+}

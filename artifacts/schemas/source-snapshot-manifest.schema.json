@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "number",
+          "const": 1
+        },
+        "includeGlobs": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "defaultExclusions": {
+          "minItems": 1,
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "vcs-metadata",
+              "dependency-or-vendor-cache",
+              "build-or-generated-output",
+              "local-secret-store",
+              "outside-includes",
+              "invalid-encoding"
+            ]
+          }
+        },
+        "overrides": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "vcs-metadata",
+              "dependency-or-vendor-cache",
+              "build-or-generated-output",
+              "local-secret-store",
+              "outside-includes",
+              "invalid-encoding"
+            ]
+          }
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "includeGlobs",
+        "defaultExclusions",
+        "overrides"
+      ],
+      "additionalProperties": false
+    },
+    "targetFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "rows": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "disposition": {
+                "type": "string",
+                "const": "admitted"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "byteLength": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "contentDigest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "objectRef": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "languageHint": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 32
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "disposition",
+              "path",
+              "byteLength",
+              "contentDigest",
+              "objectRef",
+              "languageHint"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "disposition": {
+                "type": "string",
+                "const": "excluded"
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "reason": {
+                "type": "string",
+                "enum": [
+                  "vcs-metadata",
+                  "dependency-or-vendor-cache",
+                  "build-or-generated-output",
+                  "local-secret-store",
+                  "outside-includes",
+                  "invalid-encoding"
+                ]
+              }
+            },
+            "required": [
+              "disposition",
+              "path",
+              "reason"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "policy",
+    "targetFingerprint",
+    "rows"
+  ],
+  "additionalProperties": false
+}

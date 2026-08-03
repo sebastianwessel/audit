@@ -1,0 +1,151 @@
+import type { ModelProvider } from '@purista/harness';
+
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
+import { createStableId } from '../../../shared/contracts/core.js';
+import type { SourcePostureRequest } from '../../audit-execution/phase-input/contract.js';
+import type {
+  SourcePosture,
+  UnverifiedSourcePosture,
+} from '../../audit-execution/source-posture/contract.js';
+import { verifySourcePosture } from '../../audit-execution/source-posture/verify.js';
+import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
+import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
+import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
+import type {
+  ContextOverflowRecoveredLeaf,
+  ContextOverflowTopology,
+  ContextOverflowTopologyEvent,
+} from '../runtime/context-overflow.js';
+import { scopedInspectionRequirement } from '../tools/contract.js';
+import { runScopedModelStage } from './scoped-model-stage.js';
+
+/** Candidate-blind source assessment between neutral mapping and investigation. */
+export async function runSourcePostureStage(input: {
+  modelProvider: ModelProvider;
+  filesystem: SourceRepository;
+  request: SourcePostureRequest;
+  context: readonly ContextDocument[];
+  sessionId: string;
+  modelName: string | undefined;
+  harnessExecution: HarnessExecutionConfiguration;
+  modelCacheRoutingKey: string | undefined;
+  modelPricing: ModelPricing;
+  modelCostCeiling?: ModelCostCeiling;
+  cacheRoutingEnabled: boolean;
+  overflowTopology?: Readonly<{
+    prior?: ContextOverflowTopology;
+    priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<SourcePosture>[];
+    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
+    onRecoveredLeafCompleted?: (input: {
+      childKey: string;
+      scopeFingerprint: string;
+      output: SourcePosture;
+    }) => Promise<void>;
+  }>;
+}) {
+  const overflowTopology = (() => {
+    if (input.overflowTopology === undefined) return undefined;
+    const { priorRecoveredLeaves, onRecoveredLeafCompleted, ...topology } = input.overflowTopology;
+    return {
+      ...topology,
+      ...(priorRecoveredLeaves === undefined
+        ? {}
+        : {
+            priorRecoveredLeaves: priorRecoveredLeaves.map((leaf) => ({
+              ...leaf,
+              output: leaf.output,
+            })),
+          }),
+      ...(onRecoveredLeafCompleted === undefined
+        ? {}
+        : {
+            onRecoveredLeafCompleted: async (leaf: {
+              childKey: string;
+              scopeFingerprint: string;
+              output: UnverifiedSourcePosture;
+            }) => {
+              const sourcePosture = verifySourcePosture(
+                input.request.vector,
+                leaf.output,
+                input.request.evidenceMap,
+              ).sourcePosture;
+              await onRecoveredLeafCompleted({
+                childKey: leaf.childKey,
+                scopeFingerprint: leaf.scopeFingerprint,
+                output: sourcePosture,
+              });
+            },
+          }),
+    };
+  })();
+  return runScopedModelStage<UnverifiedSourcePosture>({
+    stage: 'source-posture',
+    route: 'primary',
+    stageId: input.request.vector.vectorId,
+    modelProvider: input.modelProvider,
+    filesystem: input.filesystem,
+    availableSourcePaths: input.request.availableSourcePaths,
+    context: input.context,
+    sessionId: input.sessionId,
+    modelName: input.modelName,
+    harnessExecution: input.harnessExecution,
+    modelCacheRoutingKey: input.modelCacheRoutingKey,
+    modelPricing: input.modelPricing,
+    modelCostCeiling: input.modelCostCeiling,
+    cacheRoutingEnabled: input.cacheRoutingEnabled,
+    ...(overflowTopology === undefined ? {} : { overflowTopology }),
+    requireScopedSourceInspection: true,
+    invoke: (session, _attempt, scope) =>
+      session.workflows.assess_vector_source_posture.prompt({
+        ...input.request,
+        availableSourcePaths: [...scope.sourcePaths],
+        context: [...scope.context],
+        inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
+      }),
+    reduceRecoveredOutputs: (leaves) => ({
+      assessments: input.request.vector.reviewObligations.flatMap((obligation) => {
+        const assessments = leaves.flatMap((leaf) =>
+          leaf.output.assessments.filter(
+            (assessment) => assessment.obligationId === obligation.obligationId,
+          ),
+        );
+        if (assessments.length === 0) return [];
+        const conclusions = new Set(assessments.map((assessment) => assessment.conclusion));
+        return [
+          {
+            assessmentId: createStableId(
+              'posture',
+              `${input.request.vector.vectorId}\0${obligation.obligationId}`,
+            ),
+            obligationId: obligation.obligationId,
+            conclusion:
+              conclusions.size === 1
+                ? (assessments[0]?.conclusion ?? 'inconclusive')
+                : 'inconclusive',
+            notApplicableReason:
+              conclusions.size === 1 && assessments[0]?.conclusion === 'not-applicable'
+                ? (assessments[0]?.notApplicableReason ?? null)
+                : null,
+            evidenceMapFactIds: uniqueSorted(
+              assessments.flatMap((assessment) => assessment.evidenceMapFactIds),
+            ),
+            limitations: uniqueSorted([
+              ...assessments.flatMap((assessment) => assessment.limitations),
+              ...(conclusions.size === 1
+                ? []
+                : ['Approved-scope context recovery produced non-unanimous source posture.']),
+            ]),
+          },
+        ];
+      }),
+      limitations: uniqueSorted([
+        ...leaves.flatMap((leaf) => leaf.output.limitations),
+        'The provider context window required deterministic approved-scope recovery.',
+      ]),
+    }),
+  });
+}
+
+function uniqueSorted(values: readonly string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}

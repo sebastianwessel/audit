@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseId": "ruby-session-deserialization",
+  "reviewer": "private research corpus author",
+  "reviewedAt": "2026-07-31T12:00:00.000Z",
+  "notes": "Evaluator-owned scope guidance for a source-only session payload restoration review. It contains no expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review session payload deserialization",
+      "rationale": "An externally supplied serialized session value requires a source-visible safe-format review.",
+      "enabled": true,
+      "scopeGlobs": ["**/*"],
+      "reviewObligations": [
+        {
+          "obligationId": "private-obligation-01",
+          "riskStatement": "An untrusted session payload may reach object deserialization without a source-visible safe-format control.",
+          "evidenceRequirement": "The review identifies restoration and a source-visible unsafe deserialization condition."
+        }
+      ],
+      "limitations": ["Static review cannot prove the origin or integrity of the session payload."]
+    }
+  ]
+}

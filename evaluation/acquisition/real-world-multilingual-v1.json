@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "trackId": "real-world-multilingual-acquisition-v1",
+  "purpose": "Evaluator-only pipeline for repository-disjoint real-world vulnerable/patched pairs. Metadata leads are isolated from source snapshots, human adjudication, answer keys, agent-visible target views, provider prompts, and reliability claims until the existing local import and dual-review gates pass.",
+  "lanes": [
+    {
+      "laneId": "cvefixes-multilingual-scouting",
+      "source": {
+        "datasetId": "cvefixes",
+        "title": "CVEfixes",
+        "sourceUrl": "https://github.com/secureIT-project/CVEfixes",
+        "revision": "9283b50b3f04e3c5b0a17fc419ab0feea23fc438",
+        "license": "CC BY 4.0",
+        "retrievedAt": "2026-07-31T08:00:00.000Z",
+        "attribution": "Metadata reservoir for private source-pair research. Its extracted source, CVE/CWE labels, and patch details are never automatically imported or supplied to a model."
+      },
+      "targetLanguages": ["c", "c++", "go", "java", "javascript", "php", "python"],
+      "targetControlFamilies": [
+        "authorization-tenancy",
+        "injection-outbound-boundary",
+        "sensitive-data-handling",
+        "unsafe-operation-bounds",
+        "validation-canonicalization"
+      ],
+      "state": "metadata-unavailable",
+      "metadataUnavailableReason": "dataset-distribution-not-present",
+      "candidateLeadCount": 0,
+      "notes": "At the pinned repository revision, only CVEfixes tooling is available; its separate dataset distribution has not been locally pinned and verified. This lane cannot claim candidate leads until a complete immutable local metadata snapshot is available. Do not copy source or treat dataset labels as answer keys."
+    },
+    {
+      "laneId": "cwe-bench-java-scouting",
+      "source": {
+        "datasetId": "cwe-bench-java",
+        "title": "CWE-Bench-Java",
+        "sourceUrl": "https://github.com/iris-sast/cwe-bench-java",
+        "revision": "afe0ebd0adc237abb46255f9cd479b1d71819136",
+        "license": "MIT",
+        "retrievedAt": "2026-07-31T08:00:00.000Z",
+        "attribution": "Metadata reservoir for private source-pair research. Its build, fetch, patch, and advisory materials are outside this static-review acquisition path."
+      },
+      "targetLanguages": ["java"],
+      "targetControlFamilies": ["injection-outbound-boundary", "validation-canonicalization"],
+      "state": "metadata-ready",
+      "candidateRegistryPath": "evaluation/candidates/cwe-bench-java-candidate-pilot.json",
+      "candidateLeadCount": 12,
+      "notes": "Twelve repository-distinct metadata leads are validated against the pinned project_info.csv digest. They have no fetched source, human adjudication, evaluation case, answer key, model input, or provider-quality weight. Never invoke this dataset's fetch, patch, setup, or build scripts."
+    },
+    {
+      "laneId": "diversevul-c-family-scouting",
+      "source": {
+        "datasetId": "diversevul",
+        "title": "DiverseVul",
+        "sourceUrl": "https://github.com/wagner-group/diversevul",
+        "revision": "50a2c18b810252a79c892d8b5d96cd61a656b2da",
+        "license": "Source-license review required per selected upstream project",
+        "retrievedAt": "2026-07-31T08:00:00.000Z",
+        "attribution": "Commit and repository metadata reservoir for private source-pair research. Dataset labels and extracted functions are never corpus answer keys."
+      },
+      "targetLanguages": ["c", "c++"],
+      "targetControlFamilies": ["unsafe-operation-bounds"],
+      "state": "metadata-unavailable",
+      "metadataUnavailableReason": "record-set-not-present",
+      "candidateLeadCount": 0,
+      "notes": "At the pinned repository revision, no candidate metadata tree is available. This lane cannot claim candidate leads until a complete immutable local metadata distribution is available. Select complete upstream repository snapshots rather than extracted functions."
+    },
+    {
+      "laneId": "openssf-js-ts-metadata",
+      "source": {
+        "datasetId": "openssf-cve-benchmark",
+        "title": "OpenSSF CVE Benchmark",
+        "sourceUrl": "https://github.com/ossf-cve-benchmark/ossf-cve-benchmark",
+        "revision": "91c59fd54b2b768c0f310bb0027d2ac59cdf74d4",
+        "license": "MIT",
+        "retrievedAt": "2026-07-29T00:00:00.000Z",
+        "attribution": "OpenSSF metadata reservoir. Candidate records are not answer keys and contain no copied target source."
+      },
+      "targetLanguages": ["javascript", "typescript"],
+      "targetControlFamilies": [
+        "dynamic-state-ownership",
+        "injection-outbound-boundary",
+        "sensitive-data-handling",
+        "validation-canonicalization"
+      ],
+      "state": "metadata-ready",
+      "candidateRegistryPath": "evaluation/candidates/openssf-candidate-pilot.json",
+      "candidateLeadCount": 30,
+      "notes": "Thirty repository-distinct metadata leads are validated. They have no fetched source, human adjudication, evaluation case, answer key, model input, or provider-quality weight."
+    },
+    {
+      "laneId": "osv-python-git-range-metadata",
+      "source": {
+        "datasetId": "osv-api",
+        "title": "OSV API pinned advisory snapshot",
+        "sourceUrl": "https://api.osv.dev/v1/vulns/CVE-2023-45803",
+        "revision": "response-sha256-0cc503bc05b3db94a0f42ad44a502e17f822c2978b976218d19060e942b5dfaa",
+        "license": "Metadata provenance only; upstream terms are not evaluated here.",
+        "retrievedAt": "2026-07-31T12:50:00.000Z",
+        "attribution": "Pinned full OSV API response for private acquisition research. The registry extracts only an exact repository and adjacent Git revision pair; it contains no source, expected finding, answer key, plan, or readiness claim."
+      },
+      "targetLanguages": ["python"],
+      "targetControlFamilies": ["sensitive-data-handling"],
+      "state": "metadata-ready",
+      "candidateRegistryPath": "evaluation/candidates/osv-python-candidate-pilot.json",
+      "candidateLeadCount": 1,
+      "notes": "One OSV Git-range lead is locally verified against its complete pinned advisory snapshot. It has one acquired Python source pair but no human adjudication, evaluation case, answer key, model input, or provider-quality weight."
+    },
+    {
+      "laneId": "osv-go-git-range-metadata",
+      "source": {
+        "datasetId": "osv-api",
+        "title": "OSV API pinned advisory snapshot",
+        "sourceUrl": "https://api.osv.dev/v1/vulns/CVE-2026-34165",
+        "revision": "response-sha256-07dfa8e385031d260b10fbed3abea5a6134f194f0fa5263b9db5e99dc98e1b0c",
+        "license": "Metadata provenance only; upstream terms are not evaluated here.",
+        "retrievedAt": "2026-07-31T13:16:07.000Z",
+        "attribution": "Pinned full OSV API response for private acquisition research. The registry extracts only an exact repository and adjacent Git revision pair; it contains no source, expected finding, answer key, plan, or readiness claim."
+      },
+      "targetLanguages": ["go"],
+      "targetControlFamilies": ["unsafe-operation-bounds"],
+      "state": "metadata-ready",
+      "candidateRegistryPath": "evaluation/candidates/osv-go-candidate-pilot.json",
+      "candidateLeadCount": 1,
+      "notes": "One OSV Git-range lead is locally verified against its complete pinned advisory snapshot. Its target-control-family tag is a queue-balancing target, not a source-level classification. It has no human adjudication, evaluation case, answer key, model input, or provider-quality weight."
+    }
+  ],
+  "trackDigest": "f024592b45e50956e7be3c86b9f0b4238edd1373c182ed5304985659d5cfadcc"
+}

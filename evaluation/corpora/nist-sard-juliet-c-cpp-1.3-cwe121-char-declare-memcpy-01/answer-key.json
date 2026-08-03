@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "caseId": "nist-sard-juliet-c-cpp-1.3-cwe121-char-declare-memcpy-01",
+  "variant": "mixed-good-bad",
+  "expectedLabel": "finding",
+  "category": "memory-safety",
+  "cwes": ["CWE-121"],
+  "priority": "high",
+  "expectedLocations": [
+    {
+      "path": "source/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_declare_memcpy_01.c",
+      "startLine": 30,
+      "endLine": 38,
+      "locationTolerance": 0,
+      "role": "small-destination-buffer-and-overflowing-memcpy"
+    }
+  ],
+  "patchedExpectation": {
+    "path": "source/CWE121_Stack_Based_Buffer_Overflow__CWE805_char_declare_memcpy_01.c",
+    "startLine": 54,
+    "endLine": 62,
+    "expectedLabel": "no-finding-for-cwe-121",
+    "role": "good-variant-uses-100-byte-destination"
+  },
+  "adjudication": {
+    "basis": "Juliet source labels and good/bad function structure",
+    "notes": "This is synthetic taxonomy coverage, not a real-world CVE pair. The INCLUDEMAIN section is retained as upstream source but must never be compiled or executed."
+  }
+}

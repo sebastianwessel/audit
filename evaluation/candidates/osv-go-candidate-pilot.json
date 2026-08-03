@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "registryId": "osv-go-candidate-pilot",
+  "source": {
+    "datasetId": "osv-api",
+    "title": "OSV API pinned advisory snapshot",
+    "sourceUrl": "https://api.osv.dev/v1/vulns/CVE-2026-34165",
+    "revision": "response-sha256-07dfa8e385031d260b10fbed3abea5a6134f194f0fa5263b9db5e99dc98e1b0c",
+    "license": "Metadata provenance only; upstream terms are not evaluated here.",
+    "retrievedAt": "2026-07-31T13:16:07.000Z",
+    "attribution": "Pinned full OSV API response for private acquisition research. The registry extracts only an exact repository and adjacent Git revision pair; it contains no source, expected finding, answer key, plan, or readiness claim."
+  },
+  "candidates": [
+    {
+      "candidateId": "osv-cve-2026-34165-go-git",
+      "sourceRecordId": "cve-2026-34165",
+      "repositoryUrl": "https://github.com/go-git/go-git",
+      "vulnerableRevision": "9d0f15c4fa712cdacfa3887e9baac918f093fbf6",
+      "patchedRevision": "5e23dfd02db92644dc4a3358ceb297fce875b772",
+      "metadataPath": "osv/CVE-2026-34165.json",
+      "metadataDigest": "07dfa8e385031d260b10fbed3abea5a6134f194f0fa5263b9db5e99dc98e1b0c",
+      "sourceLicenseStatus": "unverified"
+    }
+  ],
+  "registryDigest": "435995cbe8f01076729fe1c9f59af4455e250280b9d120e5c6147deb0c05c0d6"
+}

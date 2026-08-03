@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseId": "go-invoice-tenant",
+  "reviewer": "private research corpus author",
+  "reviewedAt": "2026-07-31T12:00:00.000Z",
+  "notes": "Evaluator-owned scope guidance for a source-only tenant/object lookup review. It contains no expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review tenant-scoped object lookup",
+      "rationale": "A lookup that receives a subject scope and an object identifier requires source-visible isolation review.",
+      "enabled": true,
+      "scopeGlobs": ["**/*"],
+      "reviewObligations": [
+        {
+          "obligationId": "private-obligation-01",
+          "riskStatement": "An object lookup may return data without enforcing the supplied tenant or ownership scope.",
+          "evidenceRequirement": "The review identifies object retrieval and a source-visible missing scope control."
+        }
+      ],
+      "limitations": [
+        "Static review cannot prove middleware or database row-level policy behavior."
+      ]
+    }
+  ]
+}

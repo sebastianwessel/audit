@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "caseId": "rust-session-logging",
+  "reviewer": "private research corpus author",
+  "reviewedAt": "2026-07-31T12:00:00.000Z",
+  "notes": "Evaluator-owned scope guidance for a source-only credential logging review. It contains no expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review sensitive session data in logs",
+      "rationale": "Session credentials and logging fields require a source-visible exposure-control review.",
+      "enabled": true,
+      "scopeGlobs": ["**/*"],
+      "reviewObligations": [
+        {
+          "obligationId": "private-obligation-01",
+          "riskStatement": "A sensitive session credential may reach an application log field without redaction or removal.",
+          "evidenceRequirement": "The review identifies the log operation and source-visible sensitive value exposure."
+        }
+      ],
+      "limitations": ["Static review cannot prove downstream log retention or access controls."]
+    }
+  ]
+}

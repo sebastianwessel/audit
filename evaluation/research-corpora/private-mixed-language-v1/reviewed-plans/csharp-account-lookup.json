@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseId": "csharp-account-lookup",
+  "reviewer": "private research corpus author",
+  "reviewedAt": "2026-07-31T12:00:00.000Z",
+  "notes": "Evaluator-owned scope guidance for a source-only database command construction review. It contains no expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review database command construction",
+      "rationale": "Caller-controlled values used in a database command require a source-visible parameterization review.",
+      "enabled": true,
+      "scopeGlobs": ["**/*"],
+      "reviewObligations": [
+        {
+          "obligationId": "private-obligation-01",
+          "riskStatement": "Caller-controlled data may reach a database command as command text rather than a bound value.",
+          "evidenceRequirement": "The review identifies command construction and a source-visible unsafe interpolation condition."
+        }
+      ],
+      "limitations": [
+        "Static review cannot prove database permissions or external input validation."
+      ]
+    }
+  ]
+}

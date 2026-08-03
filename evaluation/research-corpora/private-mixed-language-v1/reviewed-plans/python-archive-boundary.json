@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "caseId": "python-archive-boundary",
+  "reviewer": "private research corpus author",
+  "reviewedAt": "2026-07-31T12:00:00.000Z",
+  "notes": "Evaluator-owned scope guidance for a source-only archive destination review. It contains no expected locations or answer-key labels.",
+  "vectors": [
+    {
+      "title": "Review archive destination boundaries",
+      "rationale": "Archive-controlled names require a source-visible destination-boundary review before a write.",
+      "enabled": true,
+      "scopeGlobs": ["**/*"],
+      "reviewObligations": [
+        {
+          "obligationId": "private-obligation-01",
+          "riskStatement": "An archive-controlled name may reach a write destination without source-visible containment control.",
+          "evidenceRequirement": "The review identifies the destination write and missing or ineffective containment condition."
+        }
+      ],
+      "limitations": [
+        "Static review cannot establish archive-parser behavior outside this source scope."
+      ]
+    }
+  ]
+}

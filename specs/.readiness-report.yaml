@@ -1,0 +1,105 @@
+status: approved
+language: en
+human_approval:
+  status: approved
+  source: user-explicit-auto-approval
+  recorded_at: 2026-08-02
+open_decisions: []
+no_drift_gate:
+  status: passed
+ambiguity_gate:
+  status: passed
+spec_structure_gate:
+  status: passed
+semantic_alignment_gate:
+  status: passed
+requirements_quality_gate:
+  status: passed
+end_to_end_definition_gate:
+  status: passed
+file_structure_gate:
+  status: passed
+current_dependency_research_gate:
+  status: passed
+machine_readable_contract_gate:
+  status: passed
+clean_rebuild_boundary_gate:
+  status: passed
+generation_map_gate:
+  status: passed
+strong_boundary_type_gate:
+  status: passed
+security_privacy_gate:
+  status: passed
+observability_gate:
+  status: passed
+performance_resilience_gate:
+  status: passed
+supply_chain_gate:
+  status: passed
+migration_gate:
+  status: passed
+checklist_walk_gate:
+  status: passed
+semantic_judge_gate:
+  status: passed
+  method: implementation-readiness semantic review against capability and traceability records
+spec_judge_loop:
+  status: passed
+  run_timing: approval_only
+  blocking_findings_count: 0
+  reviewed_paths:
+    - plan-to-human-approval-to-audit-to-report
+    - context-ingestion-and-digest-binding
+    - jailed-evidence-access-and-no-network-policy
+    - fixture-evaluation-and-answer-key-isolation
+    - approved-vector-scope-to-bounded-investigation-to-verification
+    - deterministic-synthesis-and-redacted-report-projection
+    - reliable-terminal-coverage-and-resume
+    - adjudicated-scoring-and-evaluation-recovery
+    - risk-positive-obligation-contract-clean-rebuild
+self_audit_gate:
+  status: passed
+gate_simulation:
+  status: passed
+checklist_walk:
+  blocking_findings_count: 0
+  topics:
+    reliability_recovery:
+      applicability: relevant
+      evidence:
+        - specs/03-architecture/08-reliable-terminal-coverage-and-resume.md
+        - specs/08-evaluation/05-adjudicated-scoring-and-recovery.md
+      gaps: []
+    frontend:
+      applicability: not_applicable
+      evidence:
+        - CLI-only product; no browser UI in v1.
+      gaps: []
+readiness_update:
+  reviewed_at: 2026-08-02
+  source_of_approval: user-explicit-auto-approval
+  deterministic_check: bun run spec:check
+  deterministic_check_status: passed
+  generic_skill_checker:
+    status: not_applicable
+    reason: The project predates and intentionally uses a different approved spec tree; its own spec checker is canonical.
+  clean_rebuild_boundary:
+    status: selected
+    scope: immutable source snapshot, root topology, sealed plan, audit-terminal, checkpoint, corpus-key, and evaluation-trial contracts
+    compatibility: legacy artifacts are rejected; no adapters or fallbacks
+  wave_1_contract_review:
+    status: passed
+    reviewed_paths:
+      - root-topology-before-I/O
+      - source-admission-to-immutable-snapshot-to-tools
+      - externally-edited-plan-to-validate-reseal-to-audit
+      - exact-checkpoint-binding-and-resume
+      - vector-obligation-ledger-to-terminal-outcome
+      - product-and-evaluator-exclusive-output-lease
+    residual_risks:
+      - Implementation must fail closed when the local filesystem cannot prove component-safe atomic artifact publication.
+      - Private snapshots must be cleaned with their retained work root; cleanup behavior requires implementation verification.
+  generic_skill_checker:
+    status: not_applicable
+    reason: The generic checker requires a different canonical tree and reported expected missing artifacts. This repository's own spec checker is the approved deterministic authority.

@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 1,
+  "packId": "private-mixed-language-diagnostic",
+  "packVersion": "1.1.0",
+  "createdAt": "2026-07-31T12:00:00.000Z",
+  "datasets": [
+    {
+      "datasetId": "private-research-authored",
+      "title": "Private mixed-language diagnostic research cases",
+      "sourceUrl": "https://securityreviewer.invalid/evaluation/private-mixed-language-v1",
+      "revision": "private-mixed-language-v1-20260731",
+      "license": "Private research material; not for redistribution",
+      "retrievedAt": "2026-07-31T12:00:00.000Z",
+      "attribution": "Locally authored source-only research cases. They are evaluator fixtures, never product rules or real-world reliability evidence."
+    }
+  ],
+  "cases": [
+    {
+      "caseId": "csharp-account-lookup",
+      "datasetId": "private-research-authored",
+      "projectId": "private-csharp-account-lookup",
+      "repositoryUrl": "https://securityreviewer.invalid/research/csharp-account-lookup",
+      "vulnerableRevision": "private-v1",
+      "patchedRevision": "private-v1-fixed",
+      "language": "csharp",
+      "difficulty": "medium",
+      "split": "development",
+      "evidenceOrigin": "semantic-regression",
+      "controlFamilies": ["injection-outbound-boundary"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/csharp-account-lookup/vulnerable",
+        "patched": "cases/csharp-account-lookup/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "44013730bd4c6ced9d3c6c6a7e0c5148aefd1ce65e9b78cecec1806e39ab2e26",
+        "patched": "d47634485583fca52c9450d5910afaaaba6fa5fcc06ab1cbc19c81f2122bee49"
+      },
+      "answerKeyPath": "answer-keys/csharp-account-lookup.json",
+      "reviewedPlanPath": "reviewed-plans/csharp-account-lookup.json",
+      "transformedContentDigest": "a5ff6f3493c2f8b9b658b4914cfd847406f8a78ba276e4c4579758ed1d535133"
+    },
+    {
+      "caseId": "go-invoice-tenant",
+      "datasetId": "private-research-authored",
+      "projectId": "private-go-invoice-tenant",
+      "repositoryUrl": "https://securityreviewer.invalid/research/go-invoice-tenant",
+      "vulnerableRevision": "private-v1",
+      "patchedRevision": "private-v1-fixed",
+      "language": "go",
+      "difficulty": "hard",
+      "split": "development",
+      "evidenceOrigin": "semantic-regression",
+      "controlFamilies": ["authorization-tenancy"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/go-invoice-tenant/vulnerable",
+        "patched": "cases/go-invoice-tenant/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "6c972dda931d9371a4260f5acab8d47acd911f3986432ee45301c9d55d9fdd26",
+        "patched": "1c438dd6ff06e781b9416d9d6e8d21ffbd6ded32868785b647be9858cf4579c5"
+      },
+      "answerKeyPath": "answer-keys/go-invoice-tenant.json",
+      "reviewedPlanPath": "reviewed-plans/go-invoice-tenant.json",
+      "transformedContentDigest": "b20fc4f30018dadf271aac7f0aa2ec5b8ddd1d8c3c6d4ba1eb1cf8880a518323"
+    },
+    {
+      "caseId": "php-image-conversion",
+      "datasetId": "private-research-authored",
+      "projectId": "private-php-image-conversion",
+      "repositoryUrl": "https://securityreviewer.invalid/research/php-image-conversion",
+      "vulnerableRevision": "private-v1",
+      "patchedRevision": "private-v1-fixed",
+      "language": "php",
+      "difficulty": "medium",
+      "split": "development",
+      "evidenceOrigin": "semantic-regression",
+      "controlFamilies": ["unsafe-operation-bounds"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/php-image-conversion/vulnerable",
+        "patched": "cases/php-image-conversion/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "ea590d3156760aee63171a169667f2faf74c5f6854d6ab0d0b6a9491f8da0b39",
+        "patched": "73ec2386baf8dc1d7dc4ef32d8e58e6430eb17f73edc43f910db41af515d81bf"
+      },
+      "answerKeyPath": "answer-keys/php-image-conversion.json",
+      "reviewedPlanPath": "reviewed-plans/php-image-conversion.json",
+      "transformedContentDigest": "65d207c1e28007bbf4c33624233f311943c7a03a914d719a9c885a2fe2051e24"
+    },
+    {
+      "caseId": "python-archive-boundary",
+      "datasetId": "private-research-authored",
+      "projectId": "private-python-archive-boundary",
+      "repositoryUrl": "https://securityreviewer.invalid/research/python-archive-boundary",
+      "vulnerableRevision": "private-v1",
+      "patchedRevision": "private-v1-fixed",
+      "language": "python",
+      "difficulty": "hard",
+      "split": "development",
+      "evidenceOrigin": "semantic-regression",
+      "controlFamilies": ["validation-canonicalization"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/python-archive-boundary/vulnerable",
+        "patched": "cases/python-archive-boundary/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "bc99e62449af04e20ea42ef1a398ea1eed7e9a574dcd2dac2f9440f92bb28d8d",
+        "patched": "2f97c9f9f6e37e6aaf72bf2cca402c4ff5ca954e993a18a0dd0f2d0846d61ebf"
+      },
+      "answerKeyPath": "answer-keys/python-archive-boundary.json",
+      "reviewedPlanPath": "reviewed-plans/python-archive-boundary.json",
+      "transformedContentDigest": "b965a1f65edcbfd97c2e37948df795596ece3ec655c305bfe1cf97a6dc357eaa"
+    },
+    {
+      "caseId": "ruby-session-deserialization",
+      "datasetId": "private-research-authored",
+      "projectId": "private-ruby-session-deserialization",
+      "repositoryUrl": "https://securityreviewer.invalid/research/ruby-session-deserialization",
+      "vulnerableRevision": "private-v1",
+      "patchedRevision": "private-v1-fixed",
+      "language": "ruby",
+      "difficulty": "medium",
+      "split": "development",
+      "evidenceOrigin": "semantic-regression",
+      "controlFamilies": ["dynamic-state-ownership"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/ruby-session-deserialization/vulnerable",
+        "patched": "cases/ruby-session-deserialization/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "99cbe21a0557849a95606279f9eb6c9a88d38cf0244f52de4ea263fce8798a4b",
+        "patched": "c71557b38a5f99ecfcabc4b81ac4e43891ed2fc1fa96d691cedc99736ab811ad"
+      },
+      "answerKeyPath": "answer-keys/ruby-session-deserialization.json",
+      "reviewedPlanPath": "reviewed-plans/ruby-session-deserialization.json",
+      "transformedContentDigest": "9839e306bc01a74167ba1809bd32a57dfbd5422ba39a6f25158ee48471426143"
+    },
+    {
+      "caseId": "rust-session-logging",
+      "datasetId": "private-research-authored",
+      "projectId": "private-rust-session-logging",
+      "repositoryUrl": "https://securityreviewer.invalid/research/rust-session-logging",
+      "vulnerableRevision": "private-v1",
+      "patchedRevision": "private-v1-fixed",
+      "language": "rust",
+      "difficulty": "easy",
+      "split": "development",
+      "evidenceOrigin": "semantic-regression",
+      "controlFamilies": ["sensitive-data-handling"],
+      "variantMode": "paired",
+      "sourceDirectories": {
+        "vulnerable": "cases/rust-session-logging/vulnerable",
+        "patched": "cases/rust-session-logging/patched"
+      },
+      "sourceDigests": {
+        "vulnerable": "0a878b6ef2745c6cd40195d67f70508a6dac52dceb4ea73a3e69a4a28e60370f",
+        "patched": "f21ccad557c8d27e6c9cd7610c9ede9999dd4e931deffbaf4b0ca56538cc94a4"
+      },
+      "answerKeyPath": "answer-keys/rust-session-logging.json",
+      "reviewedPlanPath": "reviewed-plans/rust-session-logging.json",
+      "transformedContentDigest": "abf98baccf16d66cd9749681e14785ae309522c271457887690a44e798a4c416"
+    }
+  ],
+  "redistributionDecision": "source-included-with-license",
+  "manifestDigest": "f4e0e5e40c08a5c558e964b4d739f2adec8f76729e4b6848f8ff423ba6bb6079"
+}

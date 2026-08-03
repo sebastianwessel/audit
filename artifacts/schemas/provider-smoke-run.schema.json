@@ -1,0 +1,906 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "runId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,63}$"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "caseId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{2,63}$"
+    },
+    "variant": {
+      "type": "string",
+      "enum": [
+        "vulnerable",
+        "patched",
+        "benign"
+      ]
+    },
+    "planProfile": {
+      "type": "string",
+      "const": "reviewed-plan"
+    },
+    "targetFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "contextDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewedPlanFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "verificationRouteFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "evidenceMapProtocolFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewWorkflowProtocolFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "executionBudget": {
+      "type": "object",
+      "properties": {
+        "runTimeoutMs": {
+          "default": 30000,
+          "type": "integer",
+          "minimum": 5000,
+          "maximum": 300000
+        },
+        "modelTimeoutMs": {
+          "default": 20000,
+          "type": "integer",
+          "minimum": 5000,
+          "maximum": 180000
+        },
+        "modelRetry": {
+          "default": "default",
+          "type": "string",
+          "enum": [
+            "default",
+            "disabled"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "schemaVersion": {
+      "type": "number",
+      "const": 2
+    },
+    "mode": {
+      "type": "string",
+      "const": "provider-smoke"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "finishedAt": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "incomplete",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "vectors": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "vectorId": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{2,63}$"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "incomplete",
+              "failed",
+              "cancelled",
+              "skipped"
+            ]
+          },
+          "errorCode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matchedSourcePaths": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "evidenceMapFactCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "evidenceMapUnansweredObligationCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sourcePostureAssessmentCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "findingCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "reviewRequiredCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "verificationTerminalLanes": {
+            "type": "object",
+            "properties": {
+              "accepted": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "rejected": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "modelIncomplete": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "evidenceProjectionInvalid": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "stageFailed": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "inspectionMissing": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "wrapperContractInvalid": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "accepted",
+              "rejected",
+              "modelIncomplete",
+              "evidenceProjectionInvalid",
+              "stageFailed",
+              "inspectionMissing",
+              "wrapperContractInvalid"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "vectorId",
+          "outcome",
+          "errorCode",
+          "matchedSourcePaths",
+          "evidenceMapFactCount",
+          "evidenceMapUnansweredObligationCount",
+          "sourcePostureAssessmentCount",
+          "findingCount",
+          "reviewRequiredCount",
+          "verificationTerminalLanes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "modelObservation": {
+      "type": "object",
+      "properties": {
+        "usage": {
+          "type": "object",
+          "properties": {
+            "modelCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "inputTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "outputTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "cachedInputTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "reasoningTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "modelCallCount",
+            "inputTokens",
+            "outputTokens",
+            "cachedInputTokens",
+            "reasoningTokens"
+          ],
+          "additionalProperties": false
+        },
+        "cost": {
+          "type": "object",
+          "properties": {
+            "totalTokens": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "estimatedCostUsd": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "source": {
+              "type": "string",
+              "enum": [
+                "provider",
+                "catalogue",
+                "mixed",
+                "unavailable"
+              ]
+            }
+          },
+          "required": [
+            "totalTokens",
+            "estimatedCostUsd",
+            "source"
+          ],
+          "additionalProperties": false
+        },
+        "toolUsage": {
+          "type": "object",
+          "properties": {
+            "toolCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "listFilesCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "readFileCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "grepFilesCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "successfulReadFileCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "successfulGrepFilesCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "rejectedCallCount": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "returnedBytes": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "budgetExhausted": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "toolCallCount",
+            "listFilesCallCount",
+            "readFileCallCount",
+            "grepFilesCallCount",
+            "successfulReadFileCallCount",
+            "successfulGrepFilesCallCount",
+            "rejectedCallCount",
+            "returnedBytes",
+            "budgetExhausted"
+          ],
+          "additionalProperties": false
+        },
+        "cacheRoutingEnabled": {
+          "type": "boolean"
+        },
+        "stages": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "stage": {
+                "type": "string",
+                "enum": [
+                  "planning",
+                  "evidence-mapping",
+                  "source-posture",
+                  "investigation",
+                  "candidate-grounding",
+                  "verification",
+                  "countercheck"
+                ]
+              },
+              "route": {
+                "type": "string",
+                "enum": [
+                  "primary",
+                  "independent"
+                ]
+              },
+              "stageId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "pattern": "^[a-zA-Z0-9._:-]+$"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "completed",
+                  "failed"
+                ]
+              },
+              "durationMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "errorCode": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 64
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "recoveredErrorCodes": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "usage": {
+                "type": "object",
+                "properties": {
+                  "modelCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "inputTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "outputTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "cachedInputTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "reasoningTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "modelCallCount",
+                  "inputTokens",
+                  "outputTokens",
+                  "cachedInputTokens",
+                  "reasoningTokens"
+                ],
+                "additionalProperties": false
+              },
+              "cost": {
+                "type": "object",
+                "properties": {
+                  "totalTokens": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "estimatedCostUsd": {
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "provider",
+                      "catalogue",
+                      "mixed",
+                      "unavailable"
+                    ]
+                  }
+                },
+                "required": [
+                  "totalTokens",
+                  "estimatedCostUsd",
+                  "source"
+                ],
+                "additionalProperties": false
+              },
+              "requests": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ordinal": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "durationMs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "usage": {
+                      "type": "object",
+                      "properties": {
+                        "modelCallCount": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "inputTokens": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "outputTokens": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "cachedInputTokens": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "reasoningTokens": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "modelCallCount",
+                        "inputTokens",
+                        "outputTokens",
+                        "cachedInputTokens",
+                        "reasoningTokens"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "cost": {
+                      "type": "object",
+                      "properties": {
+                        "totalTokens": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "estimatedCostUsd": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "minimum": 0
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": [
+                            "provider",
+                            "catalogue",
+                            "mixed",
+                            "unavailable"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "totalTokens",
+                        "estimatedCostUsd",
+                        "source"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "ordinal",
+                    "durationMs",
+                    "usage",
+                    "cost"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "toolUsage": {
+                "type": "object",
+                "properties": {
+                  "toolCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "listFilesCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "readFileCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "grepFilesCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "successfulReadFileCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "successfulGrepFilesCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "rejectedCallCount": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "returnedBytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "budgetExhausted": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "toolCallCount",
+                  "listFilesCallCount",
+                  "readFileCallCount",
+                  "grepFilesCallCount",
+                  "successfulReadFileCallCount",
+                  "successfulGrepFilesCallCount",
+                  "rejectedCallCount",
+                  "returnedBytes",
+                  "budgetExhausted"
+                ],
+                "additionalProperties": false
+              },
+              "trace": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ordinal": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "model-response"
+                        },
+                        "requestOrdinal": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "durationMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "usage": {
+                          "type": "object",
+                          "properties": {
+                            "modelCallCount": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "inputTokens": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "outputTokens": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "cachedInputTokens": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "reasoningTokens": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": [
+                            "modelCallCount",
+                            "inputTokens",
+                            "outputTokens",
+                            "cachedInputTokens",
+                            "reasoningTokens"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "cost": {
+                          "type": "object",
+                          "properties": {
+                            "totalTokens": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            },
+                            "estimatedCostUsd": {
+                              "anyOf": [
+                                {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "provider",
+                                "catalogue",
+                                "mixed",
+                                "unavailable"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "totalTokens",
+                            "estimatedCostUsd",
+                            "source"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "ordinal",
+                        "kind",
+                        "requestOrdinal",
+                        "durationMs",
+                        "usage",
+                        "cost"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "ordinal": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "kind": {
+                          "type": "string",
+                          "const": "tool-call"
+                        },
+                        "tool": {
+                          "type": "string",
+                          "enum": [
+                            "repo_list",
+                            "repo_read",
+                            "repo_grep"
+                          ]
+                        },
+                        "outcome": {
+                          "type": "string",
+                          "enum": [
+                            "completed",
+                            "rejected"
+                          ]
+                        },
+                        "durationMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "responseBytes": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "errorCode": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 64
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "ordinal",
+                        "kind",
+                        "tool",
+                        "outcome",
+                        "durationMs",
+                        "responseBytes",
+                        "errorCode"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "cacheRoutingEnabled": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "stage",
+              "route",
+              "stageId",
+              "status",
+              "durationMs",
+              "errorCode",
+              "usage",
+              "cost",
+              "toolUsage",
+              "cacheRoutingEnabled"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "usage",
+        "cost",
+        "toolUsage",
+        "cacheRoutingEnabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "runId",
+    "provider",
+    "model",
+    "caseId",
+    "variant",
+    "planProfile",
+    "targetFingerprint",
+    "contextDigest",
+    "reviewedPlanFingerprint",
+    "verificationRouteFingerprint",
+    "evidenceMapProtocolFingerprint",
+    "reviewWorkflowProtocolFingerprint",
+    "executionBudget",
+    "schemaVersion",
+    "mode",
+    "startedAt",
+    "finishedAt",
+    "status",
+    "vectors",
+    "modelObservation"
+  ],
+  "additionalProperties": false
+}

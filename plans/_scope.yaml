@@ -1,0 +1,22 @@
+global:
+  source_of_truth: specs/
+  public_docs_rule: Public documentation never links to specs.
+  type_rule: Strict Zod schemas and inferred types; no any, unknown, or duplicate contract mirrors.
+  target_safety: Read-only static analysis; no target execution, shell, network, or mutation.
+waves:
+  wave_01_trust_boundary:
+    write_scope:
+      - src/features/target-inventory/
+      - src/features/attack-planning/
+      - src/features/audit-execution/
+      - src/features/evaluation/
+      - src/platform/filesystem/
+      - src/platform/artifact-store/
+      - src/platform/harness/
+      - AGENTS.md
+      - src/features/review-workflow/
+      - src/cli/
+      - artifacts/
+      - tests/
+      - specs/
+      - docs/
