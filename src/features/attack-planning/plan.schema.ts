@@ -84,6 +84,29 @@ export const DraftAttackVectorSchema =
   DraftAttackVectorBaseSchema.superRefine(validateReviewObligations);
 
 /**
+ * A source-aware suggestion for human plan maintenance. It is deliberately
+ * not executable audit work and cannot become a finding until a human promotes
+ * it into the editable plan draft.
+ */
+export const AdditionalObservationSchema = DraftAttackVectorBaseSchema.omit({
+  enabled: true,
+})
+  .extend({ observationId: IdentifierSchema })
+  .superRefine(validateReviewObligations);
+
+export const AdditionalObservationsSchema = z
+  .array(AdditionalObservationSchema)
+  .superRefine((observations, context: z.RefinementCtx): void => {
+    const identifiers = observations.map((observation) => observation.observationId);
+    if (new Set(identifiers).size !== identifiers.length) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Additional observation identifiers must be unique within a plan.',
+      });
+    }
+  });
+
+/**
  * A source-free pointer to one approved risk-positive review obligation.
  * It is an audit-boundary contract, never a finding rule or source claim.
  */
@@ -121,7 +144,7 @@ export const InventorySummarySchema = z.strictObject({
 });
 
 export const AttackPlanSchema = z.strictObject({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(3),
   planId: IdentifierSchema,
   planDigest: Sha256Schema,
   targetFingerprint: Sha256Schema,
@@ -130,6 +153,7 @@ export const AttackPlanSchema = z.strictObject({
   createdAt: IsoDateTimeSchema,
   inventorySummary: InventorySummarySchema,
   vectors: z.array(AttackVectorSchema).min(1),
+  additionalObservations: AdditionalObservationsSchema,
 });
 
 export const SourceEvidenceSchema = z.strictObject({
@@ -153,6 +177,7 @@ export const ProposedFindingSchema = z.strictObject({
 export type AttackPlan = z.infer<typeof AttackPlanSchema>;
 export type AttackVector = z.infer<typeof AttackVectorSchema>;
 export type DraftAttackVector = z.infer<typeof DraftAttackVectorSchema>;
+export type AdditionalObservation = z.infer<typeof AdditionalObservationSchema>;
 export type InventorySummary = z.infer<typeof InventorySummarySchema>;
 export type SourceEvidence = z.infer<typeof SourceEvidenceSchema>;
 export type ProposedFinding = z.infer<typeof ProposedFindingSchema>;

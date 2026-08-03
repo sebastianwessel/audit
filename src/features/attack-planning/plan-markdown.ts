@@ -62,5 +62,33 @@ export function renderAttackPlanMarkdown(plan: AttackPlan): string {
     lines.push('');
   }
 
+  lines.push('## Additional observations for human review', '');
+  if (sealedPlan.additionalObservations.length === 0) {
+    lines.push('None. These suggestions are optional and do not affect this audit run.');
+  }
+  for (const observation of sealedPlan.additionalObservations) {
+    lines.push(
+      `### ${text(observation.title)}`,
+      '',
+      `- Observation: ${code(observation.observationId)}`,
+      '- Status: human review recommended; not part of this executable audit plan',
+      `- Rationale: ${text(observation.rationale)}`,
+      '- Suggested scope:',
+      ...observation.scopeGlobs.map((scopeGlob) => `  - ${code(scopeGlob)}`),
+      '- Suggested review obligations:',
+      ...observation.reviewObligations.flatMap((obligation) => [
+        `  - ${code(obligation.obligationId)} — ${text(obligation.riskStatement)}`,
+        `    - Required evidence: ${text(obligation.evidenceRequirement)}`,
+      ]),
+      ...(observation.limitations.length === 0
+        ? []
+        : [
+            '- Limitations:',
+            ...observation.limitations.map((limitation) => `  - ${text(limitation)}`),
+          ]),
+      '',
+    );
+  }
+
   return `${lines.join('\n')}\n`;
 }

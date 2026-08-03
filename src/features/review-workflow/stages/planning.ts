@@ -2,6 +2,7 @@ import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
 import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
 import type { DraftVectorInput } from '../../attack-planning/plan.js';
+import type { AdditionalObservation } from '../../attack-planning/plan.schema.js';
 import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
 import type { PlanModelRequest } from '../agents/planning/contract.js';
@@ -46,8 +47,30 @@ export async function runPlanningStage(input: {
       }),
     reduceRecoveredOutputs: (leaves) => ({
       vectors: mergeRecoveredDraftVectors(leaves.flatMap((leaf) => leaf.output.vectors)),
+      additionalObservations: mergeAdditionalObservations(
+        leaves.flatMap((leaf) => leaf.output.additionalObservations),
+      ),
     }),
   });
+}
+
+function mergeAdditionalObservations(
+  observations: readonly AdditionalObservation[],
+): AdditionalObservation[] {
+  const byId = new Map<string, AdditionalObservation>();
+  for (const observation of observations) {
+    const existing = byId.get(observation.observationId);
+    if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(observation)) {
+      throw new SecurityReviewerError(
+        'provider-context-overflow',
+        'Context recovery produced conflicting additional-observation identities.',
+      );
+    }
+    byId.set(observation.observationId, observation);
+  }
+  return [...byId.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, observation]) => observation);
 }
 
 function mergeRecoveredDraftVectors(vectors: readonly DraftVectorInput[]): DraftVectorInput[] {

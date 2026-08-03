@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { RelativePathSchema, Sha256Schema } from '../../../../shared/contracts/core.js';
 import {
+  AdditionalObservationSchema,
   DraftAttackVectorBaseSchema,
   InventorySummarySchema,
 } from '../../../attack-planning/plan.schema.js';
@@ -33,6 +34,7 @@ export const PlanModelOutputSchema = z.strictObject({
       }),
     )
     .min(1),
+  additionalObservations: z.array(AdditionalObservationSchema).default([]),
 });
 
 export type PlanModelRequest = z.infer<typeof PlanModelRequestSchema>;

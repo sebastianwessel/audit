@@ -1,7 +1,12 @@
 import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
 
 import { assertPlanIsSealed, createPlan } from './plan.js';
-import { type AttackPlan, AttackPlanSchema, type DraftAttackVector } from './plan.schema.js';
+import {
+  type AdditionalObservation,
+  type AttackPlan,
+  AttackPlanSchema,
+  type DraftAttackVector,
+} from './plan.schema.js';
 import { type AttackPlanDraft, AttackPlanDraftSchema } from './plan-authoring.schema.js';
 
 /** Creates a constrained human-editable draft from a sealed executable plan. */
@@ -13,6 +18,8 @@ export function createAttackPlanDraft(plan: AttackPlan): AttackPlanDraft {
     basePlanId: sealedPlan.planId,
     basePlanDigest: sealedPlan.planDigest,
     vectors: sealedPlan.vectors.map(toDraftVector),
+    additionalObservations: sealedPlan.additionalObservations,
+    promotedObservationIds: [],
   });
 }
 
@@ -35,13 +42,32 @@ export function resealAttackPlanDraft(input: {
     );
   }
 
+  const observationsById = new Map(
+    basePlan.additionalObservations.map((observation) => [observation.observationId, observation]),
+  );
+  if (new Set(draft.promotedObservationIds).size !== draft.promotedObservationIds.length) {
+    throw new SecurityReviewerError('artifact-invalid', 'A plan observation can be promoted once.');
+  }
+  const promoted = draft.promotedObservationIds.map((observationId) => {
+    const observation = observationsById.get(observationId);
+    if (observation === undefined) {
+      throw new SecurityReviewerError(
+        'artifact-invalid',
+        'The editable draft references an observation outside its sealed base plan.',
+      );
+    }
+    return observationToDraftVector(observation);
+  });
   const resealed = createPlan({
     targetFingerprint: basePlan.targetFingerprint,
     contextDigest: basePlan.contextDigest,
     targetDisplayName: basePlan.targetDisplayName,
     inventorySummary: basePlan.inventorySummary,
     createdAt: basePlan.createdAt,
-    vectors: draft.vectors,
+    vectors: [...draft.vectors, ...promoted],
+    additionalObservations: draft.additionalObservations.filter(
+      (observation) => !draft.promotedObservationIds.includes(observation.observationId),
+    ),
   });
   if (resealed.planId === basePlan.planId) {
     throw new SecurityReviewerError(
@@ -50,6 +76,17 @@ export function resealAttackPlanDraft(input: {
     );
   }
   return resealed;
+}
+
+function observationToDraftVector(observation: AdditionalObservation): DraftAttackVector {
+  return {
+    title: observation.title,
+    rationale: observation.rationale,
+    enabled: true,
+    scopeGlobs: observation.scopeGlobs,
+    reviewObligations: observation.reviewObligations,
+    limitations: observation.limitations,
+  };
 }
 
 /** Returns a fresh editable vector without derived identity fields. */

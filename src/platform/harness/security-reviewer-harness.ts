@@ -257,6 +257,7 @@ export function createSecurityReviewerHarnessWithExecution(
                 targetDisplayName: context.input.targetDisplayName,
                 inventorySummary: context.input.inventorySummary,
                 vectors: modelOutput.vectors,
+                additionalObservations: modelOutput.additionalObservations,
                 createdAt: context.input.createdAt,
               });
               context.metrics.counter('security_reviewer.plan.completed');

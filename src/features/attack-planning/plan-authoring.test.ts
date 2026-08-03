@@ -26,6 +26,23 @@ function createFixturePlan() {
         limitations: [],
       },
     ],
+    additionalObservations: [
+      {
+        observationId: 'review-session-boundary',
+        title: 'Review session-boundary propagation',
+        rationale: 'A human may choose to extend the plan to the session boundary.',
+        scopeGlobs: ['src/session/**'],
+        reviewObligations: [
+          {
+            obligationId: 'session-boundary-01',
+            riskStatement: 'A session boundary may not preserve the expected caller identity.',
+            evidenceRequirement:
+              'Source evidence identifies session creation and identity propagation.',
+          },
+        ],
+        limitations: [],
+      },
+    ],
   });
 }
 
@@ -65,5 +82,19 @@ describe('plan authoring lifecycle', () => {
     expect(() =>
       resealAttackPlanDraft({ basePlan, draft: createAttackPlanDraft(basePlan) }),
     ).toThrow('does not change');
+  });
+
+  test('promotes one additional observation into executable human-approved work', () => {
+    const basePlan = createFixturePlan();
+    const draft = createAttackPlanDraft(basePlan);
+    const resealed = resealAttackPlanDraft({
+      basePlan,
+      draft: { ...draft, promotedObservationIds: ['review-session-boundary'] },
+    });
+
+    expect(resealed.vectors.map((vector) => vector.title)).toContain(
+      'Review session-boundary propagation',
+    );
+    expect(resealed.additionalObservations).toEqual([]);
   });
 });

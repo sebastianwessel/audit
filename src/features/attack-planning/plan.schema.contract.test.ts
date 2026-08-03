@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { AttackPlanSchema, hasExactPlanObligations, SourceEvidenceSchema } from './plan.schema.js';
 
 const plan = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   planId: 'plan-demo-01',
   planDigest: 'c'.repeat(64),
   targetFingerprint: 'a'.repeat(64),
@@ -29,6 +29,7 @@ const plan = {
       limitations: [],
     },
   ],
+  additionalObservations: [],
 };
 
 test('attack plan contract accepts an executable plan', () => {
@@ -64,6 +65,26 @@ test('does not impose fixed product ceilings on vectors, obligations, or source 
 test('attack plan contract rejects unknown fields and retired approval metadata', () => {
   expect(() => AttackPlanSchema.parse({ ...plan, unexpected: true })).toThrow();
   expect(() => AttackPlanSchema.parse({ ...plan, reviewStatus: 'approved' })).toThrow();
+});
+
+test('rejects duplicate additional observation identifiers', () => {
+  const observation = {
+    observationId: 'additional-review-01',
+    title: 'Review an adjacent trust boundary',
+    rationale: 'A human may decide this boundary belongs in a later audit plan.',
+    scopeGlobs: ['src/**'],
+    reviewObligations: [
+      {
+        obligationId: 'additional-obligation-01',
+        riskStatement: 'An adjacent boundary may require a separate risk review.',
+        evidenceRequirement: 'Inspect the relevant source boundary before promoting it.',
+      },
+    ],
+    limitations: [],
+  };
+  expect(() =>
+    AttackPlanSchema.parse({ ...plan, additionalObservations: [observation, observation] }),
+  ).toThrow('identifiers must be unique');
 });
 
 test('rejects retired indexed obligations instead of translating them', () => {

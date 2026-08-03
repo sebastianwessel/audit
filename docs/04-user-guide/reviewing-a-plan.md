@@ -13,6 +13,12 @@ Treat the plan as a short security test proposal.
 
 Your organization may review, edit, or record approval externally. Security Reviewer does not model that workflow: it executes the supplied plan when it matches the current target and optional context.
 
-Use the paired Markdown plan as the review document. To make an agreed change, create a JSON draft with `plan-draft`, edit the vector content, then use `plan-reseal` to publish a new immutable JSON/Markdown pair. The draft cannot change the target, context, or inventory binding. Do not edit a sealed plan JSON directly, and do not substitute YAML or Markdown for the executable JSON plan.
+Use the paired Markdown plan as the review document. To make an agreed change, create a JSON draft with `plan-draft`, edit vector or observation content, then use `plan-reseal` to publish a new immutable JSON/Markdown pair. The draft cannot change the target, context, or inventory binding. Do not edit a sealed plan JSON directly, and do not substitute YAML or Markdown for the executable JSON plan.
+
+## Additional observations
+
+The plan can also contain **additional observations for human review**. They are suggestions the planner noticed outside the executable vectors. They are not findings, do not receive a priority, and do not affect an audit result or CI gate.
+
+If one matters, add it to the editable draft's `promotedObservationIds` list and reseal the draft. It becomes a normal enabled vector in the new plan. If you leave it unpromoted, it remains visible only as extra context for the next plan review.
 
 Large generic plans create noise. Short project-specific context is more valuable when it names a few authentication helpers, middleware paths, trust boundaries, or sensitive data flows.

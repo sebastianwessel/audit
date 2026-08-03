@@ -45,6 +45,18 @@ facts. It rejects invalid obligation references, bindings, and selections.
 This is provenance validation only: it does not interpret the risk statement,
 decide control effectiveness or data flow, or create a finding.
 
+## Additional observations
+
+Planning may separately emit `additionalObservations`: source-aware suggestions
+for a human to consider when maintaining the audit plan. They have a stable
+observation identity, suggested scope, and risk-positive review obligations,
+but are not executable vectors, findings, priorities, fixes, or CI inputs.
+They appear in the sealed JSON plan and its Markdown projection under a
+separate human-review section. An editable draft may promote a selected base
+observation exactly once; resealing converts it to an enabled executable vector
+and removes it from the observation list. An audit never executes, scores,
+reports, or infers a security conclusion from an unpromoted observation.
+
 Retired indexed obligation fields and old posture tokens fail closed; there is
 no compatibility reader, alias, or inferred replacement.
 
@@ -74,5 +86,7 @@ diagnostic result is never an automatic product promotion.
   obligation contract remains.
 - Unknown-extension source follows the same protocol.
 - A verifier cannot create a different risk, vector, classification, urgency judgment, or remediation.
+- An additional observation cannot enter audit coverage, findings, priority, CI
+  gating, or evaluation scoring until a human promotes it into a resealed plan.
 - Retry, recovery, telemetry, schemas, and strict source-free artifacts retain
   the exact obligation binding.

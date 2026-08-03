@@ -26,6 +26,23 @@ test('renders a deterministic non-executable review projection', () => {
         limitations: ['No runtime probing is performed.'],
       },
     ],
+    additionalObservations: [
+      {
+        observationId: 'additional-review-01',
+        title: 'Review inherited authentication boundary',
+        rationale: 'A human may choose to extend the audit beyond the approved vectors.',
+        scopeGlobs: ['src/**'],
+        reviewObligations: [
+          {
+            obligationId: 'additional-review-obligation-01',
+            riskStatement: 'An inherited boundary may not enforce the expected caller identity.',
+            evidenceRequirement:
+              'Source evidence identifies the inheritance and enforcement boundary.',
+          },
+        ],
+        limitations: [],
+      },
+    ],
   });
 
   const markdown = renderAttackPlanMarkdown(plan);
@@ -34,6 +51,8 @@ test('renders a deterministic non-executable review projection', () => {
   expect(markdown).toContain('Review data exposure');
   expect(markdown).toContain('data-exposure-01');
   expect(markdown).toContain('No runtime probing is performed.');
+  expect(markdown).toContain('Additional observations for human review');
+  expect(markdown).toContain('not part of this executable audit plan');
 });
 
 test('rejects an unsealed plan before rendering review material', () => {

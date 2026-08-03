@@ -2,6 +2,7 @@ import { canonicalJson, createStableId, sha256 } from '../../shared/contracts/co
 import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
 
 import {
+  type AdditionalObservation,
   type AttackPlan,
   AttackPlanSchema,
   type AttackVector,
@@ -14,6 +15,7 @@ type PlanContent = Readonly<{
   targetFingerprint: string;
   contextDigest: string;
   vectors: AttackVector[];
+  additionalObservations: AdditionalObservation[];
 }>;
 
 export function createPlan(input: {
@@ -22,6 +24,7 @@ export function createPlan(input: {
   targetDisplayName: string;
   inventorySummary: InventorySummary;
   vectors: readonly DraftVectorInput[];
+  additionalObservations?: readonly AdditionalObservation[];
   createdAt: string;
 }): AttackPlan {
   const vectors = input.vectors.map((vector) => {
@@ -36,10 +39,11 @@ export function createPlan(input: {
     targetFingerprint: input.targetFingerprint,
     contextDigest: input.contextDigest,
     vectors,
+    additionalObservations: [...(input.additionalObservations ?? [])],
   };
   const planDigest = digestPlan(content);
   return AttackPlanSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: 3,
     planId: createStableId('plan', planDigest),
     planDigest,
     targetFingerprint: input.targetFingerprint,
@@ -48,6 +52,7 @@ export function createPlan(input: {
     createdAt: input.createdAt,
     inventorySummary: input.inventorySummary,
     vectors,
+    additionalObservations: input.additionalObservations ?? [],
   });
 }
 
@@ -60,6 +65,7 @@ export function resealPlan(plan: AttackPlan): AttackPlan {
     inventorySummary: plan.inventorySummary,
     createdAt: plan.createdAt,
     vectors: plan.vectors.map(toDraftVector),
+    additionalObservations: plan.additionalObservations,
   });
 }
 
@@ -107,10 +113,11 @@ function digestVector(vector: DraftVectorInput): string {
 function digestPlan(content: PlanContent): string {
   return sha256(
     canonicalJson({
-      schemaVersion: 2,
+      schemaVersion: 3,
       targetFingerprint: content.targetFingerprint,
       contextDigest: content.contextDigest,
       vectors: content.vectors,
+      additionalObservations: content.additionalObservations,
     }),
   );
 }

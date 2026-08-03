@@ -12,7 +12,7 @@ The planner first reads or searches the supplied repository through its read-onl
 - what would count as a meaningful result;
 - what the review may not be able to prove.
 
-The output is an editable executable plan. It is not a vulnerability report.
+The output is an editable executable plan. It may also contain separate additional observations for human review. Those are suggestions to consider for a later plan change, not findings and not hidden extra audit work. It is not a vulnerability report.
 
 ## Stage 2: run the supplied plan
 

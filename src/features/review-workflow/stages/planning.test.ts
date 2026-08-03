@@ -46,6 +46,22 @@ test('creates a source-inspected business-level draft for an unknown-language so
           limitations: [],
         },
       ],
+      additionalObservations: [
+        {
+          observationId: 'review-session-boundary',
+          title: 'Review session-boundary propagation',
+          rationale: 'A human may choose to extend the executable plan to this boundary.',
+          scopeGlobs: ['reviewed.unknown'],
+          reviewObligations: [
+            {
+              obligationId: 'session-boundary-01',
+              riskStatement: 'A session boundary may not preserve caller identity.',
+              evidenceRequirement: 'Inspect session creation and identity propagation.',
+            },
+          ],
+          limitations: [],
+        },
+      ],
     },
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     finishReason: 'stop',
@@ -85,6 +101,7 @@ test('creates a source-inspected business-level draft for an unknown-language so
     status: 'completed',
     output: {
       vectors: [{ scopeGlobs: ['reviewed.unknown'], title: 'Review tenant data isolation' }],
+      additionalObservations: [{ observationId: 'review-session-boundary' }],
     },
     modelObservation: {
       stage: 'planning',

@@ -206,6 +206,7 @@ export function createReviewService(
         targetDisplayName: input.targetDisplayName,
         inventorySummary: inventory.summary,
         vectors: planning.output.vectors,
+        additionalObservations: planning.output.additionalObservations,
         createdAt: input.createdAt,
       });
       return {

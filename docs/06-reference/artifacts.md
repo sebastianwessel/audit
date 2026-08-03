@@ -11,7 +11,7 @@ Every plan has two immutable artifacts with the same plan ID:
 | `plans/<plan-id>.json` | Audit and CI | The only executable, schema-validated plan. |
 | `plans/<plan-id>.md` | Human reviewers | A deterministic, readable projection. It is not parsed or executed. |
 
-To make a review change, create an editable `AttackPlanDraft` with `plan-draft`, then use `plan-reseal` to validate it against the original plan and publish a new pair. The draft can change vectors only; it cannot alter the target/context binding, inventory, timestamps, or derived identities. JSON remains the machine contract because it is sealed and validated deterministically. YAML is deliberately not an executable input.
+To make a review change, create an editable `AttackPlanDraft` with `plan-draft`, then use `plan-reseal` to validate it against the original plan and publish a new pair. The draft can change vectors and non-executable additional observations only; it cannot alter the target/context binding, inventory, timestamps, or derived identities. A human may promote one original observation by adding its ID to `promotedObservationIds`; the resealed plan turns it into an enabled vector. JSON remains the machine contract because it is sealed and validated deterministically. YAML is deliberately not an executable input.
 
 ## Report
 

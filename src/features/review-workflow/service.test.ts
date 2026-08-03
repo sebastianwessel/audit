@@ -124,6 +124,22 @@ test('review service creates an executable plan and audits it directly', async (
           limitations: [],
         },
       ],
+      additionalObservations: [
+        {
+          observationId: 'review-unrelated-boundary',
+          title: 'Review an unrelated boundary',
+          rationale: 'This suggestion needs a human decision before audit execution.',
+          scopeGlobs: ['not-present/**'],
+          reviewObligations: [
+            {
+              obligationId: 'unrelated-boundary-01',
+              riskStatement: 'An unrelated boundary may require a later security review.',
+              evidenceRequirement: 'Inspect that boundary only after human promotion.',
+            },
+          ],
+          limitations: [],
+        },
+      ],
     },
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     finishReason: 'stop',
@@ -144,6 +160,7 @@ test('review service creates an executable plan and audits it directly', async (
     sessionId: 'service-plan-01',
   });
   expect(created.plan.planId).toStartWith('plan-');
+  expect(created.plan.additionalObservations).toHaveLength(1);
   expect(created.modelObservation.usage.modelCallCount).toBe(2);
   expect(created.modelObservation.stages).toMatchObject([
     { stage: 'planning', status: 'completed', usage: { modelCallCount: 2 } },
@@ -158,6 +175,7 @@ test('review service creates an executable plan and audits it directly', async (
     sessionId: 'service-audit-01',
   });
   expect(audited.report.findings).toHaveLength(0);
+  expect(audited.report.coverage).toHaveLength(1);
   expect(audited.modelObservation.usage.modelCallCount).toBe(6);
   expect(audited.report.coverage[0]?.modelObservation).toMatchObject({
     stage: 'investigation',
