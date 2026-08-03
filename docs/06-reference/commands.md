@@ -6,7 +6,7 @@
 | audit | Execute a matching plan and create a report. | Yes. |
 | report | Render an existing valid report. | No. |
 | lineage | Compare two existing reports with coverage-aware exact finding tracking. | No. |
-| `bun run eval:corpus:integration -- [--corpus path]` | Verify corpus isolation, artifact writing, and the normal tool-guided workflow with a deliberately non-scoring deterministic provider. An explicitly selected path is never replaced by the configured default. | No. |
+| `bun run eval:corpus:integration -- [--corpus path]` | Deterministic integration check: verify corpus isolation, artifact writing, and the normal tool-guided workflow with a deliberately non-scoring provider. It never measures detection quality. An explicitly selected path is never replaced by the configured default. | No. |
 | `bun run eval:corpus:readiness` | Report whether the locally reviewed corpus can support a pilot or reliability claim. | No. |
 | `bun run eval:acquisition` | Validate the evaluator-only multilingual acquisition track and metadata-only registry links. | No. |
 | `bun run eval:acquire -- --registry path --candidate id --repository path --output path` | Materialize one complete, pinned vulnerable/patched source pair from an already-local Git repository for evaluator-only human curation. | No. |

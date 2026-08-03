@@ -8,7 +8,7 @@ import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/s
 import { PlanModelInputSchema, PlanModelRequestSchema } from '../agents/planning/contract.js';
 import { runPlanningStage } from './planning.js';
 
-test('creates a source-inspected draft for an unknown-language source file', async () => {
+test('creates a source-inspected business-level draft for an unknown-language source file', async () => {
   const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-planning-stage-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
@@ -32,15 +32,15 @@ test('creates a source-inspected draft for an unknown-language source file', asy
     object: {
       vectors: [
         {
-          title: 'Review request handling',
-          rationale: 'The source accepts a request value.',
+          title: 'Review tenant data isolation',
+          rationale: 'The surrounding architecture identifies a tenant-boundary obligation.',
           enabled: true,
           scopeGlobs: ['reviewed.unknown'],
           reviewObligations: [
             {
-              obligationId: 'request-handling-01',
-              riskStatement: 'The request value could require a security review.',
-              evidenceRequirement: 'Inspect the request handling source.',
+              obligationId: 'tenant-boundary-01',
+              riskStatement: 'Tenant-scoped data could be exposed outside its intended boundary.',
+              evidenceRequirement: 'Inspect the scoped source that receives tenant-bound input.',
             },
           ],
           limitations: [],
@@ -60,7 +60,17 @@ test('creates a source-inspected draft for an unknown-language source file', asy
       targetDisplayName: 'unknown-language fixture',
       inventorySummary: { fileCount: 1, totalBytes: 22, languageHints: [] },
       sourcePaths: ['reviewed.unknown'],
-      context: [],
+      context: [
+        {
+          path: 'context/architecture.md',
+          title: 'Tenant architecture',
+          kind: 'architecture',
+          sensitivity: 'internal',
+          appliesTo: ['reviewed.unknown'],
+          body: 'Requests are expected to remain within a tenant boundary.',
+          digest: 'c'.repeat(64),
+        },
+      ],
       createdAt: '2026-08-03T12:00:00.000Z',
     }),
     sessionId: 'planning-stage-unknown-language-01',
@@ -73,7 +83,9 @@ test('creates a source-inspected draft for an unknown-language source file', asy
 
   expect(result).toMatchObject({
     status: 'completed',
-    output: { vectors: [{ scopeGlobs: ['reviewed.unknown'] }] },
+    output: {
+      vectors: [{ scopeGlobs: ['reviewed.unknown'], title: 'Review tenant data isolation' }],
+    },
     modelObservation: {
       stage: 'planning',
       status: 'completed',
@@ -90,6 +102,9 @@ test('creates a source-inspected draft for an unknown-language source file', asy
       allowedToolIds: ['repo_read', 'repo_grep'],
     },
   });
+  expect(initialInput.context).toMatchObject([
+    { path: 'context/architecture.md', kind: 'architecture', appliesTo: ['reviewed.unknown'] },
+  ]);
   expect(Object.hasOwn(initialInput, 'findings')).toBeFalse();
   expect(Object.hasOwn(initialInput, 'answerKey')).toBeFalse();
   expect(JSON.stringify(initialInput)).not.toContain('value = request.input');

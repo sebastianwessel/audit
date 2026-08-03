@@ -84,7 +84,7 @@ incorrect.
 | Lint | `bun run lint` | exit 0 |
 | Tests | `bun test` | all tests pass |
 | Coverage | `bun run test:coverage` | threshold passes |
-| Offline evaluation | `bun run eval && bun run eval:corpus` | exit 0; no provider call |
+| Offline evaluation | `bun run eval && bun run eval:corpus:integration` | exit 0; no provider call |
 | Full local gate | `bun run check` | exit 0 |
 
 ## Scope

@@ -85,7 +85,7 @@ Place source-admission and snapshot code under `src/features/target-inventory/`;
 3. Test-first: add colocated unit/schema contract tests plus `tests/integration/` and `tests/e2e/` cases for valid request success, invalid topology, symlink/escape denial, CRLF/LF snapshot preservation, post-inventory mutation, stale checkpoint, cancellation, report-write failure, concurrent/unresolved lease, and redacted logs. Run the focused `bun test` command and retain expected failing proof before business logic.
 4. Implement `src/features/target-inventory/` admission/snapshot and `src/features/review-workflow/` snapshot-only tools. Implement `src/features/attack-planning/` canonical serialize/validate/reseal. Implement `src/platform/artifact-store/` separate read/write resolvers and lease. Implement `src/features/audit-execution/terminal-classification` and replace duplicate CLI/evaluator projections. Preserve source-free telemetry, safe transaction continuation, cancellation, recovery, and no-target-write behavior.
 5. Update `src/cli/` composition so topology validation runs before mkdir, inventory, plan/checkpoint reads, provider construction, or dispatch. Update `docs/` only for implemented end-user behavior; docs must not link specs. Run focused test commands after each phase and verify no static parser, `any`, `unknown`, unchecked cast, duplicate schema, or duplicate path logic is introduced.
-6. Review changed files against this ticket and all spec refs; run `bun run spec:check`, `bun run schema:check`, `bun run typecheck`, `bun run lint`, `bun test`, `bun run test:coverage`, `bun run eval`, `bun run eval:corpus`, and `bun run check`. Done proof requires expected pass output, >=80% coverage, all acceptance rows implemented/tested, and no spec drift; otherwise mark partial with resume notes.
+6. Review changed files against this ticket and all spec refs; run `bun run spec:check`, `bun run schema:check`, `bun run typecheck`, `bun run lint`, `bun test`, `bun run test:coverage`, `bun run eval`, `bun run eval:corpus:integration`, and `bun run check`. Done proof requires expected pass output, >=80% coverage, all acceptance rows implemented/tested, and no spec drift; otherwise mark partial with resume notes.
 
 ## Requirements Traceability
 
@@ -154,7 +154,7 @@ Security/privacy: no source/prompt/tool payload in logs. Performance/resilience:
 
 ## Verification
 
-Run `bun run spec:check`, `bun run schema:check`, `bun run typecheck`, `bun run lint`, `bun test`, `bun run test:coverage`, `bun run eval`, `bun run eval:corpus`, and `bun run check`. Live-provider verification is not applicable unless separately opt-in.
+Run `bun run spec:check`, `bun run schema:check`, `bun run typecheck`, `bun run lint`, `bun test`, `bun run test:coverage`, `bun run eval`, `bun run eval:corpus:integration`, and `bun run check`. Live-provider verification is not applicable unless separately opt-in.
 
 ## Non-goals
 

@@ -17,7 +17,7 @@
     "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun run scripts/check-coverage.ts",
     "eval": "bun run src/features/evaluation/run.ts",
     "eval:stages": "bun run src/features/evaluation/run-stage-conformance.ts",
-    "eval:corpus:integration": "bun run src/features/evaluation/run-real-world.ts",
+    "eval:corpus:integration": "bun run src/features/evaluation/run-deterministic-corpus-integration.ts",
     "eval:corpus:readiness": "bun run src/features/evaluation/run-corpus-readiness.ts",
     "eval:candidates": "bun run src/features/evaluation/run-candidate-check.ts",
     "eval:acquisition": "bun run src/features/evaluation/run-acquisition-track.ts",

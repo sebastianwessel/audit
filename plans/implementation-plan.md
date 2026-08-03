@@ -32,7 +32,7 @@ Strict Zod schemas are the source contracts and `z.infer` supplies types. Existi
 
 ## Verification and operational path coverage
 
-Each ticket uses test-first valid-request and unhappy-path coverage for invalid roots, symlink escapes, snapshot mutation, stale checkpoint, cancellation, report-write failure, concurrency, cleanup, redaction, recovery, and exit codes. `bun run spec:check`, `bun run schema:check`, `bun run typecheck`, `bun run lint`, `bun test`, `bun run test:coverage`, `bun run eval`, `bun run eval:corpus`, and `bun run check` are the final hermetic verification commands. Live provider tests remain opt-in. The project 80% coverage threshold remains in force.
+Each ticket uses test-first valid-request and unhappy-path coverage for invalid roots, symlink escapes, snapshot mutation, stale checkpoint, cancellation, report-write failure, concurrency, cleanup, redaction, recovery, and exit codes. `bun run spec:check`, `bun run schema:check`, `bun run typecheck`, `bun run lint`, `bun test`, `bun run test:coverage`, `bun run eval`, `bun run eval:corpus:integration`, and `bun run check` are the final hermetic verification commands. Live provider tests remain opt-in. The project 80% coverage threshold remains in force.
 
 ## Parallelization
 

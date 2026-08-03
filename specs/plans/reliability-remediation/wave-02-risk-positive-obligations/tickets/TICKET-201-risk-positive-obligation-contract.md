@@ -131,7 +131,7 @@ Validation rejects stale inputs before target access; provider failures retain e
 
 ## Verification
 
-`bun run schema:generate && bun run schema:check && bun run spec:check && bun run typecheck && bun run lint && bun test && bun run test:coverage && bun run eval && bun run eval:corpus && bun run check`
+`bun run schema:generate && bun run schema:check && bun run spec:check && bun run typecheck && bun run lint && bun test && bun run test:coverage && bun run eval && bun run eval:corpus:integration && bun run check`
 
 ## Non-goals
 

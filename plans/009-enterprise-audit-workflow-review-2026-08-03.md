@@ -33,10 +33,7 @@ admission can complete together; it is not recall, precision, or reliability.
 
 | Priority | Finding | Evidence | Impact | Effort | Confidence |
 | --- | --- | --- | --- | --- | --- |
-| P0 | The prior real-provider lifecycle uncertainty is resolved for one reviewed-plan smoke, but provider quality still cannot be measured. | Source-free smoke `root-cause-smoke-20260803-v2` completed all five audit phases, with one completed vector and a bounded $0.060512 observed cost; the deterministic corpus command remains deliberately non-semantic. | Do not mistake an operational completion or a deterministic incomplete trial for recall, precision, or model comparison evidence. | S | High |
 | P0 | The corpus is not yet eligible for an enterprise reliability or precision claim. | `src/features/evaluation/corpus.schema.ts:207-278` permits provisional keys; current evaluation report labels the selected corpus diagnostic and targeted. | Reported recall or precision would be statistically and semantically misleading. | L | High |
-| P1 | The prompt protocol is structurally safe but has no outcome-based regression suite for the actual planning and evidence-mapping behavior. | `src/features/review-workflow/agents/*/instructions.ts`; only shared inspection text has a direct instruction test at `scoped-inspection-instructions.test.ts`. | Prompt edits can silently reduce plan coverage or cause evidence-map incompleteness. | M | High |
-| P1 | `eval:corpus` is useful but its name suggests a semantic evaluation even though its default deterministic provider deliberately cannot find source facts. | `src/features/evaluation/deterministic-provider.ts:60-110`; the latest report has no completed trials and `bun run check` still exits successfully. | Engineers can interpret a green command as evidence of audit quality. | S | High |
 
 ### Explicitly rejected as stale or already fixed
 
@@ -61,6 +58,18 @@ admission can complete together; it is not recall, precision, or reliability.
   records a fixed category, the complete issue count, and a digest of the full
   sorted schema-path set. It preserves diagnostic distinction without retaining
   source, model values, or raw provider metadata.
+- **Real-provider lifecycle uncertainty:** the authorised reviewed-plan smoke
+  completed all five audit stages at $0.060512 observed catalogue cost. Its
+  single admitted finding is operational evidence only, not a quality metric.
+- **Outcome-based stage regressions:** the real stage wrappers now cover an
+  unknown-language source, business-level advisory context, hostile context,
+  neutral controls, no-source incompleteness, a neutral `not-applicable`
+  posture, and null candidate grounding. They are lifecycle tests, not
+  language-specific detection rules or prompt-string snapshots.
+- **Ambiguous corpus command:** the runner is named
+  `run-deterministic-corpus-integration`, its command is
+  `eval:corpus:integration`, and contributor/end-user guidance explicitly says
+  it is never a detection-quality measurement.
 
 ## Recommended execution order
 
@@ -103,7 +112,7 @@ tool arguments, tool results, or model output.
 ```bash
 bun test src/features/evaluation
 bun run schema:check
-bun run eval:corpus
+bun run eval:corpus:integration
 ```
 
 Expected: all tests pass; the deterministic corpus run is labelled
@@ -115,6 +124,15 @@ prompt text, model output, or a target path, stop and design a source-free
 alternative before implementation.
 
 ### Plan 009-B — turn agent prompts into versioned behavioral contracts
+
+**Progress (2026-08-03):** complete. Provider-free real-wrapper regressions
+now cover the scenario matrix without provider calls or answer-key input:
+unknown-language source and business-level advisory context (planning), hostile
+advisory context and neutral source-visible controls (evidence mapping),
+source-backed `not-applicable` (posture), empty mapped evidence (incomplete
+coverage), and a source-backed seed reduced to a null grounding. The existing
+prompt protocol fingerprint continues to bind all stage instructions into
+resume and evaluation identity.
 
 **Goal:** improve planning and mapping reliability without adding language
 parsers, regex security rules, fixture rules, or answer-key-informed behavior.
@@ -201,8 +219,8 @@ asserting enterprise reliability.
 
 ```bash
 bun test src/features/evaluation
-bun run eval:corpus
-bun run eval:corpus:validate
+bun run eval:corpus:integration
+bun run eval:corpus:readiness
 ```
 
 Expected: unqualified packs and selected-case runs serialize as diagnostic;

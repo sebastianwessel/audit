@@ -18,4 +18,4 @@ Verification evidence:
 
 - `src/features/audit-execution/audit.schema.ts` accepts only report schema version 12 and terminal vector checkpoint schema version 11; `src/features/evaluation/corpus.schema.ts` accepts only the new strict corpus/evaluation versions.
 - Colocated audit, checkpoint, corpus, scorer, runner, baseline, and comparison tests cover terminal closure, phase reuse, cancellation, ineligible scoring, coverage classes, role ranges, and legacy-artifact rejection.
-- The deterministic project suite (`bun run check`, `bun run eval`, and `bun run eval:corpus`) passed after the migration. This confirms protocol integrity only; it does not establish provider quality or corpus readiness.
+- The deterministic project suite (`bun run check`, `bun run eval`, and `bun run eval:corpus:integration`) passed after the migration. This confirms protocol integrity only; it does not establish provider quality or corpus readiness.

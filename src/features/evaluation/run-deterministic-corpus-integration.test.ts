@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { parseDeterministicCorpusArguments } from './run-real-world.js';
+import { parseDeterministicCorpusArguments } from './run-deterministic-corpus-integration.js';
 
 test('selects an explicitly requested deterministic corpus', () => {
   expect(
@@ -17,6 +17,6 @@ test('uses the configured corpus only when no explicit corpus is supplied', () =
 
 test('rejects unsupported deterministic corpus options', () => {
   expect(() => parseDeterministicCorpusArguments(['--split', 'test'])).toThrow(
-    'Invalid deterministic corpus evaluation options',
+    'Invalid deterministic corpus integration options',
   );
 });

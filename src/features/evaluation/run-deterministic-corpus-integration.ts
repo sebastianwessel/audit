@@ -24,7 +24,7 @@ export function parseDeterministicCorpusArguments(
 ): string {
   const parsed = DeterministicCorpusArgumentsSchema.safeParse(parseEvaluationOptionPairs(argv));
   if (!parsed.success) {
-    throw deterministicUsage('Invalid deterministic corpus evaluation options.');
+    throw deterministicUsage('Invalid deterministic corpus integration options.');
   }
   return parsed.data.corpus ?? configuredCorpusRoot ?? 'evaluation/corpora';
 }
