@@ -25,7 +25,7 @@ src/
     audit-report/
     evaluation/
     model-operations/
-    review-workflow/{agents/{planning,evidence-map,source-posture,investigation,candidate-grounding,verification,countercheck},stages/{evidence-map,source-posture,investigation,candidate-grounding,verification},runtime/{source-tools,invocation},tools/{contract,operations}}/
+    review-workflow/{agents/{planning,evidence-map,source-posture,investigation,candidate-grounding,verification,countercheck},stages/{planning,evidence-map,source-posture,investigation,candidate-grounding,verification},runtime/{source-tools,invocation},tools/{contract,operations}}/
   platform/{configuration,filesystem,harness,artifact-store/{read,write,lease}}
   cli/commands
 evaluation/{fixtures,corpora,benchmarks,runs}

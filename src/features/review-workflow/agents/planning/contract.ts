@@ -27,3 +27,6 @@ export const PlanModelOutputSchema = z.strictObject({
     )
     .min(1),
 });
+
+export type PlanModelInput = z.infer<typeof PlanModelInputSchema>;
+export type PlanModelOutput = z.infer<typeof PlanModelOutputSchema>;

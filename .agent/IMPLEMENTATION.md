@@ -9,7 +9,7 @@ Keep feature ownership explicit and imports flowing inward:
 ```text
 src/
   shared/          true cross-feature Zod primitives, errors, observability
-  features/        target-inventory, attack-planning, review-workflow/{agents/{planning,evidence-map,source-posture,investigation,verification,countercheck},stages/{evidence-map,source-posture,investigation,verification},runtime,tools}, audit-execution/{admission,evidence-map,source-posture,investigation,verification,synthesis}, audit-report, model-operations
+  features/        target-inventory, attack-planning, review-workflow/{agents/{planning,evidence-map,source-posture,investigation,verification,countercheck},stages/{planning,evidence-map,source-posture,investigation,verification},runtime,tools}, audit-execution/{admission,evidence-map,source-posture,investigation,verification,synthesis}, audit-report, model-operations
   platform/        filesystem, harness, configuration, artifact-store adapters
   cli/             command parsing and process-boundary mapping
 ```

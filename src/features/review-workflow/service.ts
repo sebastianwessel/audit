@@ -9,7 +9,6 @@ import {
   HarnessExecutionConfigurationSchema,
 } from '../../platform/harness/security-reviewer-harness.js';
 import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
-import type { DraftVectorInput } from '../attack-planning/plan.js';
 import { assertPlanIsSealed, createPlan } from '../attack-planning/plan.js';
 import type { AttackPlan } from '../attack-planning/plan.schema.js';
 import {
@@ -54,7 +53,7 @@ import type { ResolvedVerificationRoute } from './runtime/verification-route.js'
 import { runCandidateGroundingStage } from './stages/candidate-grounding.js';
 import { runEvidenceMapStage } from './stages/evidence-map.js';
 import { runInvestigationStage } from './stages/investigation.js';
-import { runScopedModelStage } from './stages/scoped-model-stage.js';
+import { runPlanningStage } from './stages/planning.js';
 import { runSourcePostureStage } from './stages/source-posture.js';
 import { runVerificationStage } from './stages/verification.js';
 
@@ -161,14 +160,18 @@ export function createReviewService(
       const { inventory, snapshot: sourceSnapshot } = await captureTargetInventory(
         await createFilesystem(input),
       );
-      const planning = await runScopedModelStage({
-        stage: 'planning',
-        route: 'primary',
-        stageId: input.sessionId,
+      const planning = await runPlanningStage({
         modelProvider,
         filesystem: sourceSnapshot,
-        availableSourcePaths: inventory.sourcePaths,
-        context: inventory.context,
+        request: {
+          targetFingerprint: inventory.targetFingerprint,
+          contextDigest: inventory.contextDigest,
+          targetDisplayName: input.targetDisplayName,
+          inventorySummary: inventory.summary,
+          sourcePaths: inventory.sourcePaths,
+          context: inventory.context,
+          createdAt: input.createdAt,
+        },
         sessionId: input.sessionId,
         modelName,
         harnessExecution,
@@ -176,20 +179,6 @@ export function createReviewService(
         modelPricing,
         modelCostCeiling,
         cacheRoutingEnabled,
-        requireScopedSourceInspection: true,
-        invoke: (session, _attempt, scope) =>
-          session.agents.planner.prompt({
-            targetFingerprint: inventory.targetFingerprint,
-            contextDigest: inventory.contextDigest,
-            targetDisplayName: input.targetDisplayName,
-            inventorySummary: inventory.summary,
-            sourcePaths: [...scope.sourcePaths],
-            context: [...scope.context],
-            createdAt: input.createdAt,
-          }),
-        reduceRecoveredOutputs: (leaves) => ({
-          vectors: mergeRecoveredDraftVectors(leaves.flatMap((leaf) => leaf.output.vectors)),
-        }),
       });
       if (planning.status === 'failed') {
         throw new SecurityReviewerError(
@@ -538,24 +527,6 @@ export function createReviewService(
       };
     },
   });
-}
-
-function mergeRecoveredDraftVectors(vectors: readonly DraftVectorInput[]): DraftVectorInput[] {
-  const byIdentity = new Map<string, DraftVectorInput>();
-  for (const vector of vectors) {
-    const identity = vector.title;
-    const existing = byIdentity.get(identity);
-    if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(vector)) {
-      throw new SecurityReviewerError(
-        'provider-context-overflow',
-        'Context recovery produced conflicting planning-vector identities.',
-      );
-    }
-    byIdentity.set(identity, vector);
-  }
-  return [...byIdentity.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([, vector]) => vector);
 }
 
 function overflowTopologyForStage(input: {

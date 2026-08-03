@@ -239,6 +239,17 @@ bun run typecheck
 Expected: diagnostics remain content-free and deterministically distinguish
 structurally different failures.
 
+### Plan 009-E — give planning the same testable stage seam as audit execution
+
+**Progress (2026-08-03):** implemented. Planning is now owned by
+`review-workflow/stages/planning`; the service composes the inventory request
+and seals a completed draft.
+
+The stage owns the shared scoped lifecycle, source-inspection requirement, and
+lossless recovery reduction. Its provider-free test proves an unknown-extension
+source remains eligible and requires a scoped `repo_grep` inspection. It does
+not assert prompt text, source contents, or a security conclusion.
+
 ## Release gate after the wave
 
 - `bun run check` passes without provider dispatch.
