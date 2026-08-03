@@ -4,6 +4,7 @@ import { SchemaVersion } from '../../shared/contracts/core.js';
 import { ToolUsageSchema } from '../model-operations/model-operations.schema.js';
 
 export const SourceDecidingModelStageSchema = z.enum([
+  'planning',
   'evidence-mapping',
   'source-posture',
   'investigation',
@@ -28,7 +29,7 @@ export const StageConformanceRunSchema = z.strictObject({
   provider: z.literal('in-process-scripted-fixture'),
   stages: z
     .array(StageConformanceResultSchema)
-    .length(6)
+    .length(7)
     .superRefine((stages, context) => {
       const identities = stages.map((stage) => stage.stage);
       if (new Set(identities).size !== identities.length) {

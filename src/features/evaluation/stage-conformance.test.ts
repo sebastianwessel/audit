@@ -23,6 +23,7 @@ test('exercises every source-deciding stage with only scoped read tools and no e
       { stage: 'countercheck', outcome: 'inspected', scopePreserved: true },
       { stage: 'evidence-mapping', outcome: 'retry-safe', scopePreserved: true },
       { stage: 'investigation', outcome: 'inspected', scopePreserved: true },
+      { stage: 'planning', outcome: 'inspected', scopePreserved: true },
       { stage: 'source-posture', outcome: 'inspected', scopePreserved: true },
       { stage: 'verification', outcome: 'inspected', scopePreserved: true },
     ],

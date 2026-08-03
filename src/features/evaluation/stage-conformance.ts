@@ -22,6 +22,7 @@ import {
 import { runCandidateGroundingStage } from '../review-workflow/stages/candidate-grounding.js';
 import { runEvidenceMapStage } from '../review-workflow/stages/evidence-map.js';
 import { runInvestigationStage } from '../review-workflow/stages/investigation.js';
+import { runPlanningStage } from '../review-workflow/stages/planning.js';
 import { runScopedModelStage } from '../review-workflow/stages/scoped-model-stage.js';
 import { runSourcePostureStage } from '../review-workflow/stages/source-posture.js';
 import { runVerificationStage } from '../review-workflow/stages/verification.js';
@@ -119,6 +120,7 @@ const hypothesis = {
  */
 export async function runDeterministicStageConformance(filesystem: JailedReadOnlyFilesystem) {
   const stages = await Promise.all([
+    runPlanningConformance(filesystem),
     runEvidenceMappingConformance(filesystem),
     runSourcePostureConformance(filesystem),
     runInvestigationConformance(filesystem),
@@ -132,6 +134,44 @@ export async function runDeterministicStageConformance(filesystem: JailedReadOnl
     provider: 'in-process-scripted-fixture',
     stages: stages.sort((left, right) => left.stage.localeCompare(right.stage)),
   });
+}
+
+async function runPlanningConformance(
+  filesystem: JailedReadOnlyFilesystem,
+): Promise<StageConformanceResult> {
+  const provider = inspectedProvider({
+    vectors: [
+      {
+        title: 'Review bounded source',
+        rationale: 'Exercise the planning inspection protocol without a security claim.',
+        enabled: true,
+        scopeGlobs: [sourcePath],
+        reviewObligations: vector.reviewObligations,
+        limitations: vector.limitations,
+      },
+    ],
+  });
+  const result = await runPlanningStage({
+    modelProvider: provider,
+    filesystem,
+    request: {
+      targetFingerprint: 'b'.repeat(64),
+      contextDigest: 'c'.repeat(64),
+      targetDisplayName: 'stage-conformance',
+      inventorySummary: { fileCount: 1, totalBytes: sourceLine.length, languageHints: [] },
+      sourcePaths: [sourcePath],
+      context: [],
+      createdAt: '2026-08-03T12:00:00.000Z',
+    },
+    sessionId: 'stage-conformance-planning',
+    modelName: undefined,
+    harnessExecution: execution,
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+  if (result.status !== 'completed') throw new Error('Planning conformance did not complete.');
+  return conformanceResult('planning', 'inspected', result.modelObservation.toolUsage);
 }
 
 async function runEvidenceMappingConformance(
