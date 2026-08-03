@@ -23,3 +23,10 @@ test('gives every source-deciding agent one shared mandatory first-action instru
     expect(instructions).toContain('FIRST ACTION');
   }
 });
+
+test('keeps speculative planning suggestions outside executable audit vectors', () => {
+  expect(planningAgentInstructions).toContain(
+    'Put only target-specific, materially security-relevant',
+  );
+  expect(planningAgentInstructions).toContain('put it in additionalObservations instead');
+});

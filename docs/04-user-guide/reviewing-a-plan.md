@@ -17,7 +17,7 @@ Use the paired Markdown plan as the review document. To make an agreed change, c
 
 ## Additional observations
 
-The plan can also contain **additional observations for human review**. They are suggestions the planner noticed outside the executable vectors. They are not findings, do not receive a priority, and do not affect an audit result or CI gate.
+The plan can also contain **additional observations for human review**. They are suggestions the planner noticed outside the executable vectors—for example, adjacent or uncertain areas that do not yet have enough project evidence to justify audit work. They are not findings, do not receive a priority, and do not affect an audit result or CI gate.
 
 If one matters, add it to the editable draft's `promotedObservationIds` list and reseal the draft. It becomes a normal enabled vector in the new plan. If you leave it unpromoted, it remains visible only as extra context for the next plan review.
 

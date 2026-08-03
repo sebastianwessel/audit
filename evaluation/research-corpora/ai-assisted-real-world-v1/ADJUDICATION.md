@@ -34,3 +34,21 @@ The answer key remains `targeted`. The observed outputs must remain
 exhaustive negative coverage for every possible model claim. This record is
 development feedback for prompt and plan-noise reduction, not a mechanism to
 turn a favourable one-off outcome into precision.
+
+## Follow-up evaluation after plan v3
+
+The one-repeat generated-plan run `additional-observations-terra-20260803`
+used the pinned pair with `openai/gpt-5.6-terra`. It spent `$0.282983` across
+32 model calls. The vulnerable variant completed and matched the expected CVE,
+although one expected evidence role was mislocalized. The patched variant was
+marked `incomplete`, not clean: its generated plan contained two speculative
+executable vectors and their investigator closures did not close every
+obligation.
+
+This does **not** change the targeted answer key or create a precision claim.
+It identifies a planning-quality issue: speculative or adjacent concerns must
+be routed to the separate human-review observation channel rather than become
+automatic audit work. The planning contract and regression test now enforce
+that generic distinction. The attempted `openai/gpt-5.3-codex` run returned no
+model response and has no cost observation, so it is provider-availability
+evidence only, not a model comparison.

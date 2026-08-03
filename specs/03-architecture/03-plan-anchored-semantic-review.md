@@ -51,6 +51,11 @@ Planning may separately emit `additionalObservations`: source-aware suggestions
 for a human to consider when maintaining the audit plan. They have a stable
 observation identity, suggested scope, and risk-positive review obligations,
 but are not executable vectors, findings, priorities, fixes, or CI inputs.
+The planner reserves executable vectors for target-specific materially
+security-relevant review work. An adjacent or speculative concern without
+source/context evidence of a security-relevant boundary or consequence belongs
+in `additionalObservations`; it may become executable only through explicit
+human promotion and resealing.
 They appear in the sealed JSON plan and its Markdown projection under a
 separate human-review section. An editable draft may promote a selected base
 observation exactly once; resealing converts it to an enabled executable vector
