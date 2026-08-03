@@ -11,7 +11,10 @@ import {
   createConfiguredModelRoute,
   providerCacheRoutingKey,
 } from '../../platform/harness/provider.js';
-import { HarnessExecutionConfigurationSchema } from '../../platform/harness/security-reviewer-harness.js';
+import {
+  HarnessExecutionConfigurationSchema,
+  TimeoutMillisecondsOptionSchema,
+} from '../../platform/harness/security-reviewer-harness.js';
 import {
   canonicalJson,
   createStableId,
@@ -71,8 +74,8 @@ const ProviderEvaluationArgumentsSchema = z.strictObject({
   baseline: z.string().trim().min(1).optional(),
   'api-key-env': z.string().trim().min(1).max(160).optional(),
   'verification-mode': VerificationModeSchema.optional(),
-  'model-timeout-ms': z.coerce.number().int().min(5_000).max(180_000).default(120_000),
-  'run-timeout-ms': z.coerce.number().int().min(5_000).max(300_000).default(150_000),
+  'model-timeout-ms': TimeoutMillisecondsOptionSchema.default(0),
+  'run-timeout-ms': TimeoutMillisecondsOptionSchema.default(0),
   'run-id': IdentifierSchema.optional(),
   resume: z.enum(['true', 'false']).default('false'),
   'retry-unfinished': z.enum(['true', 'false']).default('false'),
@@ -526,11 +529,16 @@ function initialModelCostCeilingState(configuredUsd: number | undefined) {
 }
 
 if (import.meta.main) {
+  let exitCode: number;
   try {
-    process.exitCode = await main(Bun.argv.slice(2));
+    exitCode = await main(Bun.argv.slice(2));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected evaluator failure.';
     process.stderr.write(`security-reviewer provider evaluation: ${message}\n`);
-    process.exitCode = 2;
+    exitCode = 2;
   }
+  // The provider client may retain an idle HTTP handle after all checkpoints,
+  // artifacts, and the output lease have been awaited. A CLI invocation must
+  // finish at that terminal boundary instead of indefinitely blocking resume.
+  process.exit(exitCode);
 }

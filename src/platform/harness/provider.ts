@@ -15,6 +15,11 @@ export function providerCacheRoutingKey(input: {
   return input.provider === 'openai' ? `security-reviewer:${input.model}` : undefined;
 }
 
+/** Harness uses `0` for an explicitly disabled deadline; provider adapters require omission. */
+export function providerRequestTimeout(timeoutMs: number | undefined): number | undefined {
+  return timeoutMs === undefined || timeoutMs === 0 ? undefined : timeoutMs;
+}
+
 /** Creates an explicitly configured optional provider without persisting credentials. */
 export function createConfiguredProvider(input: {
   provider: ProviderName;
@@ -33,7 +38,7 @@ export function createConfiguredProvider(input: {
       `The configured provider API key environment variable ${environmentVariable} is not set.`,
     );
   }
-  const timeout = input.requestTimeoutMs;
+  const timeout = providerRequestTimeout(input.requestTimeoutMs);
   return input.provider === 'openai'
     ? openai({ apiKey, api: 'responses', ...(timeout === undefined ? {} : { timeout }) })
     : anthropic({ apiKey, ...(timeout === undefined ? {} : { timeout }) });

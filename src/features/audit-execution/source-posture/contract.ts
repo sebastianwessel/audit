@@ -22,7 +22,7 @@ export const SourcePostureAssessmentSchema = z
     obligationId: PlanObligationReferenceSchema.shape.obligationId,
     conclusion: SourcePostureConclusionSchema,
     evidenceMapFactIds: EvidenceMapFactIdsSchema,
-    notApplicableReason: BoundedTextSchema.min(1).max(1_000).nullable().optional(),
+    notApplicableReason: BoundedTextSchema.min(1).nullable().optional(),
     limitations: z.array(BoundedTextSchema.min(1)),
   })
   .superRefine((assessment, context) => {

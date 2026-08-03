@@ -34,7 +34,7 @@ export function verifyEvidenceMap(
   const retainedFactIds = new Set<string>();
   const facts = evidenceMap.facts.flatMap((fact) => {
     const role = EvidenceMapFactRoleSchema.safeParse(fact.role);
-    const statement = BoundedTextSchema.min(1).max(1_000).safeParse(fact.statement);
+    const statement = BoundedTextSchema.min(1).safeParse(fact.statement);
     if (!role.success || !statement.success || retainedFactIds.has(fact.factId)) return [];
     if (!hasApprovedPlanObligations(vector, fact.planObligations)) return [];
     const evidence = fact.evidence.flatMap((item) => {

@@ -154,7 +154,7 @@ export const ControlAssessmentFactIdsSchema = z.array(IdentifierSchema).optional
 
 const ControlAssessmentFields = {
   conclusion: z.enum(['no-effective-control-found', 'control-insufficient', 'not-applicable']),
-  explanation: z.string().trim().min(1).max(1_000),
+  explanation: z.string().trim().min(1),
 };
 
 /** Canonical source-backed control assessment persisted after verification. */
@@ -178,7 +178,7 @@ export const ClaimReconciliationDispositionSchema = modelTokenSchema(
 const SourcePostureReconciliationFields = {
   assessmentId: IdentifierSchema,
   disposition: ClaimReconciliationDispositionSchema,
-  explanation: z.string().trim().min(1).max(1_000),
+  explanation: z.string().trim().min(1),
 };
 
 /** Canonical, source-backed record that a verifier confronted prior posture. */
@@ -197,7 +197,7 @@ export const UnverifiedSourcePostureReconciliationSchema = z.strictObject({
 const PlanObligationReconciliationFields = {
   planObligation: PlanObligationReferenceSchema,
   disposition: ClaimReconciliationDispositionSchema,
-  explanation: z.string().trim().min(1).max(1_000),
+  explanation: z.string().trim().min(1),
 };
 
 /** A verifier's source-backed disposition for one exact human-approved review obligation. */
@@ -374,7 +374,7 @@ function assertAuditVerificationResultInvariants(
 
 /** A runtime verifier result; its model-authored reason is never checkpointed. */
 export const AuditVerificationResultSchema = AuditVerificationResultPayloadSchema.extend({
-  reason: z.string().trim().min(1).max(2_000),
+  reason: z.string().trim().min(1),
 }).superRefine(assertAuditVerificationResultInvariants);
 
 /** Canonical terminal fields safe to persist for exact recovery. */
@@ -388,7 +388,7 @@ export const PersistedAuditVerificationResultSchema =
 export const UnverifiedAuditVerificationResultSchema = z
   .strictObject({
     decision: VerificationDecisionSchema,
-    reason: z.string().trim().min(1).max(2_000),
+    reason: z.string().trim().min(1),
     operationEvidence: UnverifiedEvidenceMapEvidenceSelectionSchema.nullable().default(null),
     unsafeConditionEvidence: UnverifiedEvidenceMapEvidenceSelectionSchema.nullable().default(null),
     controlAssessment: UnverifiedControlAssessmentSchema.nullable().default(null),

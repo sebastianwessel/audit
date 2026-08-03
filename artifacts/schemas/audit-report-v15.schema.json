@@ -125,8 +125,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 16000
+              "minLength": 1
             }
           },
           "obligationClosure": {
@@ -186,8 +185,7 @@
                   "anyOf": [
                     {
                       "type": "string",
-                      "minLength": 1,
-                      "maxLength": 1000
+                      "minLength": 1
                     },
                     {
                       "type": "null"
@@ -3432,8 +3430,7 @@
           },
           "statement": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
+            "minLength": 1
           },
           "evidence": {
             "minItems": 1,
@@ -3511,8 +3508,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 16000
+              "minLength": 1
             }
           },
           "findingId": {
@@ -3539,12 +3535,10 @@
               },
               "reason": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
+                "minLength": 1
               },
               "checks": {
                 "minItems": 1,
-                "maxItems": 8,
                 "type": "array",
                 "items": {
                   "type": "string",
@@ -3591,8 +3585,7 @@
           },
           "statement": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 2000
+            "minLength": 1
           },
           "evidence": {
             "minItems": 1,
@@ -3670,8 +3663,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "minLength": 1,
-              "maxLength": 16000
+              "minLength": 1
             }
           },
           "findingId": {
@@ -3698,12 +3690,10 @@
               },
               "reason": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 2000
+                "minLength": 1
               },
               "checks": {
                 "minItems": 1,
-                "maxItems": 8,
                 "type": "array",
                 "items": {
                   "type": "string",

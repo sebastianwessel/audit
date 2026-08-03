@@ -60,16 +60,16 @@
       "type": "object",
       "properties": {
         "runTimeoutMs": {
-          "default": 30000,
+          "default": 0,
           "type": "integer",
-          "minimum": 5000,
-          "maximum": 300000
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "modelTimeoutMs": {
-          "default": 20000,
+          "default": 0,
           "type": "integer",
-          "minimum": 5000,
-          "maximum": 180000
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "modelRetry": {
           "default": "default",

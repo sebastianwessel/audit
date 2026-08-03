@@ -34,9 +34,9 @@ export const SourceEvidenceRoleSchema = z.enum([
 export const ReviewObligationSchema = z.strictObject({
   obligationId: IdentifierSchema,
   /** A deliberately risk-positive question, never a control-presence question. */
-  riskStatement: BoundedTextSchema.min(1).max(1_000),
+  riskStatement: BoundedTextSchema.min(1),
   /** The source-backed proof an investigator must seek for this risk statement. */
-  evidenceRequirement: BoundedTextSchema.min(1).max(1_000),
+  evidenceRequirement: BoundedTextSchema.min(1),
 });
 
 export type ReviewObligation = z.infer<typeof ReviewObligationSchema>;
@@ -44,10 +44,10 @@ export type ReviewObligation = z.infer<typeof ReviewObligationSchema>;
 const AttackVectorFields = {
   vectorId: IdentifierSchema,
   vectorDigest: Sha256Schema,
-  title: z.string().trim().min(3).max(160),
+  title: z.string().trim().min(3),
   rationale: BoundedTextSchema.min(1),
   enabled: z.boolean(),
-  scopeGlobs: z.array(z.string().trim().min(1).max(256)).min(1),
+  scopeGlobs: z.array(z.string().trim().min(1)).min(1),
   reviewObligations: z.array(ReviewObligationSchema).min(1),
   limitations: z.array(BoundedTextSchema.min(1)),
 };
@@ -117,7 +117,7 @@ export const PlanObligationReferencesSchema = z
 export const InventorySummarySchema = z.strictObject({
   fileCount: z.number().int().nonnegative(),
   totalBytes: z.number().int().nonnegative(),
-  languageHints: z.array(z.string().trim().min(1).max(32)),
+  languageHints: z.array(z.string().trim().min(1)),
 });
 
 export const AttackPlanSchema = z.strictObject({
@@ -126,7 +126,7 @@ export const AttackPlanSchema = z.strictObject({
   planDigest: Sha256Schema,
   targetFingerprint: Sha256Schema,
   contextDigest: Sha256Schema,
-  targetDisplayName: z.string().trim().min(1).max(160),
+  targetDisplayName: z.string().trim().min(1),
   createdAt: IsoDateTimeSchema,
   inventorySummary: InventorySummarySchema,
   vectors: z.array(AttackVectorSchema).min(1),
@@ -144,7 +144,7 @@ export const SourceEvidenceSchema = z.strictObject({
 export const ProposedFindingSchema = z.strictObject({
   vectorId: IdentifierSchema,
   /** A precise, source-backed security claim. Classification is intentionally post-confirmation. */
-  statement: BoundedTextSchema.min(1).max(2_000),
+  statement: BoundedTextSchema.min(1),
   evidence: z.array(SourceEvidenceSchema).min(1),
   planObligations: PlanObligationReferencesSchema,
   limitations: z.array(BoundedTextSchema.min(1)),

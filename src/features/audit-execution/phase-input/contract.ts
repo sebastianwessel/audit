@@ -8,7 +8,7 @@ import { SourcePostureSchema } from '../source-posture/contract.js';
 export const SourceDocumentSchema = z.strictObject({
   path: RelativePathSchema,
   content: z.string(),
-  languageHint: z.string().trim().min(1).max(32).nullable(),
+  languageHint: z.string().trim().min(1).nullable(),
 });
 
 /** Fields allowed to every pre-verdict source-scoped phase. */

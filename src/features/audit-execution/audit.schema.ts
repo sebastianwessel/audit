@@ -608,7 +608,7 @@ export const AuditSourcePostureDraftSchema = AuditCheckpointBindingSchema.extend
 
 export const FindingVerificationSchema = z.strictObject({
   status: z.enum(['verified', 'insufficient-evidence', 'rejected']),
-  reason: BoundedTextSchema.min(1).max(2_000),
+  reason: BoundedTextSchema.min(1),
   checks: z
     .array(
       z.enum([
@@ -620,8 +620,7 @@ export const FindingVerificationSchema = z.strictObject({
         'claim-evidence-roles',
       ]),
     )
-    .min(1)
-    .max(8),
+    .min(1),
 });
 
 export const FindingSchema = ProposedFindingSchema.extend({

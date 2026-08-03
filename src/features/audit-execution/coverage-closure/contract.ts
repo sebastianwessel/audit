@@ -31,7 +31,7 @@ export const ObligationClosureSchema = z
     sourcePostureConclusion: z
       .enum(['risk-supported', 'risk-contradicted', 'inconclusive', 'not-applicable'])
       .nullable(),
-    notApplicableReason: BoundedTextSchema.min(1).max(1_000).nullable().optional(),
+    notApplicableReason: BoundedTextSchema.min(1).nullable().optional(),
     investigationState: ObligationInvestigationStateSchema,
     candidateCount: z.number().int().nonnegative(),
     admittedFindingCount: z.number().int().nonnegative(),

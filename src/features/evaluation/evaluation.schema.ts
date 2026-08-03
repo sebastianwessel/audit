@@ -22,7 +22,7 @@ export const ExpectedFindingSchema = z.strictObject({
   path: RelativePathSchema,
   startLine: z.number().int().positive(),
   endLine: z.number().int().positive(),
-  locationTolerance: z.number().int().nonnegative().max(20),
+  locationTolerance: z.number().int().nonnegative(),
 });
 
 export const EvaluationFixtureSchema = z.strictObject({

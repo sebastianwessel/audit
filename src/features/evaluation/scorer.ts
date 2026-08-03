@@ -11,12 +11,11 @@ function f1(precision: number | null, recall: number | null): number | null {
 }
 
 function matches(expected: ExpectedFinding, finding: Finding): boolean {
-  const evidence = finding.evidence[0];
-  if (evidence === undefined || finding.vectorId.length === 0) return false;
-  return (
-    evidence.path === expected.path &&
-    evidence.startLine <= expected.endLine + expected.locationTolerance &&
-    (evidence.endLine ?? evidence.startLine) >= expected.startLine - expected.locationTolerance
+  return finding.evidence.some(
+    (evidence) =>
+      evidence.path === expected.path &&
+      evidence.startLine <= expected.endLine + expected.locationTolerance &&
+      (evidence.endLine ?? evidence.startLine) >= expected.startLine - expected.locationTolerance,
   );
 }
 

@@ -6,7 +6,7 @@ Status: approved target architecture. This replaces the retired fact/relation an
 
 The earlier route tried to compensate for weak code understanding with lexical clues, parser-local direct-flow relations, and deterministic operation admission. It could neither represent arbitrary languages nor prove the application-level security semantics that matter for authorization, data protection, business logic, or native code. Improving a fixture score by adding another language or pattern special case would not improve the product.
 
-The product therefore uses a language-neutral evidence loop after the human approves a threat plan. Deterministic code provides safety and integrity guarantees. Models perform bounded semantic reasoning in separate discovery, grounding, and verification responsibilities; no one model response has to manufacture a reportable finding and all canonical evidence bindings at once.
+The product therefore uses a language-neutral evidence loop after the human approves a threat plan. Deterministic code provides safety and integrity guarantees. Models perform scope-bounded but cardinality-unbounded semantic reasoning in separate discovery, grounding, and verification responsibilities; no one model response has to manufacture a reportable finding and all canonical evidence bindings at once.
 
 ## Production flow
 

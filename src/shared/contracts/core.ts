@@ -5,8 +5,9 @@ export const SchemaVersion = z.literal(1);
 export const IsoDateTimeSchema = z.iso.datetime({ offset: true });
 export const IdentifierSchema = z.string().regex(/^[a-z][a-z0-9-]{2,63}$/);
 export const Sha256Schema = z.string().regex(/^[a-f0-9]{64}$/);
-export const NonEmptyTextSchema = z.string().trim().min(1).max(8_000);
-export const BoundedTextSchema = z.string().max(16_000);
+/** Free-form text is structurally validated but never silently constrained by length. */
+export const NonEmptyTextSchema = z.string().trim().min(1);
+export const BoundedTextSchema = z.string();
 
 export const RelativePathSchema = z
   .string()

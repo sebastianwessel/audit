@@ -92,7 +92,7 @@ export const UnverifiedEvidenceMapControlCoverageSchema = z.strictObject({
 export const EvidenceMapFactSchema = z.strictObject({
   factId: IdentifierSchema,
   role: EvidenceMapFactRoleSchema,
-  statement: BoundedTextSchema.min(1).max(1_000),
+  statement: BoundedTextSchema.min(1),
   evidence: z.array(EvidenceMapSourceEvidenceSchema).min(1),
   planObligations: PlanObligationReferencesSchema,
 });
@@ -101,7 +101,7 @@ export const EvidenceMapFactSchema = z.strictObject({
 export const UnverifiedEvidenceMapFactSchema = z.strictObject({
   factId: IdentifierSchema,
   role: EvidenceMapFactRoleSchema,
-  statement: BoundedTextSchema.min(1).max(1_000),
+  statement: BoundedTextSchema.min(1),
   evidence: z.array(UnverifiedEvidenceMapSourceEvidenceSchema),
   planObligations: z.array(UnverifiedPlanObligationReferenceSchema),
 });

@@ -41,8 +41,7 @@
     },
     "maxEstimatedCostUsd": {
       "type": "number",
-      "exclusiveMinimum": 0,
-      "maximum": 1000000
+      "exclusiveMinimum": 0
     },
     "modelPricing": {
       "type": "object",

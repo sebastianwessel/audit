@@ -20,7 +20,7 @@ import { SourcePostureAssessmentIdsSchema } from '../source-posture/contract.js'
 export const HypothesisSeedSchema = z.strictObject({
   seedId: IdentifierSchema,
   vectorId: IdentifierSchema,
-  hypothesis: BoundedTextSchema.min(1).max(2_000),
+  hypothesis: BoundedTextSchema.min(1),
   planObligations: PlanObligationReferencesSchema,
   evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
   sourcePostureAssessmentIds: SourcePostureAssessmentIdsSchema,

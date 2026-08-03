@@ -8,7 +8,7 @@ The product must never claim an exact billing guarantee. Provider usage arrives 
 
 ## Operator contract
 
-`plan`, `audit`, and `eval:provider` accept the optional positive decimal `--max-estimated-cost-usd <value>`. The project-local `.env` may set the same default as `SECURITY_REVIEWER_MAX_ESTIMATED_COST_USD`; CLI takes precedence. The value is a ceiling, not a price: model prices still resolve only from the checked-in exact-model catalogue. The default is disabled.
+`plan`, `audit`, and `eval:provider` accept the optional positive decimal `--max-estimated-cost-usd <value>`. The project-local `.env` may set the same default as `SECURITY_REVIEWER_MAX_ESTIMATED_COST_USD`; CLI takes precedence. The value is a ceiling, not a price: model prices still resolve only from the checked-in exact-model catalogue. The default is disabled. There is no product-imposed upper amount: a value is rejected only when it is non-finite, zero, or negative.
 
 When enabled:
 

@@ -33,7 +33,7 @@ test('accepts exactly one development case, variant, and observed-cost ceiling',
     corpus: 'custom-corpus',
     output: 'custom-runs',
     'max-estimated-cost-usd': 2,
-    executionBudget: { modelTimeoutMs: 120_000, runTimeoutMs: 150_000, modelRetry: 'default' },
+    executionBudget: { modelTimeoutMs: 0, runTimeoutMs: 0, modelRetry: 'default' },
   });
 });
 

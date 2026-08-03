@@ -52,14 +52,24 @@ import {
 
 import { NoContentLogger } from './no-content-logger.js';
 
+/** `0` explicitly disables a harness deadline; positive values are milliseconds. */
+export const TimeoutMillisecondsSchema = z.number().int().nonnegative();
+
+/** CLI boundary companion for timeout values. Keep coercion out of persisted contracts. */
+export const TimeoutMillisecondsOptionSchema = z.coerce.number().pipe(TimeoutMillisecondsSchema);
+
 export const HarnessExecutionConfigurationSchema = z
   .strictObject({
-    runTimeoutMs: z.number().int().min(5_000).max(300_000).default(30_000),
-    modelTimeoutMs: z.number().int().min(5_000).max(180_000).default(20_000),
+    runTimeoutMs: TimeoutMillisecondsSchema.default(0),
+    modelTimeoutMs: TimeoutMillisecondsSchema.default(0),
     modelRetry: z.enum(['default', 'disabled']).default('default'),
   })
   .superRefine((value, context) => {
-    if (value.runTimeoutMs < value.modelTimeoutMs) {
+    if (
+      value.runTimeoutMs > 0 &&
+      value.modelTimeoutMs > 0 &&
+      value.runTimeoutMs < value.modelTimeoutMs
+    ) {
       context.addIssue({
         code: 'custom',
         path: ['runTimeoutMs'],
@@ -110,13 +120,16 @@ export function createSecurityReviewerHarnessWithExecution(
     .telemetry({ contentCaptureMode: 'NO_CONTENT' })
     .sandbox(inMemorySandbox())
     .defaults({
-      // Source access is recovered from provider-signalled overflow; the run
-      // timeout is the operational stop condition, not a fixed agent-loop cap.
+      // Source access is recovered from provider-signalled overflow. There is
+      // no default deadline or agent-loop cap; an operator can still choose an
+      // explicit cancellation/deadline at an invocation boundary.
       agentMaxIterations: Number.POSITIVE_INFINITY,
       maxParallelToolCalls: 2,
       runTimeoutMs: execution.runTimeoutMs,
       modelTimeoutMs: execution.modelTimeoutMs,
-      toolTimeoutMs: 5_000,
+      // A complete approved source transaction cannot be cut off by a fixed
+      // tool deadline.
+      toolTimeoutMs: 0,
     })
     .models({
       reviewer: {

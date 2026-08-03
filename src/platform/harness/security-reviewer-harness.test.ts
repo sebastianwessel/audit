@@ -137,6 +137,19 @@ test('rejects an execution budget whose run deadline is shorter than its model d
   ).toThrow('runTimeoutMs must be at least modelTimeoutMs');
 });
 
+test('has no default execution deadline and accepts an explicit long operational deadline', () => {
+  expect(HarnessExecutionConfigurationSchema.parse({})).toMatchObject({
+    modelTimeoutMs: 0,
+    runTimeoutMs: 0,
+  });
+  expect(
+    HarnessExecutionConfigurationSchema.parse({
+      modelTimeoutMs: 3_600_000,
+      runTimeoutMs: 7_200_000,
+    }),
+  ).toMatchObject({ modelTimeoutMs: 3_600_000, runTimeoutMs: 7_200_000 });
+});
+
 test('keeps provider calls one-shot because the scoped lifecycle owns retry', () => {
   expect(harnessProviderRetry('default')).toEqual({ maxAttempts: 1 });
   expect(harnessProviderRetry('disabled')).toBeFalse();

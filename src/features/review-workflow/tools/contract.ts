@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { RelativePathSchema } from '../../../shared/contracts/core.js';
 
 export const RepoListToolInputSchema = z.strictObject({
-  includeGlobs: z.array(z.string().trim().min(1).max(256)),
-  excludeGlobs: z.array(z.string().trim().min(1).max(256)),
+  includeGlobs: z.array(z.string().trim().min(1)),
+  excludeGlobs: z.array(z.string().trim().min(1)),
 });
 
 export const RepoListToolOutputSchema = z.strictObject({
@@ -12,7 +12,7 @@ export const RepoListToolOutputSchema = z.strictObject({
     z.strictObject({
       path: RelativePathSchema,
       sizeBytes: z.number().int().nonnegative(),
-      languageHint: z.string().trim().min(1).max(32).nullable(),
+      languageHint: z.string().trim().min(1).nullable(),
     }),
   ),
 });

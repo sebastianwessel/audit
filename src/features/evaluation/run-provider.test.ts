@@ -88,8 +88,8 @@ test('requires an explicit provider and model and permits a single diagnostic pr
     split: 'test',
     repetitions: 5,
     executionBudget: {
-      modelTimeoutMs: 120_000,
-      runTimeoutMs: 150_000,
+      modelTimeoutMs: 0,
+      runTimeoutMs: 0,
       modelRetry: 'default',
     },
     planProfile: 'generated-plan',
@@ -234,8 +234,8 @@ test('uses local runtime defaults when provider and model flags are omitted', ()
     output: 'custom-runs',
     repetitions: 1,
     executionBudget: {
-      modelTimeoutMs: 120_000,
-      runTimeoutMs: 150_000,
+      modelTimeoutMs: 0,
+      runTimeoutMs: 0,
       modelRetry: 'default',
     },
     planProfile: 'generated-plan',

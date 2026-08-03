@@ -10,7 +10,10 @@ import {
   createConfiguredModelRoute,
   providerCacheRoutingKey,
 } from '../../platform/harness/provider.js';
-import { HarnessExecutionConfigurationSchema } from '../../platform/harness/security-reviewer-harness.js';
+import {
+  HarnessExecutionConfigurationSchema,
+  TimeoutMillisecondsOptionSchema,
+} from '../../platform/harness/security-reviewer-harness.js';
 import {
   canonicalJson,
   createStableId,
@@ -58,8 +61,8 @@ const ProviderSmokeArgumentsSchema = z.strictObject({
   output: z.string().trim().min(1).optional(),
   'api-key-env': z.string().trim().min(1).max(160).optional(),
   'max-estimated-cost-usd': z.coerce.number().pipe(ModelCostCeilingUsdSchema).optional(),
-  'model-timeout-ms': z.coerce.number().int().min(5_000).max(180_000).default(120_000),
-  'run-timeout-ms': z.coerce.number().int().min(5_000).max(300_000).default(150_000),
+  'model-timeout-ms': TimeoutMillisecondsOptionSchema.default(0),
+  'run-timeout-ms': TimeoutMillisecondsOptionSchema.default(0),
   'run-id': IdentifierSchema.optional(),
   resume: z.enum(['true', 'false']).default('false'),
   'retry-unfinished': z.enum(['true', 'false']).default('false'),
@@ -392,11 +395,13 @@ function usage(message: string): SecurityReviewerError {
 }
 
 if (import.meta.main) {
+  let exitCode: number;
   try {
-    process.exitCode = await main(Bun.argv.slice(2));
+    exitCode = await main(Bun.argv.slice(2));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected provider smoke failure.';
     process.stderr.write(`security-reviewer provider smoke: ${message}\n`);
-    process.exitCode = 2;
+    exitCode = 2;
   }
+  process.exit(exitCode);
 }

@@ -68,7 +68,7 @@ export const ModelCostSummarySchema = z.strictObject({
 });
 
 /** Operator-selected dispatch ceiling, never a model-price override. */
-export const ModelCostCeilingUsdSchema = z.number().finite().positive().max(1_000_000);
+export const ModelCostCeilingUsdSchema = z.number().finite().positive();
 
 /** Source-free state of one run-wide observed-cost dispatch guard. */
 export const ModelCostCeilingStateSchema = z
