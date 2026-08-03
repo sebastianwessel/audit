@@ -88,7 +88,7 @@ export async function readOptionalPlanSemanticEvaluation(input: {
   try {
     return await input.read(input.artifactPath);
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;
     throw error;
   }

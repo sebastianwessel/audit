@@ -89,6 +89,15 @@ test('runs the pinned mixed-language seed through the normal plan and audit work
   expect(report).toContain('Finding admission funnel');
   expect(report).toContain('Vector concurrency: 2');
   expect(report).toContain('| 0 | 0 | 0 | 0/0/0 | 0 | 0 | 0 | 0 | 0 |');
+  const hotspotSection = report.split('### Provider requests')[0] ?? '';
+  const expectedHotspotCount = new Set(
+    run.trials.flatMap((trial) =>
+      (trial.modelObservation?.stages ?? []).map(
+        (stage) => `${trial.caseId}\u0000${trial.variant}\u0000${stage.stage}\u0000${stage.route}`,
+      ),
+    ),
+  ).size;
+  expect(hotspotSection.match(/^\| `[^`]+` \|/gmu)).toHaveLength(expectedHotspotCount);
 });
 
 test('measures generated-plan coverage without dispatching audit work', async () => {

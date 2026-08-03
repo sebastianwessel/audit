@@ -22,6 +22,7 @@ export type ArtifactStoreErrorCode =
   | 'artifact-invalid-output-path'
   | 'artifact-schema-invalid'
   | 'artifact-json-invalid'
+  | 'artifact-not-found'
   | 'artifact-read-failed'
   | 'artifact-write-failed'
   | 'artifact-lease-unavailable';
@@ -187,8 +188,11 @@ export async function readJsonArtifact<TSchema extends z.ZodType<JsonArtifactVal
 
   try {
     fileContent = await readFile(artifactAbsolutePath, 'utf8');
-  } catch {
-    throw new ArtifactStoreError('artifact-read-failed', 'The JSON artifact could not be read.');
+  } catch (error) {
+    throw new ArtifactStoreError(
+      isMissingFileError(error) ? 'artifact-not-found' : 'artifact-read-failed',
+      'The JSON artifact could not be read.',
+    );
   }
 
   const parsedJson = parseJsonArtifact(fileContent);
@@ -202,6 +206,24 @@ export async function readJsonArtifact<TSchema extends z.ZodType<JsonArtifactVal
   }
 
   return parsedData.data;
+}
+
+/**
+ * Reads an optional JSON artifact without treating permission, encoding, or
+ * transient I/O failures as an absent checkpoint.
+ */
+export async function readOptionalJsonArtifact<TSchema extends z.ZodType<JsonArtifactValue>>(
+  outputRoot: string,
+  artifactPath: string,
+  schema: TSchema,
+): Promise<z.output<TSchema> | undefined> {
+  try {
+    return await readJsonArtifact(outputRoot, artifactPath, schema);
+  } catch (error) {
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
+      return undefined;
+    throw error;
+  }
 }
 
 /** Reads private UTF-8 data only from the same jailed output root. */
@@ -462,4 +484,8 @@ async function removeTemporaryArtifact(temporaryPath: string): Promise<void> {
 
 function isExistingFileError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EEXIST';
+}
+
+function isMissingFileError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
 }

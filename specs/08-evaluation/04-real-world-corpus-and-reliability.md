@@ -88,7 +88,7 @@ Reliability metrics for provider mode run each selected case at least five times
 
 Analysis slices every metric by language, source dataset, difficulty, variant, split, provider/model, and prompt/config digest. The Markdown report lists vulnerable misses, patched false positives, safety violations, then other metric changes; urgency belongs to later human triage.
 
-The report also includes a source-free cost-and-latency hotspot table grouped by corpus case, variant, and workflow stage. It exposes model calls, input/output tokens, tool calls, duration, and nullable estimated cost. This table is operational evidence for budget or prompt optimization; it is never a source of finding admission or a way to alter benchmark labels.
+The report also includes a complete source-free cost-and-latency hotspot table grouped by corpus case, variant, and workflow stage. It exposes model calls, input/output tokens, tool calls, duration, and nullable estimated cost. It is sorted by cost and duration but has no fixed row ceiling. This table is operational evidence for budget or prompt optimization; it is never a source of finding admission or a way to alter benchmark labels.
 
 ## Mixed-language seed pack
 

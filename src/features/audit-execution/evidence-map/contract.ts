@@ -58,12 +58,12 @@ export const EvidenceMapSourceEvidenceSchema = SourceEvidenceSchema.extend({
 });
 
 /**
- * Closed, bounded model-facing source selection. Canonical evidence identity,
+ * Closed model-facing source selection. Canonical evidence identity,
  * line range, kind, and redacted snippet are projected only after the map
  * verifier confirms this selection against its scoped source view.
  */
 const UnverifiedEvidenceMapSourceEvidenceSchema = z.strictObject({
-  path: z.string().trim().min(1).max(4_096),
+  path: z.string().min(1),
   startLine: z.number().int(),
 });
 

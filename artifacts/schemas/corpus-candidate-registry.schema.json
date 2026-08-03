@@ -60,7 +60,6 @@
     },
     "candidates": {
       "minItems": 1,
-      "maxItems": 10000,
       "type": "array",
       "items": {
         "type": "object",
@@ -89,8 +88,7 @@
           },
           "metadataPath": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 1024
+            "minLength": 1
           },
           "metadataDigest": {
             "type": "string",

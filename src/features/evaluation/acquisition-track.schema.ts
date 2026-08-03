@@ -33,7 +33,7 @@ export const RealWorldAcquisitionLaneSchema = z
   .strictObject({
     laneId: IdentifierSchema,
     source: CorpusDatasetSchema,
-    targetLanguages: z.array(LanguageTagSchema).min(1).max(32),
+    targetLanguages: z.array(LanguageTagSchema).min(1),
     targetControlFamilies: CorpusControlFamiliesSchema,
     state: AcquisitionLaneStateSchema,
     metadataUnavailableReason: AcquisitionMetadataUnavailableReasonSchema.optional(),
@@ -84,7 +84,7 @@ export const RealWorldAcquisitionTrackSchema = z
     schemaVersion: SchemaVersion,
     trackId: IdentifierSchema,
     purpose: BoundedTextSchema.min(1).max(2_000),
-    lanes: z.array(RealWorldAcquisitionLaneSchema).min(1).max(32),
+    lanes: z.array(RealWorldAcquisitionLaneSchema).min(1),
     trackDigest: Sha256Schema,
   })
   .superRefine((track, context) => {

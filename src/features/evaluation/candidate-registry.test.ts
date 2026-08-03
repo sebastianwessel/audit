@@ -62,6 +62,31 @@ test('rejects retired acquisition and adjudication state from a candidate regist
   ).toBe(false);
 });
 
+test('accepts complete candidate registries above the retired cardinality ceiling', async () => {
+  const registry = await loadCandidateRegistry(
+    'evaluation/candidates/openssf-candidate-pilot.json',
+  );
+  const template = registry.candidates.at(0);
+  if (template === undefined) throw new Error('Expected a checked-in candidate.');
+  const candidates = Array.from({ length: 10_001 }, (_, index) => {
+    const suffix = String(index).padStart(5, '0');
+    return {
+      ...template,
+      candidateId: `candidate-${suffix}`,
+      sourceRecordId: `record-${suffix}`,
+      repositoryUrl: `https://example.test/repository-${suffix}`,
+      metadataPath: `metadata/${suffix}.json`,
+      metadataDigest: sha256(suffix),
+    };
+  });
+  const parsed = CorpusCandidateRegistrySchema.parse({
+    ...registry,
+    candidates,
+    registryDigest: sha256('candidate-registry-cardinality-test'),
+  });
+  expect(parsed.candidates).toHaveLength(10_001);
+});
+
 test('loads the checked-in OSV Python registry only after its Git pair is locally verified', async () => {
   const registry = await loadCandidateRegistry(
     'evaluation/candidates/osv-python-candidate-pilot.json',
@@ -191,15 +216,34 @@ test('validates a pinned local metadata source and rejects a changed candidate r
 test('requires an OSV record to bind the exact adjacent Git revision pair', async () => {
   const root = join(tmpdir(), `security-reviewer-osv-candidates-${crypto.randomUUID()}`);
   await mkdir(join(root, 'osv'), { recursive: true });
+  const matchingRepository = 'https://github.com/example/project.git';
   const metadata = JSON.stringify({
     id: 'CVE-2026-3333',
     affected: [
-      {
+      ...Array.from({ length: 128 }, (_, index) => ({
         ranges: [
           {
             type: 'GIT',
-            repo: 'https://github.com/example/project.git',
-            events: [{ introduced: 'before' }, { fixed: 'after' }],
+            repo: `https://example.test/unrelated-affected-${index}`,
+            events: [{ introduced: `unrelated-${index}` }],
+          },
+        ],
+      })),
+      {
+        ranges: [
+          ...Array.from({ length: 128 }, (_, index) => ({
+            type: 'GIT',
+            repo: `https://example.test/unrelated-range-${index}`,
+            events: [{ introduced: `unrelated-${index}` }],
+          })),
+          {
+            type: 'GIT',
+            repo: matchingRepository,
+            events: [
+              ...Array.from({ length: 1_023 }, (_, index) => ({ limit: `limit-${index}` })),
+              { introduced: 'before' },
+              { fixed: 'after' },
+            ],
           },
         ],
       },

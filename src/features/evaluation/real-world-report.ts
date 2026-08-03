@@ -388,7 +388,6 @@ function formatOperationalHotspots(run: RealWorldEvaluationRun): string[] {
         right.durationMs - left.durationMs ||
         left.caseId.localeCompare(right.caseId),
     )
-    .slice(0, 12)
     .map(
       (value) =>
         `| \`${value.caseId}\` | ${value.variant} | ${value.stage} | ${value.route} | ${value.calls} | ${value.input} | ${value.output} | ${value.toolCalls} | ${value.durationMs} ms | ${value.cost === null ? 'unavailable' : `$${value.cost.toFixed(6)}`} |`,

@@ -11,7 +11,6 @@ export const BoundedTextSchema = z.string().max(16_000);
 export const RelativePathSchema = z
   .string()
   .min(1)
-  .max(1_024)
   .refine(
     (value) => !value.includes('\\') && !value.includes('\0'),
     'Path contains an invalid character.',

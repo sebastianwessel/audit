@@ -3443,8 +3443,7 @@
               "properties": {
                 "path": {
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 1024
+                  "minLength": 1
                 },
                 "startLine": {
                   "type": "integer",
@@ -3603,8 +3602,7 @@
               "properties": {
                 "path": {
                   "type": "string",
-                  "minLength": 1,
-                  "maxLength": 1024
+                  "minLength": 1
                 },
                 "startLine": {
                   "type": "integer",

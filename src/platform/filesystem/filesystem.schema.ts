@@ -1,31 +1,14 @@
 import { z } from 'zod';
 
-const isSafeRelativePath = (value: string): boolean => {
-  if (value.length === 0 || value.includes('\0') || value.includes('\\')) {
-    return false;
-  }
+import { RelativePathSchema } from '../../shared/contracts/core.js';
 
-  if (value.startsWith('/') || /^[A-Za-z]:/.test(value)) {
-    return false;
-  }
+const isSafeGlob = (value: string): boolean => RelativePathSchema.safeParse(value).success;
 
-  return value
-    .split('/')
-    .every((segment) => segment.length > 0 && segment !== '.' && segment !== '..');
-};
-
-const isSafeGlob = (value: string): boolean => isSafeRelativePath(value);
-
-export const RelativePathSchema = z
-  .string()
-  .min(1)
-  .max(1024)
-  .refine(isSafeRelativePath, 'Expected a safe, slash-delimited relative path.');
+export { RelativePathSchema } from '../../shared/contracts/core.js';
 
 export const GlobSchema = z
   .string()
   .min(1)
-  .max(256)
   .refine(isSafeGlob, 'Expected a safe, slash-delimited relative glob.');
 
 export const FilesystemRootSchema = z
@@ -36,8 +19,8 @@ export const FilesystemRootSchema = z
 export type FilesystemRoot = z.infer<typeof FilesystemRootSchema>;
 
 export const JailedReadOnlyFilesystemOptionsSchema = z.strictObject({
-  targetRoot: z.string().min(1).max(4_096),
-  contextRoot: z.string().min(1).max(4_096).optional(),
+  targetRoot: z.string().min(1),
+  contextRoot: z.string().min(1).optional(),
 });
 export type JailedReadOnlyFilesystemOptions = z.input<typeof JailedReadOnlyFilesystemOptionsSchema>;
 

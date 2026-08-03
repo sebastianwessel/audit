@@ -8,6 +8,7 @@ import {
   type ArtifactStoreError,
   acquireArtifactLease,
   readJsonArtifact,
+  readOptionalJsonArtifact,
   writeJsonArtifact,
   writeJsonLinesArtifact,
   writeMarkdownArtifact,
@@ -128,10 +129,23 @@ describe('JSON artifact store', () => {
     await expect(
       readJsonArtifact(outputRoot, 'missing/nested/audit.json', AuditArtifactSchema),
     ).rejects.toMatchObject({
-      code: 'artifact-read-failed',
+      code: 'artifact-not-found',
     } satisfies Pick<ArtifactStoreError, 'code'>);
 
     await expect(readdir(outputRoot)).resolves.toEqual([]);
+  });
+
+  test('returns undefined only for an absent optional artifact', async () => {
+    const outputRoot = await createArtifactRoot();
+    await expect(
+      readOptionalJsonArtifact(outputRoot, 'missing/audit.json', AuditArtifactSchema),
+    ).resolves.toBeUndefined();
+    await writeFile(join(outputRoot, 'invalid.json'), '{');
+    await expect(
+      readOptionalJsonArtifact(outputRoot, 'invalid.json', AuditArtifactSchema),
+    ).rejects.toMatchObject({
+      code: 'artifact-json-invalid',
+    } satisfies Pick<ArtifactStoreError, 'code'>);
   });
 
   test('leaves no final or temporary artifact when schema validation fails before writing', async () => {

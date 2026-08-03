@@ -226,7 +226,7 @@ async function readOptionalSnapshotRetentionIndex(
       SourceSnapshotRetentionIndexSchema,
     );
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;
     throw error;
   }

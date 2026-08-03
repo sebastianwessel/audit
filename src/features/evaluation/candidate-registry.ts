@@ -326,17 +326,15 @@ const OsvVulnerabilityMetadataSchema = z
                   .object({
                     type: z.string().trim().min(1).max(32),
                     repo: z.url(),
-                    events: z.array(OsvGitRangeEventSchema).min(1).max(1_024),
+                    events: z.array(OsvGitRangeEventSchema).min(1),
                   })
                   .strip(),
               )
-              .min(1)
-              .max(128),
+              .min(1),
           })
           .strip(),
       )
-      .min(1)
-      .max(128),
+      .min(1),
   })
   .strip();
 

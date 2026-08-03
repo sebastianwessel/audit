@@ -44,8 +44,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "minLength": 1,
-        "maxLength": 1024
+        "minLength": 1
       }
     },
     "sourceSnapshot": {
@@ -126,8 +125,7 @@
                   },
                   "path": {
                     "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
+                    "minLength": 1
                   },
                   "byteLength": {
                     "type": "integer",
@@ -140,8 +138,7 @@
                   },
                   "objectRef": {
                     "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
+                    "minLength": 1
                   },
                   "languageHint": {
                     "anyOf": [
@@ -175,8 +172,7 @@
                   },
                   "path": {
                     "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1024
+                    "minLength": 1
                   },
                   "reason": {
                     "type": "string",
@@ -216,8 +212,7 @@
         "properties": {
           "path": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 1024
+            "minLength": 1
           },
           "title": {
             "type": "string",

@@ -5,9 +5,9 @@ import { z } from 'zod';
 import { ArtifactStoreError } from './json-artifact-store.ts';
 
 export const RootTopologyInputSchema = z.strictObject({
-  targetRoot: z.string().trim().min(1).max(4_096),
-  contextRoot: z.string().trim().min(1).max(4_096).optional(),
-  outputRoot: z.string().trim().min(1).max(4_096),
+  targetRoot: z.string().trim().min(1),
+  contextRoot: z.string().trim().min(1).optional(),
+  outputRoot: z.string().trim().min(1),
 });
 
 export const RootTopologySchema = z.strictObject({

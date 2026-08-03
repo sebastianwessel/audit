@@ -63,3 +63,23 @@ test('requires a closed unavailable reason only for unavailable acquisition lane
     }).success,
   ).toBe(false);
 });
+
+test('accepts complete acquisition language and lane collections above retired ceilings', async () => {
+  const track = await loadRealWorldAcquisitionTrack(
+    'evaluation/acquisition/real-world-multilingual-v1.json',
+  );
+  const template = track.lanes.at(0);
+  if (template === undefined) throw new Error('Expected an acquisition lane.');
+  const lanes = Array.from({ length: 33 }, (_, index) => ({
+    ...template,
+    laneId: `acquisition-lane-${String(index).padStart(2, '0')}`,
+    targetLanguages: Array.from(
+      { length: 33 },
+      (_, languageIndex) =>
+        `language-${String(index).padStart(2, '0')}-${String(languageIndex).padStart(2, '0')}`,
+    ),
+  }));
+  const parsed = RealWorldAcquisitionTrackSchema.parse({ ...track, lanes });
+  expect(parsed.lanes).toHaveLength(33);
+  expect(parsed.lanes.at(0)?.targetLanguages).toHaveLength(33);
+});

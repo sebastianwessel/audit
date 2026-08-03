@@ -30,6 +30,9 @@ describe('shared contract primitives', () => {
 
   test('accepts normalized relative paths only', () => {
     expect(RelativePathSchema.parse('src/security/reviewer.ts')).toBe('src/security/reviewer.ts');
+    expect(
+      RelativePathSchema.parse(`src/${'nested/'.repeat(200)}reviewer.ts`).length,
+    ).toBeGreaterThan(1_024);
     expect(() => RelativePathSchema.parse('../secret')).toThrow();
     expect(() => RelativePathSchema.parse('/etc/passwd')).toThrow();
     expect(() => RelativePathSchema.parse('src\\file.ts')).toThrow();

@@ -511,7 +511,7 @@ async function readOptionalAuditArtifact(outputRoot: string, artifactPath: strin
   try {
     return await readJsonArtifact(outputRoot, artifactPath, schema);
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;
     throw error;
   }
@@ -554,7 +554,7 @@ async function readOptionalEvaluationPlanArtifact(
       EvaluationGeneratedPlanCheckpointSchema,
     );
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;
     throw error;
   }
@@ -593,7 +593,7 @@ export async function readProviderEvaluationCheckpoint(
       ProviderEvaluationCheckpointSchema,
     );
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;
     throw error;
   }
@@ -623,7 +623,7 @@ export async function readProviderSmokeCheckpoint(
       ProviderSmokeCheckpointSchema,
     );
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;
     throw error;
   }

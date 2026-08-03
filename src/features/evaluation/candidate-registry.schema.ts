@@ -28,7 +28,7 @@ export const CorpusCandidateRegistrySchema = z
     schemaVersion: SchemaVersion,
     registryId: IdentifierSchema,
     source: CorpusDatasetSchema,
-    candidates: z.array(CorpusCandidateSchema).min(1).max(10_000),
+    candidates: z.array(CorpusCandidateSchema).min(1),
     registryDigest: Sha256Schema,
   })
   .superRefine((registry, context) => {

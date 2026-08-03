@@ -41,6 +41,7 @@ import {
   createAuditSourcePostureDraft,
   createAuditSourcePostureRecoveryLeaf,
   createAuditVectorCheckpoint,
+  loadObservedAuditVectorResults,
   loadReusableAuditCandidateAwareCheckpoints,
   loadReusableAuditCandidateGroundingDrafts,
   loadReusableAuditCandidateGroundingRecoveryLeaves,
@@ -74,9 +75,9 @@ import {
   retainTargetSnapshot,
 } from '../features/target-inventory/snapshot-store.js';
 import {
-  ArtifactStoreError,
   acquireArtifactLease,
   readJsonArtifact,
+  readOptionalJsonArtifact,
   writeJsonArtifact,
 } from '../platform/artifact-store/json-artifact-store.js';
 import {
@@ -271,6 +272,22 @@ export async function runAudit(
           reader: async (artifactPath) => readOptionalAuditVectorCheckpoint(output, artifactPath),
         })
       : [];
+    const observedVectorResults = resume
+      ? await loadObservedAuditVectorResults({
+          binding: {
+            runId,
+            planId: plan.planId,
+            targetFingerprint: plan.targetFingerprint,
+            provider: selectedProvider,
+            model: selectedModel,
+            verificationRouteFingerprint,
+            evidenceMapProtocolFingerprint,
+            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
+          },
+          plan,
+          reader: async (artifactPath) => readOptionalAuditVectorCheckpoint(output, artifactPath),
+        })
+      : [];
     const priorCandidateGroundingDrafts = resume
       ? await loadReusableAuditCandidateGroundingDrafts({
           binding: {
@@ -420,7 +437,7 @@ export async function runAudit(
       modelPricing: selectedModelPricing(options, runtime),
       maxEstimatedCostUsd: maxEstimatedCostUsd(options, runtime),
       priorModelStages: resumedModelStages({
-        priorVectorResults,
+        priorVectorResults: observedVectorResults,
         priorCandidateGroundingDrafts,
         priorCandidateAwareCheckpoints,
         priorEvidenceMapDrafts,
@@ -1134,130 +1151,70 @@ async function readOptionalAuditVectorCheckpoint(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditVectorCheckpointSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditVectorCheckpointSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditVectorCheckpointSchema);
 }
 
 async function readOptionalAuditCandidateGroundingDraft(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditCandidateGroundingDraftSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditCandidateGroundingDraftSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditCandidateGroundingDraftSchema);
 }
 
 async function readOptionalAuditCandidateAwareCheckpoint(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditCandidateAwareCheckpointSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditCandidateAwareCheckpointSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditCandidateAwareCheckpointSchema);
 }
 
 async function readOptionalAuditEvidenceMapDraft(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditEvidenceMapDraftSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditEvidenceMapDraftSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditEvidenceMapDraftSchema);
 }
 
 async function readOptionalAuditSourcePostureDraft(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditSourcePostureDraftSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditSourcePostureDraftSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditSourcePostureDraftSchema);
 }
 
 async function readOptionalAuditContextOverflowLedger(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditContextOverflowLedgerSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditContextOverflowLedgerSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditContextOverflowLedgerSchema);
 }
 
 async function readOptionalAuditEvidenceMapRecoveryLeaf(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditEvidenceMapRecoveryLeafSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditEvidenceMapRecoveryLeafSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditEvidenceMapRecoveryLeafSchema);
 }
 
 async function readOptionalAuditSourcePostureRecoveryLeaf(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditSourcePostureRecoveryLeafSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditSourcePostureRecoveryLeafSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditSourcePostureRecoveryLeafSchema);
 }
 
 async function readOptionalAuditCandidateGroundingRecoveryLeaf(
   output: string,
   artifactPath: string,
 ): Promise<z.infer<typeof AuditCandidateGroundingRecoveryLeafSchema> | undefined> {
-  try {
-    return await readJsonArtifact(output, artifactPath, AuditCandidateGroundingRecoveryLeafSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, artifactPath, AuditCandidateGroundingRecoveryLeafSchema);
 }
 
 async function readOptionalAuditRunAttempt(
   output: string,
   runId: string,
 ): Promise<AuditRunAttempt | undefined> {
-  try {
-    return await readJsonArtifact(output, `runs/${runId}.attempt.json`, AuditRunAttemptSchema);
-  } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-read-failed')
-      return undefined;
-    throw error;
-  }
+  return readOptionalJsonArtifact(output, `runs/${runId}.attempt.json`, AuditRunAttemptSchema);
 }
 
 export function assertAuditRunReuse(input: {

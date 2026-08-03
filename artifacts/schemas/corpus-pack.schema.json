@@ -162,18 +162,15 @@
             "properties": {
               "vulnerable": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 1024
+                "minLength": 1
               },
               "patched": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 1024
+                "minLength": 1
               },
               "benign": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 1024
+                "minLength": 1
               }
             },
             "required": [
@@ -204,18 +201,15 @@
           },
           "contextDirectory": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 1024
+            "minLength": 1
           },
           "answerKeyPath": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 1024
+            "minLength": 1
           },
           "reviewedPlanPath": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 1024
+            "minLength": 1
           },
           "transformedContentDigest": {
             "type": "string",

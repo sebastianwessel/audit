@@ -77,8 +77,7 @@
               },
               "path": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 1024
+                "minLength": 1
               },
               "byteLength": {
                 "type": "integer",
@@ -91,8 +90,7 @@
               },
               "objectRef": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 1024
+                "minLength": 1
               },
               "languageHint": {
                 "anyOf": [
@@ -126,8 +124,7 @@
               },
               "path": {
                 "type": "string",
-                "minLength": 1,
-                "maxLength": 1024
+                "minLength": 1
               },
               "reason": {
                 "type": "string",
