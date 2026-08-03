@@ -839,13 +839,13 @@ async function executeVector(
         continue;
       }
       errors.push({
-        code: result.decision === 'rejected' ? 'verifier-rejected' : 'verifier-incomplete',
+        code: candidateAwareTerminalErrorCode(result, 'verification'),
         stage: 'verification',
         message:
           result.decision === 'rejected'
             ? 'The independent verifier rejected the hypothesis.'
             : 'The independent verifier could not decide from bounded static evidence.',
-        retryable: result.decision === 'incomplete',
+        retryable: candidateAwareResultIsRetryable(result),
       });
     }
     for (const [index, result] of countercheckResults.entries()) {
@@ -861,13 +861,13 @@ async function executeVector(
         continue;
       }
       errors.push({
-        code: result.decision === 'rejected' ? 'countercheck-rejected' : 'countercheck-incomplete',
+        code: candidateAwareTerminalErrorCode(result, 'countercheck'),
         stage: 'countercheck',
         message:
           result.decision === 'rejected'
             ? 'The independent countercheck rejected the verifier-accepted hypothesis.'
             : 'The independent countercheck could not decide from bounded static evidence.',
-        retryable: result.decision === 'incomplete',
+        retryable: candidateAwareResultIsRetryable(result),
       });
     }
     const verificationObservations = verificationResults.flatMap((result) =>
@@ -1696,6 +1696,28 @@ function incompleteCandidateAwareResult(
     terminalLane,
     ...(modelObservation === undefined ? {} : { modelObservation }),
   };
+}
+
+/**
+ * Keeps a provider-normalized terminal stage code visible in the vector error
+ * ledger instead of collapsing an overflow, cancellation, or cost stop into
+ * generic candidate incompleteness.
+ */
+function candidateAwareTerminalErrorCode(
+  result: AuditVerificationResultWithObservation,
+  phase: 'verification' | 'countercheck',
+): string {
+  const label = phase === 'verification' ? 'verifier' : 'countercheck';
+  if (result.decision === 'rejected') return `${label}-rejected`;
+  if (result.modelObservation?.status === 'failed' && result.modelObservation.errorCode !== null) {
+    return result.modelObservation.errorCode;
+  }
+  return `${label}-incomplete`;
+}
+
+function candidateAwareResultIsRetryable(result: AuditVerificationResultWithObservation): boolean {
+  if (result.decision !== 'incomplete') return false;
+  return result.modelObservation?.errorCode !== 'provider-cancelled';
 }
 
 /**

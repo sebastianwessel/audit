@@ -411,7 +411,7 @@ test('does not persist a model claim outside the approved vector scope', async (
     sessionId: 'scoped-audit-01',
   });
   expect(audited.report.findings).toHaveLength(0);
-  expect(audited.report.errors.map((error) => error.code)).toContain('verifier-incomplete');
+  expect(audited.report.errors.map((error) => error.code)).toContain('validation-output-shape');
 });
 
 test('routes a map-bound candidate through scoped inspection to an independent verifier', async () => {
