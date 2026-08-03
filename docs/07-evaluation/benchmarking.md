@@ -23,22 +23,9 @@ This isolates audit behavior from plan generation. A result from the current tar
 
 The immediate plan metric checks only whether generated scope globs reach the evaluator’s relevant paths. It does not prove that the plan identified the correct audit scenario.
 
-For a semantic plan measurement, a human evaluator reviews the exact generated plan and records which expected scenarios it covers and which generated vectors are relevant. The offline command validates that mapping against the exact run, plan digest, source/context fingerprints, and evaluator-only scenario set before calculating scenario recall and relevant-vector precision. It never calls a model or changes the product result.
+For a semantic plan measurement, one AI-assisted development reviewer evaluates the exact generated plan and records which expected scenarios it covers and which generated vectors are relevant. The offline command validates that mapping against the exact run, plan digest, source/context fingerprints, and evaluator-only scenario set before calculating scenario recall and relevant-vector precision. It never changes the product result. This is internal diagnostic evidence only—not independent validation, provider selection, or a reliability claim.
 
-First generate the intentionally incomplete, source-free template. It has `null` review fields and cannot be scored until a human fills it:
-
-```bash
-bun run eval:plan-semantic -- \
-  --corpus evaluation/corpora \
-  --output evaluation/runs \
-  --run-id provider-eval-example \
-  --case-id ossf-cve-2018-16492 \
-  --variant vulnerable \
-  --repetition 1 \
-  --template provider-eval-example/adjudication.json
-```
-
-Review the exact generated plan checkpoint under `provider-eval-example/.work/plans/` and the evaluator-only case material, replace every `null` outcome and reviewer field, then run the same command with `--adjudication`:
+An AI-assisted development reviewer creates a complete, source-free adjudication artifact bound to the exact generated plan checkpoint and evaluator-only case material. Validate it with:
 
 ```bash
 bun run eval:plan-semantic -- \
@@ -51,7 +38,7 @@ bun run eval:plan-semantic -- \
   --adjudication provider-eval-example/adjudication.json
 ```
 
-The adjudication file lives below the ignored evaluation output root. It contains stable IDs, fingerprints, reviewer identity, and the closed scenario/vector mapping—never source code, prompts, or raw model output. A missing or stale mapping means semantic plan metrics remain unavailable; it is not counted as a failed or passed plan.
+The adjudication file lives below the ignored evaluation output root. It contains stable IDs, fingerprints, AI-reviewer identity, and the closed scenario/vector mapping—never source code, prompts, or raw model output. A missing or stale mapping means semantic plan metrics remain unavailable; it is not counted as a failed or passed plan.
 
 When every available plan trial has been reviewed, aggregate the run without another provider call:
 

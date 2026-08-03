@@ -19,7 +19,10 @@ import {
   sha256,
 } from '../../shared/contracts/core.js';
 import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
-import { ModelCostCeilingUsdSchema } from '../model-operations/model-operations.schema.js';
+import {
+  ModelCostCeilingStateSchema,
+  ModelCostCeilingUsdSchema,
+} from '../model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../model-operations/model-pricing-catalogue.js';
 import { reviewWorkflowPromptProtocolFingerprint } from '../review-workflow/prompt-protocol.js';
 import {
@@ -259,7 +262,7 @@ export async function runProviderEvaluation(input: {
       throw usage('The checkpoint configuration does not match this provider evaluation.');
     }
     let checkpoint: ProviderEvaluationCheckpoint = existing ?? {
-      schemaVersion: 7,
+      schemaVersion: 8,
       runId: options.runId,
       configFingerprint,
       packId: pack.manifest.packId,
@@ -279,6 +282,7 @@ export async function runProviderEvaluation(input: {
       measurementScope: options.measurementScope,
       executionBudget: options.executionBudget,
       maxParallelVectors: runtime.maxParallelVectors,
+      modelCostCeilingState: initialModelCostCeilingState(options['max-estimated-cost-usd']),
       status: 'running',
       errorCode: null,
       startedAt,
@@ -350,6 +354,7 @@ export async function runProviderEvaluation(input: {
         checkpoint = {
           ...checkpoint,
           updatedAt: new Date().toISOString(),
+          modelCostCeilingState: trial.modelCostCeilingState ?? checkpoint.modelCostCeilingState,
           trials: [
             ...checkpoint.trials.filter(
               (entry) =>
@@ -369,6 +374,7 @@ export async function runProviderEvaluation(input: {
       status: 'completed',
       errorCode: null,
       updatedAt: new Date().toISOString(),
+      modelCostCeilingState: run.modelCostCeilingState,
     };
     persistedCheckpoint = checkpoint;
     await writeProviderEvaluationCheckpoint(options.output, checkpoint);
@@ -509,6 +515,14 @@ function usage(message: string): SecurityReviewerError {
     'invalid-input',
     `${message} Usage: bun run eval:provider --provider <openai|anthropic> --model <name> [--split development] [--case-id <id>] [--repetitions 1] [--plan-profile generated-plan|reviewed-plan] [--verification-mode same-route|independent-route] [--corpus evaluation/corpora] [--baseline <exhaustive-baseline.json>] [--output evaluation/runs] [--run-id id --resume true --retry-unfinished true] [--holdout-attestation <file> --holdout-public-key <pem-file>]`,
   );
+}
+
+function initialModelCostCeilingState(configuredUsd: number | undefined) {
+  return ModelCostCeilingStateSchema.parse({
+    configuredUsd: configuredUsd ?? null,
+    accumulatedEstimatedCostUsd: configuredUsd === undefined ? null : 0,
+    reached: false,
+  });
 }
 
 if (import.meta.main) {

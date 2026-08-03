@@ -30,6 +30,7 @@ export function renderRealWorldEvaluationReport(
     `- Plan profile: ${run.planProfile}`,
     `- Measurement scope: ${run.measurementScope}`,
     `- Vector concurrency: ${run.maxParallelVectors}`,
+    `- Cost guard: ${formatCostGuard(run)}`,
     `- Prompt protocol: ${run.promptProtocolFingerprint}`,
     `- Measurement gate: ${run.gatePassed ? 'passed' : 'failed'}`,
     `- Trial states: ${formatTrialStates(run)}`,
@@ -179,6 +180,12 @@ export function renderRealWorldEvaluationReport(
     );
   }
   return `${lines.join('\n')}\n`;
+}
+
+function formatCostGuard(run: RealWorldEvaluationRun): string {
+  const state = run.modelCostCeilingState;
+  if (state.configuredUsd === null) return 'disabled';
+  return `$${state.accumulatedEstimatedCostUsd?.toFixed(6) ?? 'unavailable'} observed / $${state.configuredUsd.toFixed(6)} configured (${state.reached ? 'reached' : 'not reached'})`;
 }
 
 function repetitionInterpretation(repetitions: number): string {

@@ -26,7 +26,7 @@ The ceiling does not pre-split, pre-trim, skip, change scopes, change models, or
 
 The initial ledger includes each previously persisted stage observation exactly once. A terminal vector result supersedes any prior map, posture, or grounding draft for its vector; otherwise the newest reusable phase observations are included. A resumed run may raise, lower, add, or remove the ceiling because the ceiling does not alter semantic evidence or checkpoint compatibility. It always counts retained prior request observations before dispatching further work.
 
-Every run manifest records the configured ceiling, known accumulated estimated cost, and whether it was reached when a ceiling is enabled. Audit reports retain their existing source-free stage ledger; the manifest is the run-level ceiling state. A run without a ceiling records no ceiling state.
+Every new evaluation trial, checkpoint, and final run artifact records the configured ceiling, known accumulated estimated cost, and whether it was reached. A disabled guard is recorded explicitly. Terminal vector coverage retains every completed stage observation before a later stage fails, together with the actual failed phase and stable error token. The report-level aggregate must reconcile exactly to that retained ledger; it never estimates, drops, or substitutes cost data.
 
 ## Failure, recovery, and privacy
 

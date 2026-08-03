@@ -5,7 +5,7 @@ import { RealWorldEvaluationRunSchema } from './corpus.schema.js';
 
 function providerRun(runId: string, promptProtocolFingerprint: string) {
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 7,
+    schemaVersion: 8,
     runId,
     packId: 'comparison-pack',
     packVersion: '1.0.0',
@@ -28,6 +28,11 @@ function providerRun(runId: string, promptProtocolFingerprint: string) {
       modelRetry: 'default',
     },
     maxParallelVectors: 1,
+    modelCostCeilingState: {
+      configuredUsd: null,
+      accumulatedEstimatedCostUsd: null,
+      reached: false,
+    },
     promptProtocolFingerprint,
     startedAt: '2026-07-29T12:00:00.000Z',
     finishedAt: '2026-07-29T12:00:01.000Z',

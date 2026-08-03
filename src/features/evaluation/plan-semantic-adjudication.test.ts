@@ -5,7 +5,6 @@ import { createPlan } from '../attack-planning/plan.js';
 import { CorpusAnswerKeySchema } from './corpus.schema.js';
 import {
   answerKeyScenarioDigest,
-  createPlanSemanticAdjudicationTemplate,
   createPlanSemanticEvaluation,
 } from './plan-semantic-adjudication.js';
 import type { PlanSemanticAdjudication } from './plan-semantic-adjudication.schema.js';
@@ -123,7 +122,7 @@ const unrelatedVectorId = planVectorId(1);
 
 function validAdjudication(): PlanSemanticAdjudication {
   return {
-    schemaVersion: 1 as const,
+    schemaVersion: 2 as const,
     runId: 'provider-eval-01',
     trialId: 'evaluation-trial-01',
     packId: 'private-pack-01',
@@ -137,6 +136,7 @@ function validAdjudication(): PlanSemanticAdjudication {
     contextDigest: plan.contextDigest,
     answerKeyScenarioDigest: answerKeyScenarioDigest(answerKey),
     reviewer: 'reviewer-three',
+    reviewerKind: 'ai-assisted',
     reviewedAt: '2026-08-03T11:00:00.000Z',
     scenarios: [
       {
@@ -170,7 +170,7 @@ const binding = {
   repetition: 1,
 };
 
-test('derives semantic plan metrics only from a complete human mapping', () => {
+test('derives semantic plan metrics only from a complete AI-assisted mapping', () => {
   const result = createPlanSemanticEvaluation({
     adjudication: validAdjudication(),
     binding,
@@ -190,23 +190,7 @@ test('derives semantic plan metrics only from a complete human mapping', () => {
   });
 });
 
-test('creates an intentionally unscoreable source-free human review template', () => {
-  const template = createPlanSemanticAdjudicationTemplate({ binding, plan, answerKey });
-
-  expect(template).toMatchObject({
-    reviewer: null,
-    reviewedAt: null,
-    scenarios: [{ scenarioId: 'scenario-query-01', outcome: null, vectorIds: [] }],
-  });
-  expect(template.vectors).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({ vectorId: relevantVectorId, outcome: null, scenarioIds: [] }),
-      expect.objectContaining({ vectorId: unrelatedVectorId, outcome: null, scenarioIds: [] }),
-    ]),
-  );
-});
-
-test('rejects stale bindings and asymmetric human mappings', () => {
+test('rejects stale bindings and asymmetric AI-assisted mappings', () => {
   expect(() =>
     createPlanSemanticEvaluation({
       adjudication: { ...validAdjudication(), planDigest: 'c'.repeat(64) },

@@ -28,7 +28,7 @@ test('fails a baseline comparison for a missing case and vulnerable recall regre
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 7,
+    schemaVersion: 8,
     runId: 'run-001',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -49,6 +49,11 @@ test('fails a baseline comparison for a missing case and vulnerable recall regre
       modelRetry: 'default',
     },
     maxParallelVectors: 1,
+    modelCostCeilingState: {
+      configuredUsd: null,
+      accumulatedEstimatedCostUsd: null,
+      reached: false,
+    },
     promptProtocolFingerprint: 'b'.repeat(64),
     startedAt: '2026-07-27T12:00:00.000Z',
     finishedAt: '2026-07-27T12:00:01.000Z',
@@ -128,7 +133,7 @@ test('fails closed when a baseline has another plan profile', () => {
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 7,
+    schemaVersion: 8,
     runId: 'profile-run-001',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -149,6 +154,11 @@ test('fails closed when a baseline has another plan profile', () => {
       modelRetry: 'default',
     },
     maxParallelVectors: 1,
+    modelCostCeilingState: {
+      configuredUsd: null,
+      accumulatedEstimatedCostUsd: null,
+      reached: false,
+    },
     promptProtocolFingerprint: 'b'.repeat(64),
     startedAt: '2026-07-29T12:00:00.000Z',
     finishedAt: '2026-07-29T12:00:01.000Z',
@@ -208,7 +218,7 @@ test('requires a route-bound baseline for an independent verifier experiment', (
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 7,
+    schemaVersion: 8,
     runId: 'independent-route-run',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -229,6 +239,11 @@ test('requires a route-bound baseline for an independent verifier experiment', (
       modelRetry: 'default',
     },
     maxParallelVectors: 1,
+    modelCostCeilingState: {
+      configuredUsd: null,
+      accumulatedEstimatedCostUsd: null,
+      reached: false,
+    },
     promptProtocolFingerprint: 'b'.repeat(64),
     startedAt: '2026-07-29T12:00:00.000Z',
     finishedAt: '2026-07-29T12:00:01.000Z',
@@ -288,7 +303,7 @@ test('rejects a baseline comparison when finding-label coverage differs', () => 
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 7,
+    schemaVersion: 8,
     runId: 'targeted-run',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -309,6 +324,11 @@ test('rejects a baseline comparison when finding-label coverage differs', () => 
       modelRetry: 'default',
     },
     maxParallelVectors: 1,
+    modelCostCeilingState: {
+      configuredUsd: null,
+      accumulatedEstimatedCostUsd: null,
+      reached: false,
+    },
     promptProtocolFingerprint: 'b'.repeat(64),
     startedAt: '2026-07-31T12:00:00.000Z',
     finishedAt: '2026-07-31T12:00:01.000Z',

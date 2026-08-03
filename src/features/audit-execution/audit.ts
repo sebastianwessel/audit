@@ -529,14 +529,21 @@ async function executeVector(
       priorDraft?.discoveryObservation ?? discovery?.modelObservation;
     retainedInvestigationObservation = investigationObservation;
     if (investigationObservation?.status === 'failed') {
-      return failedInvestigationResult(
+      return failedVectorStageResult({
         vector,
-        scopedSources.length,
-        0,
-        evidencePackage.limitations,
-        investigationObservation.errorCode ?? 'provider-failure',
+        matchedSourcePaths: scopedSources.length,
+        deterministicCandidateCount: 0,
+        limitations: evidencePackage.limitations,
+        code: investigationObservation.errorCode ?? 'provider-failure',
+        stage: 'investigation',
+        evidenceMap: verifiedMap.evidenceMap,
+        sourcePosture: verifiedSourcePosture.sourcePosture,
+        evidenceMapObservation: mapped.modelObservation,
+        sourcePostureObservation: assessed.modelObservation,
         investigationObservation,
-      );
+        verificationObservations: [],
+        countercheckObservations: [],
+      });
     }
     const verifiedClosures = verifyInvestigationClosures(
       vector,
@@ -598,14 +605,22 @@ async function executeVector(
             scopedStageContext(input, vector.vectorId, 'candidate-grounding'),
           );
     if (grounding?.modelObservation?.status === 'failed') {
-      return failedInvestigationResult(
+      return failedVectorStageResult({
         vector,
-        scopedSources.length,
-        verifiedMap.evidenceMap.facts.length,
-        evidencePackage.limitations,
-        grounding.modelObservation.errorCode ?? 'provider-failure',
-        grounding.modelObservation,
-      );
+        matchedSourcePaths: scopedSources.length,
+        deterministicCandidateCount: verifiedSeeds.verified.length,
+        limitations: evidencePackage.limitations,
+        code: grounding.modelObservation.errorCode ?? 'provider-failure',
+        stage: 'candidate-grounding',
+        evidenceMap: verifiedMap.evidenceMap,
+        sourcePosture: verifiedSourcePosture.sourcePosture,
+        evidenceMapObservation: mapped.modelObservation,
+        sourcePostureObservation: assessed.modelObservation,
+        investigationObservation,
+        candidateGroundingObservation: grounding.modelObservation,
+        verificationObservations: [],
+        countercheckObservations: [],
+      });
     }
     const selectedGroundings =
       priorDraft !== undefined
@@ -1000,6 +1015,7 @@ async function executeVector(
     return failedVectorStageResult({
       vector,
       matchedSourcePaths: scopedSources.length,
+      deterministicCandidateCount: 0,
       limitations: evidencePackage.limitations,
       code,
       stage: activeStage,
@@ -1257,9 +1273,12 @@ function emptyScopeCoverage(
 function failedVectorStageResult(input: {
   vector: AttackPlan['vectors'][number];
   matchedSourcePaths: number;
+  deterministicCandidateCount: number;
   limitations: readonly string[];
   code: string;
   stage: AuditError['stage'];
+  evidenceMap?: EvidenceMap;
+  sourcePosture?: SourcePosture;
   evidenceMapObservation?: ModelStageObservation;
   sourcePostureObservation?: ModelStageObservation;
   investigationObservation?: ModelStageObservation;
@@ -1273,15 +1292,22 @@ function failedVectorStageResult(input: {
       planned: true,
       completed: false,
       matchedSourcePaths: input.matchedSourcePaths,
-      deterministicCandidateCount: 0,
-      evidenceMapFactCount: 0,
-      evidenceMapUnansweredObligationCount: 0,
-      ...emptySourcePostureCoverage(),
+      deterministicCandidateCount: input.deterministicCandidateCount,
+      evidenceMapFactCount: input.evidenceMap?.facts.length ?? 0,
+      evidenceMapUnansweredObligationCount:
+        input.evidenceMap?.unansweredPlanObligations.length ?? 0,
+      ...(input.sourcePosture === undefined
+        ? emptySourcePostureCoverage()
+        : sourcePostureCoverage(input.sourcePosture)),
       findingCount: 0,
       outcome: terminalFailureOutcome(input.code),
       errorCode: input.code,
       limitations: uniqueSorted(input.limitations),
-      obligationClosure: deriveObligationClosureMatrix({ vector: input.vector }),
+      obligationClosure: deriveObligationClosureMatrix({
+        vector: input.vector,
+        ...(input.evidenceMap === undefined ? {} : { evidenceMap: input.evidenceMap }),
+        ...(input.sourcePosture === undefined ? {} : { sourcePosture: input.sourcePosture }),
+      }),
       admissionFunnel: emptyFindingAdmissionFunnel(),
       verificationObservations: [...input.verificationObservations],
       countercheckObservations: [...input.countercheckObservations],
@@ -1304,46 +1330,6 @@ function failedVectorStageResult(input: {
         stage: input.stage,
         message: 'The approved vector could not complete its recorded audit phase.',
         retryable: isRetryableSecurityReviewerErrorCode(input.code),
-      },
-    ],
-    proposed: [],
-    reviewRequired: [],
-  };
-}
-
-function failedInvestigationResult(
-  vector: AttackPlan['vectors'][number],
-  matchedSourcePaths: number,
-  deterministicCandidateCount: number,
-  limitations: readonly string[],
-  code: string,
-  modelObservation?: ModelStageObservation,
-): AuditVectorResult {
-  return {
-    coverage: {
-      vectorId: vector.vectorId,
-      planned: true,
-      completed: false,
-      matchedSourcePaths,
-      deterministicCandidateCount,
-      evidenceMapFactCount: 0,
-      evidenceMapUnansweredObligationCount: 0,
-      ...emptySourcePostureCoverage(),
-      findingCount: 0,
-      outcome: terminalFailureOutcome(code),
-      errorCode: code,
-      limitations: [...limitations],
-      obligationClosure: deriveObligationClosureMatrix({ vector }),
-      admissionFunnel: emptyFindingAdmissionFunnel(),
-      verificationObservations: [],
-      ...(modelObservation === undefined ? {} : { modelObservation }),
-    },
-    errors: [
-      {
-        code,
-        stage: 'investigation',
-        message: 'The model investigation for this approved vector did not complete.',
-        retryable: isRetryableSecurityReviewerErrorCode(code),
       },
     ],
     proposed: [],

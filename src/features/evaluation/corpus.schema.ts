@@ -19,7 +19,10 @@ import {
   HypothesisGroundingFunnelSchema,
   VectorCoverageSchema,
 } from '../audit-execution/audit.schema.js';
-import { ModelRunObservationSchema } from '../model-operations/model-operations.schema.js';
+import {
+  ModelCostCeilingStateSchema,
+  ModelRunObservationSchema,
+} from '../model-operations/model-operations.schema.js';
 
 import { FixtureDifficultySchema, LanguageTagSchema } from './evaluation.schema.js';
 import { HoldoutAttestationReferenceSchema } from './holdout-attestation.schema.js';
@@ -521,6 +524,8 @@ export const EvaluationTrialSchema = z.strictObject({
   reviewRequiredKeys: z.array(z.string().min(1)).optional(),
   durationMs: z.int().nonnegative(),
   errorCode: z.string().trim().min(1).max(64).nullable(),
+  /** Exact source-free state of the shared dispatch guard after this trial. */
+  modelCostCeilingState: ModelCostCeilingStateSchema.optional(),
   /** Source-free audited vector state; required whenever an audit returned. */
   vectorCoverage: z.array(VectorCoverageSchema).min(1).optional(),
   modelObservation: ModelRunObservationSchema.nullable().optional(),
@@ -594,7 +599,7 @@ export const ProviderEvaluationCheckpointErrorCodeSchema = z.enum([
 
 export const ProviderEvaluationCheckpointSchema = z
   .strictObject({
-    schemaVersion: z.literal(7),
+    schemaVersion: z.literal(8),
     runId: IdentifierSchema,
     configFingerprint: Sha256Schema,
     packId: IdentifierSchema,
@@ -616,6 +621,8 @@ export const ProviderEvaluationCheckpointSchema = z
     measurementScope: EvaluationMeasurementScopeSchema.default('full-workflow'),
     executionBudget: HarnessExecutionConfigurationSchema,
     maxParallelVectors: MaxParallelVectorsSchema,
+    /** Exact shared dispatch-guard state at this persisted checkpoint. */
+    modelCostCeilingState: ModelCostCeilingStateSchema,
     status: ProviderCommandCheckpointStatusSchema,
     errorCode: ProviderEvaluationCheckpointErrorCodeSchema.nullable(),
     startedAt: IsoDateTimeSchema,
@@ -667,7 +674,7 @@ export const EvaluationBaselineSchema = z.strictObject({
 });
 
 export const RealWorldEvaluationRunSchema = z.strictObject({
-  schemaVersion: z.literal(7),
+  schemaVersion: z.literal(8),
   runId: IdentifierSchema,
   packId: IdentifierSchema,
   packVersion: z.string().trim().min(1).max(32),
@@ -692,6 +699,8 @@ export const RealWorldEvaluationRunSchema = z.strictObject({
   measurementScope: EvaluationMeasurementScopeSchema.default('full-workflow'),
   executionBudget: HarnessExecutionConfigurationSchema,
   maxParallelVectors: MaxParallelVectorsSchema,
+  /** Exact shared dispatch-guard state when the evaluation stopped. */
+  modelCostCeilingState: ModelCostCeilingStateSchema,
   promptProtocolFingerprint: Sha256Schema,
   startedAt: IsoDateTimeSchema,
   finishedAt: IsoDateTimeSchema,

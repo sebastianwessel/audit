@@ -13,7 +13,7 @@ type SemanticEvaluationReader = (
   artifactPath: string,
 ) => Promise<PlanSemanticEvaluation | undefined>;
 
-/** Aggregates only complete human adjudications and leaves absent ones visible. */
+/** Aggregates only complete AI-assisted adjudications and leaves absent ones visible. */
 export async function summarizePlanSemanticRun(input: {
   run: RealWorldEvaluationRun;
   read: SemanticEvaluationReader;
@@ -64,13 +64,13 @@ export async function summarizePlanSemanticRun(input: {
     },
   );
   return PlanSemanticRunEvaluationSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     runId: input.run.runId,
     packId: input.run.packId,
     packVersion: input.run.packVersion,
     selectedSplit: input.run.selectedSplit,
     promptProtocolFingerprint: input.run.promptProtocolFingerprint,
-    adjudicationQualification: 'single-human-review',
+    adjudicationQualification: 'single-ai-assisted-development-review',
     eligibleTrialCount: eligibleTrials.length,
     adjudicatedTrialCount: completed.length,
     missingAdjudicationTrialCount: eligibleTrials.length - completed.length,

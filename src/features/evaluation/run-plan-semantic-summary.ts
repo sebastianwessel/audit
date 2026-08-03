@@ -31,7 +31,7 @@ export function parsePlanSemanticSummaryArguments(argv: readonly string[]) {
   return parsed.data;
 }
 
-/** Summarizes existing human adjudications only; it never opens a target or calls a provider. */
+/** Summarizes existing AI-assisted adjudications only; it never opens a target or calls a provider. */
 export async function runPlanSemanticSummary(argv: readonly string[]): Promise<number> {
   const options = parsePlanSemanticSummaryArguments(argv);
   const outputRoot = await ensureSafeOutputRoot(options.output);
@@ -64,14 +64,14 @@ export function renderPlanSemanticRunSummary(summary: PlanSemanticRunEvaluation)
     '',
     `- Run: ${summary.runId}`,
     `- Pack: ${summary.packId}@${summary.packVersion}; split: ${summary.selectedSplit}`,
-    '- Semantic evidence: single-human review; diagnostic only, not a provider-quality claim',
-    `- Human adjudication coverage: ${summary.adjudicatedTrialCount}/${summary.eligibleTrialCount} eligible plan trials (${summary.missingAdjudicationTrialCount} missing)`,
+    '- Semantic evidence: single AI-assisted development review; diagnostic only, not a provider-quality claim',
+    `- AI-assisted adjudication coverage: ${summary.adjudicatedTrialCount}/${summary.eligibleTrialCount} eligible plan trials (${summary.missingAdjudicationTrialCount} missing)`,
     '',
     '| Scenario recall | Relevant-vector precision | Covered scenarios | Relevant vectors | Unrelated vectors | Duplicate relevant vectors |',
     '| ---: | ---: | ---: | ---: | ---: | ---: |',
     `| ${formatMetric(summary.scenarioRecall)} | ${formatMetric(summary.relevantVectorPrecision)} | ${summary.coveredScenarioCount}/${summary.expectedScenarioCount} | ${summary.relevantVectorCount}/${summary.enabledVectorCount} | ${summary.unrelatedVectorCount} | ${summary.duplicateRelevantVectorCount} |`,
     '',
-    'Only completed human adjudications contribute to the metrics. Missing adjudications remain unavailable rather than becoming a passed or failed plan score. A single-human review is diagnostic only; independently agreeing reviewers are required before using semantic plan evidence in a provider-quality claim.',
+    'Only completed AI-assisted development adjudications contribute to the metrics. Missing adjudications remain unavailable rather than becoming a passed or failed plan score. This evidence is diagnostic only and never supports an external reliability or provider-selection claim.',
     '',
   ].join('\n');
 }

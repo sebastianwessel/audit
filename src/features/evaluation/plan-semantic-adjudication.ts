@@ -6,8 +6,6 @@ import type { CorpusAnswerKey, CorpusVariant } from './corpus.schema.js';
 import {
   type PlanSemanticAdjudication,
   PlanSemanticAdjudicationSchema,
-  type PlanSemanticAdjudicationTemplate,
-  PlanSemanticAdjudicationTemplateSchema,
   type PlanSemanticEvaluation,
   PlanSemanticEvaluationSchema,
 } from './plan-semantic-adjudication.schema.js';
@@ -36,38 +34,7 @@ export function answerKeyScenarioDigest(answerKey: CorpusAnswerKey): string {
   );
 }
 
-/** Creates an intentionally unscoreable, source-free human adjudication template. */
-export function createPlanSemanticAdjudicationTemplate(input: {
-  binding: PlanSemanticAdjudicationBinding;
-  plan: AttackPlan;
-  answerKey: CorpusAnswerKey;
-}): PlanSemanticAdjudicationTemplate {
-  return PlanSemanticAdjudicationTemplateSchema.parse({
-    schemaVersion: 1,
-    ...input.binding,
-    planId: input.plan.planId,
-    planDigest: input.plan.planDigest,
-    targetFingerprint: input.plan.targetFingerprint,
-    contextDigest: input.plan.contextDigest,
-    answerKeyScenarioDigest: answerKeyScenarioDigest(input.answerKey),
-    reviewer: null,
-    reviewedAt: null,
-    rationale: null,
-    scenarios: input.answerKey.expectedPlanScenarios.map((scenario) => ({
-      scenarioId: scenario.scenarioId,
-      outcome: null,
-      vectorIds: [],
-    })),
-    vectors: input.plan.vectors
-      .filter((vector) => vector.enabled)
-      .map((vector) => ({ vectorId: vector.vectorId, outcome: null, scenarioIds: [] })),
-  });
-}
-
-/**
- * Validates a human semantic judgment structurally, then derives metrics. The
- * human is the sole semantic authority; this function never reads plan text.
- */
+/** Validates an AI-assisted semantic judgment structurally, then derives metrics. */
 export function createPlanSemanticEvaluation(input: {
   adjudication: PlanSemanticAdjudication;
   binding: PlanSemanticAdjudicationBinding;
@@ -76,7 +43,7 @@ export function createPlanSemanticEvaluation(input: {
 }): PlanSemanticEvaluation {
   const adjudication = PlanSemanticAdjudicationSchema.parse(input.adjudication);
   assertBinding(adjudication, input.binding, input.plan, input.answerKey);
-  assertClosedHumanMapping(adjudication, input.plan, input.answerKey);
+  assertClosedAiAssistedMapping(adjudication, input.plan, input.answerKey);
 
   const coveredScenarioCount = adjudication.scenarios.filter(
     (scenario) => scenario.outcome === 'covered',
@@ -90,7 +57,7 @@ export function createPlanSemanticEvaluation(input: {
     0,
   );
   return PlanSemanticEvaluationSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     adjudication,
     score: {
       expectedScenarioCount: adjudication.scenarios.length,
@@ -142,7 +109,7 @@ function assertBinding(
   }
 }
 
-function assertClosedHumanMapping(
+function assertClosedAiAssistedMapping(
   adjudication: PlanSemanticAdjudication,
   plan: AttackPlan,
   answerKey: CorpusAnswerKey,

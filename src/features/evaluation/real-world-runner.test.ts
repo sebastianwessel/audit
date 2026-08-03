@@ -42,6 +42,11 @@ test('runs the pinned mixed-language seed through the normal plan and audit work
     promptProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
   });
   expect(run.maxParallelVectors).toBe(2);
+  expect(run.modelCostCeilingState).toEqual({
+    configuredUsd: null,
+    accumulatedEstimatedCostUsd: null,
+    reached: false,
+  });
   expect(run.gatePassed).toBe(false);
   expect(run.evidenceQualification).toBe('diagnostic');
   expect(run.trials).toHaveLength(6);
@@ -88,6 +93,7 @@ test('runs the pinned mixed-language seed through the normal plan and audit work
   expect(report).toContain('File-tool usage');
   expect(report).toContain('Finding admission funnel');
   expect(report).toContain('Vector concurrency: 2');
+  expect(report).toContain('Cost guard: disabled');
   expect(report).toContain('| 0 | 0 | 0 | 0/0/0 | 0 | 0 | 0 | 0 | 0 |');
   const hotspotSection = report.split('### Provider requests')[0] ?? '';
   const expectedHotspotCount = new Set(

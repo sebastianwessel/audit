@@ -64,6 +64,8 @@ import { runVerificationStage } from './stages/verification.js';
 export type ReviewService = Readonly<{
   inspectTarget: (input: ReviewTargetInput) => Promise<TargetInventory>;
   recordPriorModelStages: (stages: readonly ModelStageObservation[]) => void;
+  /** Current source-free run-wide dispatch-guard state, including disabled state. */
+  modelCostCeilingState: () => ModelCostCeilingState;
   createPlan: (input: ReviewTargetInput & { createdAt: string; sessionId: string }) => Promise<{
     inventory: TargetInventory;
     plan: AttackPlan;
@@ -161,6 +163,12 @@ export function createReviewService(
   return Object.freeze({
     inspectTarget: async (input) => inventoryTarget(await createFilesystem(input)),
     recordPriorModelStages: (stages) => modelCostCeiling?.recordPriorStages(stages),
+    modelCostCeilingState: () =>
+      modelCostCeiling?.state() ?? {
+        configuredUsd: null,
+        accumulatedEstimatedCostUsd: null,
+        reached: false,
+      },
     createPlan: async (input) => {
       const { inventory, snapshot: sourceSnapshot } = await captureTargetInventory(
         await createFilesystem(input),

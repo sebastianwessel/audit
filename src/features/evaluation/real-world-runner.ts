@@ -356,7 +356,7 @@ export async function runCorpusEvaluation(
         }));
   const finishedAt = new Date().toISOString();
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 7,
+    schemaVersion: 8,
     runId: input.runId,
     packId: input.pack.manifest.packId,
     packVersion: input.pack.manifest.packVersion,
@@ -380,6 +380,7 @@ export async function runCorpusEvaluation(
     measurementScope,
     executionBudget: input.executionBudget,
     maxParallelVectors,
+    modelCostCeilingState: service.modelCostCeilingState(),
     promptProtocolFingerprint: input.promptProtocolFingerprint,
     startedAt: input.startedAt,
     finishedAt,
@@ -548,6 +549,7 @@ async function runTrial(
         findingKeys: [],
         durationMs: Math.round(performance.now() - started),
         errorCode: null,
+        modelCostCeilingState: input.service.modelCostCeilingState(),
         modelObservation: summarizeTrialModelObservation({
           planningObservation,
           auditObservation,
@@ -817,6 +819,7 @@ async function runTrial(
       planKeys,
       durationMs: Math.round(performance.now() - started),
       errorCode: completed ? null : trialCoverageErrorCode(audited.report.coverage),
+      modelCostCeilingState: input.service.modelCostCeilingState(),
       modelObservation: summarizeTrialModelObservation({
         planningObservation,
         auditObservation,
@@ -846,6 +849,7 @@ async function runTrial(
       reviewRequiredKeys: auditProjection?.reviewRequiredKeys ?? [],
       durationMs: Math.round(performance.now() - started),
       errorCode: errorCode(error),
+      modelCostCeilingState: input.service.modelCostCeilingState(),
       modelObservation: summarizeTrialModelObservation({
         planningObservation,
         auditObservation,

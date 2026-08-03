@@ -13,9 +13,9 @@ import { reviewWorkflowPromptProtocolFingerprint } from '../review-workflow/prom
 import { deterministicCorpusFixturePack, loadCorpusPack } from './corpus.js';
 import { EvaluationGeneratedPlanCheckpointSchema } from './corpus.schema.js';
 import { createDeterministicCorpusProvider } from './deterministic-provider.js';
+import { answerKeyScenarioDigest } from './plan-semantic-adjudication.js';
 import {
   PlanSemanticAdjudicationSchema,
-  PlanSemanticAdjudicationTemplateSchema,
   PlanSemanticEvaluationSchema,
   PlanSemanticRunEvaluationSchema,
 } from './plan-semantic-adjudication.schema.js';
@@ -36,7 +36,7 @@ afterEach(async () => {
   );
 });
 
-test('requires a complete local human plan adjudication command', () => {
+test('requires one complete local AI-assisted plan adjudication command', () => {
   expect(() => parsePlanSemanticAdjudicationArguments([])).toThrow(
     'Invalid plan semantic adjudication options',
   );
@@ -58,24 +58,6 @@ test('requires a complete local human plan adjudication command', () => {
       'provider-eval-01/adjudication.json',
     ]),
   ).toMatchObject({ repetition: 1, variant: 'vulnerable' });
-  expect(
-    parsePlanSemanticAdjudicationArguments([
-      '--corpus',
-      'evaluation/corpora',
-      '--output',
-      'evaluation/runs',
-      '--run-id',
-      'provider-eval-01',
-      '--case-id',
-      'private-case-01',
-      '--variant',
-      'benign',
-      '--repetition',
-      '1',
-      '--template',
-      'provider-eval-01/template.json',
-    ]),
-  ).toMatchObject({ template: 'provider-eval-01/template.json', variant: 'benign' });
   expect(() =>
     parsePlanSemanticAdjudicationArguments([
       '--corpus',
@@ -90,9 +72,7 @@ test('requires a complete local human plan adjudication command', () => {
       'vulnerable',
       '--repetition',
       '1',
-      '--adjudication',
-      'provider-eval-01/adjudication.json',
-      '--template',
+      '--unexpected',
       'provider-eval-01/template.json',
     ]),
   ).toThrow('Invalid plan semantic adjudication options');
@@ -100,9 +80,9 @@ test('requires a complete local human plan adjudication command', () => {
 
 test('renders a source-free semantic plan score', () => {
   const report = renderPlanSemanticEvaluation({
-    schemaVersion: 1,
+    schemaVersion: 2,
     adjudication: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       runId: 'provider-eval-01',
       trialId: 'evaluation-trial-01',
       packId: 'private-pack-01',
@@ -116,6 +96,7 @@ test('renders a source-free semantic plan score', () => {
       contextDigest: 'c'.repeat(64),
       answerKeyScenarioDigest: 'd'.repeat(64),
       reviewer: 'reviewer-three',
+      reviewerKind: 'ai-assisted',
       reviewedAt: '2026-08-03T11:00:00.000Z',
       scenarios: [],
       vectors: [],
@@ -173,7 +154,7 @@ test('creates and validates a semantic adjudication through the jailed artifact 
     vectors: [
       {
         title: 'Review the evaluator scenario',
-        rationale: 'The evaluator creates a plan checkpoint for human semantic review.',
+        rationale: 'The evaluator creates a plan checkpoint for AI-assisted semantic review.',
         enabled: true,
         scopeGlobs: ['**'],
         reviewObligations: [
@@ -224,20 +205,25 @@ test('creates and validates a semantic adjudication through the jailed artifact 
     '--repetition',
     String(trial.repetition),
   ];
-  await expect(
-    runPlanSemanticAdjudication([...shared, '--template', `${runId}/adjudication-template.json`]),
-  ).resolves.toBe(0);
-  const template = await readJsonArtifact(
-    outputRoot,
-    `${runId}/adjudication-template.json`,
-    PlanSemanticAdjudicationTemplateSchema,
-  );
   const adjudication = PlanSemanticAdjudicationSchema.parse({
-    ...template,
+    schemaVersion: 2,
+    runId,
+    trialId,
+    packId: run.packId,
+    packVersion: run.packVersion,
+    caseId: trial.caseId,
+    variant: trial.variant,
+    repetition: trial.repetition,
+    planId: plan.planId,
+    planDigest: plan.planDigest,
+    targetFingerprint: plan.targetFingerprint,
+    contextDigest: plan.contextDigest,
+    answerKeyScenarioDigest: answerKeyScenarioDigest(corpusCase.answerKey),
     reviewer: 'reviewer-three',
+    reviewerKind: 'ai-assisted',
     reviewedAt: '2026-08-03T12:05:00.000Z',
-    rationale: 'Human evaluator reviewed the exact generated plan.',
-    scenarios: template.scenarios.map((scenario) => ({
+    rationale: 'AI-assisted evaluator reviewed the exact generated plan.',
+    scenarios: corpusCase.answerKey.expectedPlanScenarios.map((scenario) => ({
       scenarioId: scenario.scenarioId,
       outcome: 'covered' as const,
       vectorIds: [vector.vectorId],

@@ -16,37 +16,25 @@ import {
   RealWorldEvaluationRunSchema,
 } from './corpus.schema.js';
 import {
-  createPlanSemanticAdjudicationTemplate,
   createPlanSemanticEvaluation,
   type PlanSemanticAdjudicationBinding,
 } from './plan-semantic-adjudication.js';
 import {
   PlanSemanticAdjudicationSchema,
-  PlanSemanticAdjudicationTemplateSchema,
   type PlanSemanticEvaluation,
   PlanSemanticEvaluationSchema,
 } from './plan-semantic-adjudication.schema.js';
 import { evaluationTrialId } from './real-world-runner.js';
 
-const ArgumentsSchema = z
-  .strictObject({
-    corpus: z.string().trim().min(1).max(1_024),
-    output: z.string().trim().min(1).max(1_024),
-    'run-id': z.string().trim().min(1).max(64),
-    'case-id': z.string().trim().min(1).max(64),
-    variant: CorpusVariantSchema,
-    repetition: z.coerce.number().int().positive(),
-    adjudication: z.string().trim().min(1).max(1_024).optional(),
-    template: z.string().trim().min(1).max(1_024).optional(),
-  })
-  .superRefine((value, context) => {
-    if ((value.adjudication === undefined) === (value.template === undefined)) {
-      context.addIssue({
-        code: 'custom',
-        message: 'Provide exactly one of --adjudication or --template.',
-      });
-    }
-  });
+const ArgumentsSchema = z.strictObject({
+  corpus: z.string().trim().min(1).max(1_024),
+  output: z.string().trim().min(1).max(1_024),
+  'run-id': z.string().trim().min(1).max(64),
+  'case-id': z.string().trim().min(1).max(64),
+  variant: CorpusVariantSchema,
+  repetition: z.coerce.number().int().positive(),
+  adjudication: z.string().trim().min(1).max(1_024),
+});
 
 export type PlanSemanticAdjudicationCommand = z.output<typeof ArgumentsSchema>;
 
@@ -59,33 +47,14 @@ export function parsePlanSemanticAdjudicationArguments(
 }
 
 /**
- * Validates an externally authored human mapping and writes only its derived,
+ * Validates an externally authored AI-assisted mapping and writes only its derived,
  * source-free semantic score. This command never dispatches a model or opens a
  * target snapshot.
  */
 export async function runPlanSemanticAdjudication(argv: readonly string[]): Promise<number> {
   const options = parsePlanSemanticAdjudicationArguments(argv);
   const loaded = await loadPlanSemanticAdjudicationContext(options);
-  if (options.template !== undefined) {
-    const template = createPlanSemanticAdjudicationTemplate({
-      binding: loaded.binding,
-      plan: loaded.plan,
-      answerKey: loaded.answerKey,
-    });
-    await writeJsonArtifact(
-      loaded.outputRoot,
-      options.template,
-      PlanSemanticAdjudicationTemplateSchema,
-      template,
-    );
-    process.stdout.write(
-      `Incomplete plan semantic adjudication template: ${options.template}\n` +
-        'Fill its null review fields and replace each null outcome with the required final value before scoring.\n',
-    );
-    return 0;
-  }
   const adjudicationPath = options.adjudication;
-  if (adjudicationPath === undefined) throw usage('A final adjudication path is required.');
   const adjudication = await readJsonArtifact(
     loaded.outputRoot,
     adjudicationPath,
@@ -187,7 +156,7 @@ export function renderPlanSemanticEvaluation(evaluation: PlanSemanticEvaluation)
     '| ---: | ---: | ---: | ---: | ---: | ---: |',
     `| ${formatMetric(score.scenarioRecall)} | ${formatMetric(score.relevantVectorPrecision)} | ${score.coveredScenarioCount}/${score.expectedScenarioCount} | ${score.relevantVectorCount}/${score.enabledVectorCount} | ${score.unrelatedVectorCount} | ${score.duplicateRelevantVectorCount} |`,
     '',
-    'These metrics come only from the bound human adjudication. They do not change product admission, workflow gates, or provider-quality claims.',
+    'These metrics come only from one bound AI-assisted development adjudication. They do not change product admission, workflow gates, external reliability, or provider-selection claims.',
     '',
   ].join('\n');
 }
@@ -199,7 +168,7 @@ function formatMetric(value: number | null): string {
 function usage(message: string): SecurityReviewerError {
   return new SecurityReviewerError(
     'invalid-input',
-    `${message} Usage: bun run eval:plan-semantic -- --corpus <corpus-root> --output <evaluation-output-root> --run-id <run-id> --case-id <case-id> --variant <vulnerable|patched|benign> --repetition <n> (--template <output-relative-json-path> | --adjudication <output-relative-json-path>)`,
+    `${message} Usage: bun run eval:plan-semantic -- --corpus <corpus-root> --output <evaluation-output-root> --run-id <run-id> --case-id <case-id> --variant <vulnerable|patched|benign> --repetition <n> --adjudication <output-relative-json-path>`,
   );
 }
 

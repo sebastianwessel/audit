@@ -18,7 +18,7 @@ import {
 } from './run-provider.js';
 
 const providerCheckpoint = ProviderEvaluationCheckpointSchema.parse({
-  schemaVersion: 7,
+  schemaVersion: 8,
   runId: 'provider-checkpoint-terminal-fixture',
   configFingerprint: 'a'.repeat(64),
   packId: 'fixture-pack',
@@ -40,6 +40,7 @@ const providerCheckpoint = ProviderEvaluationCheckpointSchema.parse({
     modelRetry: 'default',
   },
   maxParallelVectors: 1,
+  modelCostCeilingState: { configuredUsd: null, accumulatedEstimatedCostUsd: null, reached: false },
   status: 'running',
   errorCode: null,
   startedAt: '2026-08-03T12:00:00.000Z',

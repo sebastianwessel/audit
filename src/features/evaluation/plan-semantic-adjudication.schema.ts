@@ -25,7 +25,7 @@ export const PlanVectorAdjudicationSchema = z.strictObject({
 });
 
 const PlanSemanticAdjudicationBindingFields = {
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   runId: IdentifierSchema,
   trialId: IdentifierSchema,
   packId: IdentifierSchema,
@@ -40,42 +40,15 @@ const PlanSemanticAdjudicationBindingFields = {
   answerKeyScenarioDigest: Sha256Schema,
 };
 
-/**
- * Human-only semantic mapping of one exact generated plan. It contains stable
- * identities and no model prompt, source, answer-key wording, or finding text.
- */
+/** AI-assisted evaluator-only mapping of one exact generated plan. */
 export const PlanSemanticAdjudicationSchema = z.strictObject({
   ...PlanSemanticAdjudicationBindingFields,
   reviewer: IdentifierSchema,
+  reviewerKind: z.literal('ai-assisted'),
   reviewedAt: IsoDateTimeSchema,
   rationale: BoundedTextSchema.max(2_000).optional(),
   scenarios: z.array(PlanScenarioAdjudicationSchema),
   vectors: z.array(PlanVectorAdjudicationSchema),
-});
-
-/**
- * Safe, intentionally incomplete file generated for a human evaluator. It
- * contains only stable IDs and must be completed before scoring can begin.
- */
-export const PlanSemanticAdjudicationTemplateSchema = z.strictObject({
-  ...PlanSemanticAdjudicationBindingFields,
-  reviewer: z.null(),
-  reviewedAt: z.null(),
-  rationale: z.null(),
-  scenarios: z.array(
-    z.strictObject({
-      scenarioId: IdentifierSchema,
-      outcome: z.null(),
-      vectorIds: z.array(IdentifierSchema),
-    }),
-  ),
-  vectors: z.array(
-    z.strictObject({
-      vectorId: IdentifierSchema,
-      outcome: z.null(),
-      scenarioIds: z.array(IdentifierSchema),
-    }),
-  ),
 });
 
 export const PlanSemanticScoreSchema = z.strictObject({
@@ -91,20 +64,20 @@ export const PlanSemanticScoreSchema = z.strictObject({
 
 /** A reusable source-free projection for reports and offline comparisons. */
 export const PlanSemanticEvaluationSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   adjudication: PlanSemanticAdjudicationSchema,
   score: PlanSemanticScoreSchema,
 });
 
 /** Aggregate evaluator-only plan-quality evidence for one generated-plan run. */
 export const PlanSemanticRunEvaluationSchema = z.strictObject({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(2),
   runId: IdentifierSchema,
   packId: IdentifierSchema,
   packVersion: z.string().trim().min(1).max(32),
   selectedSplit: z.enum(['development', 'test', 'private-holdout']),
   promptProtocolFingerprint: Sha256Schema,
-  adjudicationQualification: z.literal('single-human-review'),
+  adjudicationQualification: z.literal('single-ai-assisted-development-review'),
   eligibleTrialCount: z.int().nonnegative(),
   adjudicatedTrialCount: z.int().nonnegative(),
   missingAdjudicationTrialCount: z.int().nonnegative(),
@@ -119,9 +92,6 @@ export const PlanSemanticRunEvaluationSchema = z.strictObject({
 });
 
 export type PlanSemanticAdjudication = z.infer<typeof PlanSemanticAdjudicationSchema>;
-export type PlanSemanticAdjudicationTemplate = z.infer<
-  typeof PlanSemanticAdjudicationTemplateSchema
->;
 export type PlanSemanticScore = z.infer<typeof PlanSemanticScoreSchema>;
 export type PlanSemanticEvaluation = z.infer<typeof PlanSemanticEvaluationSchema>;
 export type PlanSemanticRunEvaluation = z.infer<typeof PlanSemanticRunEvaluationSchema>;

@@ -10,6 +10,12 @@ import {
   summarizeReliability,
 } from './real-world-scorer.js';
 
+const disabledModelCostCeilingState = {
+  configuredUsd: null,
+  accumulatedEstimatedCostUsd: null,
+  reached: false,
+} as const;
+
 const approvePlan = <T>(plan: T, ..._reviewMetadata: readonly [string, string, string]): T => plan;
 
 const expectedFinding = {
@@ -351,6 +357,7 @@ test('summarizes repeated trial agreement and latency without hiding failed tria
       findingKeys: ['injection\0high\0src/query.ts\0line7'],
       durationMs: 10,
       errorCode: null,
+      modelCostCeilingState: disabledModelCostCeilingState,
     },
     {
       caseId: 'real-js-001',
@@ -364,6 +371,7 @@ test('summarizes repeated trial agreement and latency without hiding failed tria
       findingKeys: ['injection\0high\0src/query.ts\0line7'],
       durationMs: 30,
       errorCode: null,
+      modelCostCeilingState: disabledModelCostCeilingState,
     },
     {
       caseId: 'real-js-001',
@@ -377,6 +385,7 @@ test('summarizes repeated trial agreement and latency without hiding failed tria
       findingKeys: [],
       durationMs: 5,
       errorCode: 'provider-failure',
+      modelCostCeilingState: disabledModelCostCeilingState,
     },
   ];
   expect(summarizeReliability(trials)).toMatchObject({
@@ -405,6 +414,7 @@ test('does not treat different cases as repeated outputs when measuring agreemen
     findingKeys: ['injection\0high\0src/query.ts\0line7'],
     durationMs: 10,
     errorCode: null,
+    modelCostCeilingState: disabledModelCostCeilingState,
   };
   const second: EvaluationTrial = {
     ...first,
