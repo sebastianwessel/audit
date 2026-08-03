@@ -19,6 +19,7 @@ Security Reviewer has a sound product premise and several strong safety primitiv
 | 6 | [Production-readiness follow-up](./006-production-readiness-follow-up.md) | Lossless scale/recovery, safe artifacts, semantically valid evaluation | Waves 1-5 |
 | 7 | [Evaluator recovery and failure diagnostics](./007-evaluation-recovery-and-failure-diagnostics.md) | Exact recovery-leaf reuse, smoke lifecycle parity, and retained failed-stage evidence diagnostics | Wave 6 |
 | 8 | [Clean repository baseline](./008-establish-clean-repository-baseline.md) | A reviewable initial commit that excludes unrelated generated output | Wave 7 |
+| 9 | [Enterprise audit workflow review and next wave](./009-enterprise-audit-workflow-review-2026-08-03.md) | Explainable measurements, prompt behavioral contracts, and a claim-grade corpus | Waves 1-8 |
 
 ## Non-negotiable implementation rules
 

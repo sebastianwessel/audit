@@ -103,10 +103,10 @@ export function renderRealWorldEvaluationReport(
     '',
     '### Expected-evidence stage coverage',
     '',
-    'Evaluator-only location-overlap diagnostic for expected evidence. It is not a security conclusion, score, or model input; it helps locate loss between neutral mapping, canonical grounding, and verifier output.',
+    'Evaluator-only location-overlap diagnostic for expected evidence. It is not a security conclusion, score, or model input. First incomplete stage means the first normal evidence stage that did not retain every expected role overlap; it does not diagnose planning semantics, posture quality, or whether the target is secure.',
     '',
-    '| Expected roles | Mapped locations | Grounded role evidence | Verifier output role evidence |',
-    '| ---: | ---: | ---: | ---: |',
+    '| Expected roles | Mapped locations | Grounded role evidence | Verifier output role evidence | First incomplete stage |',
+    '| ---: | ---: | ---: | ---: | --- |',
     ...formatStageEvidenceCoverage(run),
     '',
     '### Finding admission funnel',
@@ -200,8 +200,8 @@ function formatStageEvidenceCoverage(run: RealWorldEvaluationRun): string[] {
   return run.trials.map((trial) => {
     const coverage = trial.stageEvidenceCoverage;
     return coverage === undefined
-      ? '| unavailable | unavailable | unavailable | unavailable |'
-      : `| ${coverage.expectedRoleCount} | ${coverage.mappedLocationCount} | ${coverage.groundedRoleCount} | ${coverage.verifiedRoleCount} |`;
+      ? '| unavailable | unavailable | unavailable | unavailable | unavailable |'
+      : `| ${coverage.expectedRoleCount} | ${coverage.mappedLocationCount} | ${coverage.groundedRoleCount} | ${coverage.verifiedRoleCount} | ${coverage.firstIncompleteStage} |`;
   });
 }
 

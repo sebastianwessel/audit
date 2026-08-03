@@ -437,11 +437,21 @@ export const FindingScoreSchema = z.strictObject({
 });
 
 /** Source-free evaluator diagnostic; it cannot influence product admission or scores. */
+export const FirstIncompleteEvidenceStageSchema = z.enum([
+  'not-applicable',
+  'evidence-mapping',
+  'candidate-grounding',
+  'verification',
+  'complete',
+]);
+
 export const EvidenceStageCoverageSchema = z.strictObject({
   expectedRoleCount: z.int().nonnegative(),
   mappedLocationCount: z.int().nonnegative(),
   groundedRoleCount: z.int().nonnegative(),
   verifiedRoleCount: z.int().nonnegative(),
+  /** First normal evidence stage that did not retain every expected role overlap. */
+  firstIncompleteStage: FirstIncompleteEvidenceStageSchema,
 });
 
 export const EvaluationTrialSchema = z.strictObject({
@@ -586,7 +596,7 @@ export const EvaluationBaselineSchema = z.strictObject({
 });
 
 export const RealWorldEvaluationRunSchema = z.strictObject({
-  schemaVersion: z.literal(5),
+  schemaVersion: z.literal(6),
   runId: IdentifierSchema,
   packId: IdentifierSchema,
   packVersion: z.string().trim().min(1).max(32),

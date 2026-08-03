@@ -333,7 +333,7 @@ export async function runCorpusEvaluation(
         }));
   const finishedAt = new Date().toISOString();
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 5,
+    schemaVersion: 6,
     runId: input.runId,
     packId: input.pack.manifest.packId,
     packVersion: input.pack.manifest.packVersion,

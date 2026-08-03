@@ -23,12 +23,33 @@ export function stageEvidenceCoverage(input: {
   const mappedEvidence = input.evidenceMaps.flatMap((map) =>
     map.facts.flatMap((fact) => fact.evidence),
   );
-  return EvidenceStageCoverageSchema.parse({
+  const coverage = {
     expectedRoleCount: expectedRoles.length,
     mappedLocationCount: countCovered(expectedRoles, mappedEvidence, false),
     groundedRoleCount: countCovered(expectedRoles, input.groundedEvidence, true),
     verifiedRoleCount: countCovered(expectedRoles, input.verifiedEvidence, true),
+  };
+  return EvidenceStageCoverageSchema.parse({
+    ...coverage,
+    firstIncompleteStage: firstIncompleteStage(coverage),
   });
+}
+
+/**
+ * This is a source-free diagnostic order, not a security conclusion. Later
+ * stages may not repair an earlier missing expected-evidence overlap.
+ */
+function firstIncompleteStage(input: {
+  expectedRoleCount: number;
+  mappedLocationCount: number;
+  groundedRoleCount: number;
+  verifiedRoleCount: number;
+}): 'not-applicable' | 'evidence-mapping' | 'candidate-grounding' | 'verification' | 'complete' {
+  if (input.expectedRoleCount === 0) return 'not-applicable';
+  if (input.mappedLocationCount < input.expectedRoleCount) return 'evidence-mapping';
+  if (input.groundedRoleCount < input.expectedRoleCount) return 'candidate-grounding';
+  if (input.verifiedRoleCount < input.expectedRoleCount) return 'verification';
+  return 'complete';
 }
 
 function countCovered(
