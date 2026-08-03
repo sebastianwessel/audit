@@ -12,6 +12,8 @@ The shared context-overflow lifecycle can partition map, posture, investigation,
 4. The execution core receives one opaque validated resume state, not independent raw prior-artifact arrays. The loader owns binding, duplicate, and reusable-versus-observed decisions; the core cannot reuse a result by vector id alone.
 5. All vector failures are phase-accurate. A typed internal failure envelope carries the stable error code, actual phase, completed phase observations, and artifact-versus-provider classification. Checkpoint-write failures remain artifact failures and do not masquerade as investigation failures.
 6. A terminal result retains every completed phase observation before its failure. Its coverage/error/terminal lane must state the same failure class without source or model content.
+7. The recovery protocol fingerprint changes whenever deterministic child ownership changes. The grounding ownership repair is protocol version 2, so no leaf produced by the prior ambiguous reducer is reusable.
+8. Canonical grounding recovery may dispatch only a child that owns a complete seed basis: every selected map fact, every projected posture assessment, and every projected source-evidence location lies inside the child's exact source path/range scope. A child with no owned seed records no model call and contributes an explicit empty canonical output. A seed that crosses a source child or an overflow requiring context-only partitioning ends as `provider-context-overflow`; it is never filtered to `null`, duplicated, or reduced across context fragments.
 
 ## Non-goals
 

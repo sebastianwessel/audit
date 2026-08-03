@@ -61,7 +61,7 @@ export type ContextOverflowTopology = Readonly<{
 
 /** Bump only with a deliberate breaking change to deterministic scope splitting. */
 export const contextOverflowRecoveryProtocolFingerprint = sha256(
-  'security-reviewer-context-overflow-topology-v1',
+  'security-reviewer-context-overflow-topology-v2',
 );
 
 type ContextSelector = (
@@ -78,6 +78,11 @@ export type ContextOverflowRecoveryInput<Result> = Readonly<{
   splitSingleton?: (
     path: string,
   ) => Promise<readonly [ContextRecoveryScope, ContextRecoveryScope] | undefined>;
+  /**
+   * A stage may reject context-only partitioning when one output needs every
+   * applicable context document to remain a single, lossless decision basis.
+   */
+  allowContextSplitting?: boolean;
   onRecoveredFailure?: (error: unknown) => void;
   /** Exact prior topology may skip only a provider-confirmed overflowing parent. */
   priorTopology?: ContextOverflowTopology;
@@ -384,7 +389,9 @@ async function splitScope<Result>(
       { ...right, context: scope.context },
     ];
   }
-  return splitContext(scope.context, scope.sourcePaths, scope.lineRanges);
+  return input.allowContextSplitting === false
+    ? undefined
+    : splitContext(scope.context, scope.sourcePaths, scope.lineRanges);
 }
 
 function splitLineRange(

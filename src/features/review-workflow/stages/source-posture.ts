@@ -2,6 +2,8 @@ import type { ModelProvider } from '@purista/harness';
 
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
 import { createStableId } from '../../../shared/contracts/core.js';
+import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import type { EvidenceMap } from '../../audit-execution/evidence-map/contract.js';
 import type { SourcePostureRequest } from '../../audit-execution/phase-input/contract.js';
 import type {
   SourcePosture,
@@ -15,8 +17,10 @@ import type {
   ContextOverflowRecoveredLeaf,
   ContextOverflowTopology,
   ContextOverflowTopologyEvent,
+  ContextRecoveryScope,
 } from '../runtime/context-overflow.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
+import { evidenceMapFactIsWithinRecoveryScope } from './scoped-evidence.js';
 import { runScopedModelStage } from './scoped-model-stage.js';
 
 /** Candidate-blind source assessment between neutral mapping and investigation. */
@@ -38,6 +42,7 @@ export async function runSourcePostureStage(input: {
     onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
     onRecoveredLeafCompleted?: (input: {
       childKey: string;
+      scope: ContextRecoveryScope;
       scopeFingerprint: string;
       output: SourcePosture;
     }) => Promise<void>;
@@ -61,6 +66,8 @@ export async function runSourcePostureStage(input: {
         : {
             onRecoveredLeafCompleted: async (leaf: {
               childKey: string;
+              attempt: number;
+              scope: ContextRecoveryScope;
               scopeFingerprint: string;
               output: UnverifiedSourcePosture;
             }) => {
@@ -69,8 +76,10 @@ export async function runSourcePostureStage(input: {
                 leaf.output,
                 input.request.evidenceMap,
               ).sourcePosture;
+              assertSourcePostureWithinScope(sourcePosture, input.request.evidenceMap, leaf.scope);
               await onRecoveredLeafCompleted({
                 childKey: leaf.childKey,
+                scope: leaf.scope,
                 scopeFingerprint: leaf.scopeFingerprint,
                 output: sourcePosture,
               });
@@ -144,6 +153,26 @@ export async function runSourcePostureStage(input: {
       ]),
     }),
   });
+}
+
+/** A recovery child may retain only map evidence it could have inspected. */
+function assertSourcePostureWithinScope(
+  sourcePosture: SourcePosture,
+  evidenceMap: EvidenceMap,
+  scope: Pick<ContextRecoveryScope, 'sourcePaths' | 'lineRanges'>,
+): void {
+  const facts = new Map(evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
+  for (const assessment of sourcePosture.assessments) {
+    for (const factId of assessment.evidenceMapFactIds) {
+      const fact = facts.get(factId);
+      if (fact === undefined || !evidenceMapFactIsWithinRecoveryScope(fact, scope)) {
+        throw new SecurityReviewerError(
+          'artifact-invalid',
+          'A recovery source-posture artifact references evidence outside its exact approved scope.',
+        );
+      }
+    }
+  }
 }
 
 function uniqueSorted(values: readonly string[]): string[] {

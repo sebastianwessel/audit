@@ -1,0 +1,202 @@
+import { expect, test } from 'bun:test';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import {
+  type JsonValue,
+  ModelError,
+  type ObjectRequest,
+  type ObjectResponse,
+} from '@purista/harness';
+import { FakeModelProvider } from '@purista/harness/testing';
+import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
+import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
+import { CandidateGroundingRequestSchema } from '../../audit-execution/candidate-grounding/contract.js';
+
+import { runCandidateGroundingStage } from './candidate-grounding.js';
+
+test('recovers one complete seed basis per source child without duplicate outcomes', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-grounding-overflow-'));
+  await writeFile(join(targetRoot, 'a.unknown'), 'value = request.a;\n', 'utf8');
+  await writeFile(join(targetRoot, 'b.unknown'), 'value = request.b;\n', 'utf8');
+  const provider = new OverflowFirstObjectProvider();
+  enqueueScopedSearch(provider, 'a-search');
+  provider.enqueueObject(nullGroundingOutput('seed-a'));
+  enqueueScopedSearch(provider, 'b-search');
+  provider.enqueueObject(nullGroundingOutput('seed-b'));
+
+  const result = await runCandidateGroundingStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: request(['seed-a', 'seed-b']),
+    sources: [
+      { path: 'a.unknown', content: 'value = request.a;\n', languageHint: null },
+      { path: 'b.unknown', content: 'value = request.b;\n', languageHint: null },
+    ],
+    context: [],
+    sessionId: 'candidate-grounding-overflow-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({
+    status: 'completed',
+    output: {
+      groundings: [
+        { seedId: 'seed-a', disposition: 'null' },
+        { seedId: 'seed-b', disposition: 'null' },
+      ],
+    },
+    modelObservation: { recoveredErrorCodes: ['provider-context-overflow'] },
+  });
+});
+
+test('fails explicitly when a seed crosses recovered source children', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-grounding-cross-scope-'));
+  await writeFile(join(targetRoot, 'a.unknown'), 'value = request.a;\n', 'utf8');
+  await writeFile(join(targetRoot, 'b.unknown'), 'value = request.b;\n', 'utf8');
+  const provider = new OverflowFirstObjectProvider();
+
+  const result = await runCandidateGroundingStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: request(['seed-cross']),
+    sources: [
+      { path: 'a.unknown', content: 'value = request.a;\n', languageHint: null },
+      { path: 'b.unknown', content: 'value = request.b;\n', languageHint: null },
+    ],
+    context: [],
+    sessionId: 'candidate-grounding-cross-scope-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({ status: 'failed', errorCode: 'provider-context-overflow' });
+});
+
+class OverflowFirstObjectProvider extends FakeModelProvider {
+  private firstObjectCall = true;
+
+  public override async object<T extends JsonValue>(
+    request: ObjectRequest<T>,
+  ): Promise<ObjectResponse<T>> {
+    if (this.firstObjectCall) {
+      this.firstObjectCall = false;
+      throw new ModelError('The provider rejected the context.', {
+        provider: 'test',
+        model: 'test-model',
+        method: 'object',
+        reason: 'context_length_exceeded',
+      });
+    }
+    return super.object(request);
+  }
+}
+
+function enqueueScopedSearch(provider: FakeModelProvider, id: string): void {
+  provider.enqueueObject({
+    object: {},
+    toolCalls: [
+      {
+        id,
+        name: 'repo_grep',
+        arguments: { pattern: 'value', mode: 'literal', caseSensitive: true },
+      },
+    ],
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    finishReason: 'tool_calls',
+  });
+}
+
+function nullGroundingOutput(seedId: string) {
+  return {
+    object: { groundings: [{ seedId, candidate: null }] },
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop' as const,
+  };
+}
+
+function request(seedIds: readonly string[]) {
+  const seeds = seedIds.map((seedId) => {
+    const factIds =
+      seedId === 'seed-a' ? ['fact-a'] : seedId === 'seed-b' ? ['fact-b'] : ['fact-a', 'fact-b'];
+    return {
+      seedId,
+      vectorId: 'vector-unknown-01',
+      hypothesis: 'The mapped operation could mishandle request-controlled data.',
+      planObligations: [{ obligationId: 'test-obligation-01' }],
+      evidenceMapFactIds: factIds,
+      sourcePostureAssessmentIds: [
+        seedId === 'seed-a' ? 'posture-a' : seedId === 'seed-b' ? 'posture-b' : 'posture-cross',
+      ],
+      limitations: [],
+    };
+  });
+  return CandidateGroundingRequestSchema.parse({
+    vector: {
+      vectorId: 'vector-unknown-01',
+      vectorDigest: 'a'.repeat(64),
+      title: 'Review bounded source',
+      rationale: 'Review the approved source for security weaknesses.',
+      enabled: true,
+      scopeGlobs: ['*.unknown'],
+      reviewObligations: [
+        {
+          obligationId: 'test-obligation-01',
+          riskStatement: 'The approved source could expose request-controlled data.',
+          evidenceRequirement: 'Any claim is source-backed and inside the approved scope.',
+        },
+      ],
+      limitations: [],
+    },
+    availableSourcePaths: ['a.unknown', 'b.unknown'],
+    evidenceMap: {
+      facts: [sourceFact('fact-a', 'a.unknown'), sourceFact('fact-b', 'b.unknown')],
+      unansweredPlanObligations: [],
+      limitations: [],
+    },
+    sourcePosture: {
+      assessments: [
+        {
+          assessmentId: 'posture-a',
+          obligationId: 'test-obligation-01',
+          conclusion: 'risk-supported',
+          evidenceMapFactIds: ['fact-a'],
+          limitations: [],
+        },
+        {
+          assessmentId: 'posture-b',
+          obligationId: 'test-obligation-02',
+          conclusion: 'risk-supported',
+          evidenceMapFactIds: ['fact-b'],
+          limitations: [],
+        },
+        {
+          assessmentId: 'posture-cross',
+          obligationId: 'test-obligation-03',
+          conclusion: 'risk-supported',
+          evidenceMapFactIds: ['fact-a', 'fact-b'],
+          limitations: [],
+        },
+      ],
+      limitations: [],
+    },
+    seeds,
+  });
+}
+
+function sourceFact(factId: string, path: string) {
+  return {
+    factId,
+    role: 'operation' as const,
+    statement: 'The approved source contains the reviewed operation.',
+    evidence: [{ path, startLine: 1, snippet: 'value = request;', kind: 'source' as const }],
+    planObligations: [{ obligationId: 'test-obligation-01' }],
+  };
+}

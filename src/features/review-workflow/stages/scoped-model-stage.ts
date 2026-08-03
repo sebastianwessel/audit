@@ -77,6 +77,15 @@ export async function runScopedModelStage<Result>(input: {
    */
   requireScopedSourceInspection?: boolean;
   /**
+   * An owning stage may declare that a recovered child has no bounded work.
+   * Such a child performs no model dispatch and must return the stage-owned
+   * empty output; it is never treated as a completed source inspection.
+   */
+  hasModelWorkInScope?: (scope: ContextRecoveryScope) => boolean;
+  emptyScopeOutput?: (scope: ContextRecoveryScope) => Result;
+  /** Disables context-only splitting for stages without a lossless context merger. */
+  allowContextSplitting?: boolean;
+  /**
    * Optional application-owned durable recovery topology. The shared stage
    * emits source-free transitions but never persists or interprets them.
    */
@@ -118,6 +127,15 @@ export async function runScopedModelStage<Result>(input: {
       context: input.context,
       selectContext: selectApplicableContext,
       invoke: async (scope, recoveryAttempt) => {
+        if (input.hasModelWorkInScope?.(scope) === false) {
+          if (input.emptyScopeOutput === undefined) {
+            throw new SecurityReviewerError(
+              'artifact-invalid',
+              'A scoped model stage declared empty recovery work without an owned empty output.',
+            );
+          }
+          return input.emptyScopeOutput(scope);
+        }
         const scopeStarted = performance.now();
         const requestsBefore = recorder.requests().length;
         const traceBefore = trace.events().length;
@@ -219,6 +237,9 @@ export async function runScopedModelStage<Result>(input: {
         return input.reduceRecoveredOutputs(leaves);
       },
       splitSingleton: async (path) => splitSingleSource(input.filesystem, path),
+      ...(input.allowContextSplitting === undefined
+        ? {}
+        : { allowContextSplitting: input.allowContextSplitting }),
       ...(input.overflowTopology === undefined
         ? {}
         : {
