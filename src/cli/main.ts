@@ -96,7 +96,10 @@ import {
   ProviderNameSchema,
   providerCacheRoutingKey,
 } from '../platform/harness/provider.js';
-import { SecurityReviewerError } from '../shared/errors/security-reviewer-error.js';
+import {
+  isRetryableSecurityReviewerErrorCode,
+  SecurityReviewerError,
+} from '../shared/errors/security-reviewer-error.js';
 import { assertValidCommandOptions } from './command-options.js';
 
 const commandNames = new Set(['plan', 'audit', 'report', 'lineage']);
@@ -1297,7 +1300,9 @@ function usage(message: string): SecurityReviewerError {
 export function cliFailureExitCode(error: unknown): 2 | 4 {
   if (
     error instanceof SecurityReviewerError &&
-    (error.code === 'provider-failure' ||
+    (isRetryableSecurityReviewerErrorCode(error.code) ||
+      error.code === 'provider-http-error' ||
+      error.code === 'provider-response-invalid' ||
       error.code === 'provider-cancelled' ||
       error.code === 'provider-context-overflow' ||
       error.code === 'agent-loop-budget-exceeded')

@@ -1,7 +1,10 @@
-import { AgentLoopBudgetError, isHarnessError } from '@purista/harness';
+import { AgentLoopBudgetError, isHarnessError, ModelError } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
 import { sha256 } from '../../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import {
+  SecurityReviewerError,
+  type SecurityReviewerErrorCode,
+} from '../../../shared/errors/security-reviewer-error.js';
 import { isContextLengthExceeded } from './context-overflow.js';
 
 /** Replays one failed model invocation without changing its approved stage scope. */
@@ -20,7 +23,8 @@ export async function invokeWithStageRetry<Result>(
         !(error instanceof Error) ||
         attempt === maximumAttempts ||
         isContextLengthExceeded(error) ||
-        isProviderStop(error)
+        isProviderStop(error) ||
+        isNonRetryableModelFailure(error)
       )
         throw error;
       options.onRecoverableFailure?.(error);
@@ -33,10 +37,11 @@ export async function invokeWithStageRetry<Result>(
 }
 
 /** Converts an untrusted provider failure into the stable content-free error code. */
-export function stageErrorCode(error: unknown): string {
+export function stageErrorCode(error: unknown): SecurityReviewerErrorCode | string {
   if (isContextLengthExceeded(error)) return 'provider-context-overflow';
   if (isProviderStop(error)) return 'provider-cancelled';
   if (error instanceof AgentLoopBudgetError) return 'agent-loop-budget-exceeded';
+  if (error instanceof ModelError) return normalizedModelErrorCode(error.meta?.reason);
   if (isHarnessError(error) && error.code === 'VALIDATION_ERROR') {
     const paths = validationIssuePathLabels(error.meta);
     return paths.length === 0
@@ -46,9 +51,37 @@ export function stageErrorCode(error: unknown): string {
   return error instanceof SecurityReviewerError ? error.code : 'provider-failure';
 }
 
+/** The harness owns provider normalization; this maps only its closed, content-free token. */
+function normalizedModelErrorCode(reason: unknown): SecurityReviewerErrorCode {
+  switch (reason) {
+    case 'network':
+      return 'provider-network';
+    case 'rate_limited':
+      return 'provider-rate-limited';
+    case 'provider_unavailable':
+      return 'provider-unavailable';
+    case 'http_error':
+      return 'provider-http-error';
+    case 'unstructured_response':
+    case 'malformed_response':
+    case 'embedding_count_mismatch':
+    case 'rerank_result_mismatch':
+      return 'provider-response-invalid';
+    case 'context_length_exceeded':
+      return 'provider-context-overflow';
+    default:
+      return 'provider-failure';
+  }
+}
+
 /** Timeout and cancellation are terminal stop signals, never application retry candidates. */
 function isProviderStop(error: unknown): boolean {
   return isHarnessError(error) && (error.category === 'cancelled' || error.category === 'timeout');
+}
+
+/** A harness-declared non-retryable model failure must not receive a blind second dispatch. */
+function isNonRetryableModelFailure(error: unknown): boolean {
+  return isHarnessError(error) && error.category === 'model' && !error.retriable;
 }
 
 /**

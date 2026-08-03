@@ -8,7 +8,10 @@ import {
   type HarnessExecutionConfiguration,
   HarnessExecutionConfigurationSchema,
 } from '../../platform/harness/security-reviewer-harness.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import {
+  SecurityReviewerError,
+  SecurityReviewerErrorCodeSchema,
+} from '../../shared/errors/security-reviewer-error.js';
 import { assertPlanIsSealed, createPlan } from '../attack-planning/plan.js';
 import type { AttackPlan } from '../attack-planning/plan.schema.js';
 import {
@@ -183,13 +186,9 @@ export function createReviewService(
         cacheRoutingEnabled,
       });
       if (planning.status === 'failed') {
+        const stableErrorCode = SecurityReviewerErrorCodeSchema.safeParse(planning.errorCode);
         throw new SecurityReviewerError(
-          planning.errorCode === 'provider-context-overflow' ||
-            planning.errorCode === 'model-cost-ceiling-reached' ||
-            planning.errorCode === 'provider-cancelled' ||
-            planning.errorCode === 'agent-loop-budget-exceeded'
-            ? planning.errorCode
-            : 'provider-failure',
+          stableErrorCode.success ? stableErrorCode.data : 'provider-failure',
           'The planning model stage did not complete.',
         );
       }

@@ -1,5 +1,8 @@
 import { createStableId } from '../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import {
+  isRetryableSecurityReviewerErrorCode,
+  SecurityReviewerError,
+} from '../../shared/errors/security-reviewer-error.js';
 import { assertPlanMatchesTarget } from '../attack-planning/plan.js';
 import type { AttackPlan, ProposedFinding } from '../attack-planning/plan.schema.js';
 import { hasExactPlanObligations } from '../attack-planning/plan.schema.js';
@@ -1300,7 +1303,7 @@ function failedVectorStageResult(input: {
         code: input.code,
         stage: input.stage,
         message: 'The approved vector could not complete its recorded audit phase.',
-        retryable: input.code === 'provider-failure',
+        retryable: isRetryableSecurityReviewerErrorCode(input.code),
       },
     ],
     proposed: [],
@@ -1340,7 +1343,7 @@ function failedInvestigationResult(
         code,
         stage: 'investigation',
         message: 'The model investigation for this approved vector did not complete.',
-        retryable: code === 'provider-failure',
+        retryable: isRetryableSecurityReviewerErrorCode(code),
       },
     ],
     proposed: [],
@@ -1379,7 +1382,7 @@ function failedEvidenceMapResult(
         code,
         stage: 'evidence-mapping',
         message: 'The source evidence mapping for this approved vector did not complete.',
-        retryable: code === 'provider-failure',
+        retryable: isRetryableSecurityReviewerErrorCode(code),
       },
     ],
     proposed: [],
@@ -1469,7 +1472,7 @@ function failedSourcePostureResult(input: {
         code: input.errorCode,
         stage: 'source-posture',
         message: 'The candidate-blind source posture for this approved vector did not complete.',
-        retryable: input.errorCode === 'provider-failure',
+        retryable: isRetryableSecurityReviewerErrorCode(input.errorCode),
       },
     ],
     proposed: [],

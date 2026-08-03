@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 
 import {
   AgentLoopBudgetError,
+  ModelError,
   OperationCancelledError,
   OperationTimeoutError,
   ValidationError,
@@ -38,6 +39,27 @@ test('normalizes only stable security-reviewer errors', () => {
   expect(stageErrorCode(new Error('provider content'))).toBe('provider-failure');
   expect(
     stageErrorCode(
+      new ModelError('provider message that must not enter telemetry', {
+        provider: 'test-provider',
+        model: 'test-model',
+        method: 'object',
+        reason: 'rate_limited',
+        providerMessage: 'untrusted provider content',
+      }),
+    ),
+  ).toBe('provider-rate-limited');
+  expect(
+    stageErrorCode(
+      new ModelError('provider message that must not enter telemetry', {
+        provider: 'test-provider',
+        model: 'test-model',
+        method: 'object',
+        reason: 'http_error',
+      }),
+    ),
+  ).toBe('provider-http-error');
+  expect(
+    stageErrorCode(
       new AgentLoopBudgetError('Agent loop budget exceeded.', {
         agent_id: 'test-agent',
         reason: 'iterations_exceeded',
@@ -51,6 +73,25 @@ test('normalizes only stable security-reviewer errors', () => {
   expect(
     stageErrorCode(new OperationTimeoutError('timed out', { scope: 'model', timeout_ms: 1_000 })),
   ).toBe('provider-cancelled');
+});
+
+test('does not blind-retry a harness-declared non-retryable model failure', async () => {
+  let attempts = 0;
+  await expect(
+    invokeWithStageRetry(
+      { runTimeoutMs: 30_000, modelTimeoutMs: 20_000, modelRetry: 'default' },
+      async () => {
+        attempts += 1;
+        throw new ModelError('provider response was malformed', {
+          provider: 'test-provider',
+          model: 'test-model',
+          method: 'object',
+          reason: 'malformed_response',
+        });
+      },
+    ),
+  ).rejects.toBeInstanceOf(ModelError);
+  expect(attempts).toBe(1);
 });
 
 test('does not retry a provider-neutral cancellation or timeout', async () => {

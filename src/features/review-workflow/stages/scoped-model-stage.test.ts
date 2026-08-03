@@ -117,6 +117,47 @@ test('retries a transient stage invocation without expanding its approved scope'
   ]);
 });
 
+test('retains only the normalized provider reason in failed stage telemetry', async () => {
+  const targetRoot = await createTarget();
+  const result = await runScopedModelStage<string>({
+    stage: 'investigation',
+    route: 'primary',
+    stageId: 'rate-limited-stage-01',
+    modelProvider: new FakeModelProvider(),
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    availableSourcePaths: ['a.unknown'],
+    context: [],
+    sessionId: 'rate-limited-stage-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+    invoke: async () => {
+      throw new ModelError('provider message that must not persist', {
+        provider: 'test-provider',
+        model: 'test-model',
+        method: 'object',
+        reason: 'rate_limited',
+        providerMessage: 'untrusted provider content',
+        providerRequestId: 'provider-request-id',
+      });
+    },
+  });
+
+  expect(result).toMatchObject({
+    status: 'failed',
+    errorCode: 'provider-rate-limited',
+    modelObservation: {
+      errorCode: 'provider-rate-limited',
+      recoveredErrorCodes: [],
+      usage: { modelCallCount: 0 },
+    },
+  });
+  expect(JSON.stringify(result)).not.toContain('untrusted provider content');
+  expect(JSON.stringify(result)).not.toContain('provider-request-id');
+});
+
 test('records a verifier overflow and does not redispatch a non-lossless split on resume', async () => {
   const targetRoot = await createTarget();
   const firstTopology: ContextOverflowTopologyEvent[] = [];
