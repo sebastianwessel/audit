@@ -94,7 +94,6 @@
       "additionalProperties": false
     },
     "entries": {
-      "maxItems": 2000,
       "type": "array",
       "items": {
         "type": "object",

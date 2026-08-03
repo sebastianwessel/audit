@@ -6,6 +6,7 @@ import {
   deriveEvaluationEvidenceQualification,
   describeEvaluationEvidenceQualification,
 } from './corpus-readiness.js';
+import { CorpusReadinessReportSchema } from './corpus-readiness.schema.js';
 import { renderCorpusReadinessReport } from './corpus-readiness-report.js';
 
 test('keeps synthetic and semantic fixtures out of real-world reliability readiness', async () => {
@@ -87,4 +88,24 @@ test('qualifies a run separately from its workflow finding gate', () => {
     }),
   ).toBe('diagnostic');
   expect(describeEvaluationEvidenceQualification(undefined)).toContain('not eligible');
+});
+
+test('retains complete readiness distributions and limitations beyond retired ceilings', async () => {
+  const pack = await loadCorpusPack('evaluation/corpora');
+  const readiness = assessCorpusReadiness(pack, '2026-08-03T12:00:00.000Z');
+  const distributions = Array.from({ length: 129 }, (_, index) => ({
+    key: `distribution-${String(index)}`,
+    caseCount: 0,
+    projectCount: 0,
+  }));
+  const limitations = Array.from({ length: 33 }, (_, index) => `limitation ${String(index)}`);
+  const parsed = CorpusReadinessReportSchema.parse({
+    ...readiness,
+    byEvidenceOrigin: distributions,
+    byLanguage: distributions,
+    byDataset: distributions,
+    limitations,
+  });
+  expect(parsed.byLanguage).toHaveLength(129);
+  expect(parsed.limitations).toHaveLength(33);
 });

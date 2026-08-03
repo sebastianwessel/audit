@@ -474,6 +474,27 @@ test('evaluation trials preserve only a balanced content-free admission funnel',
   ).toThrow();
 });
 
+test('evaluation trials retain every source-free identity beyond retired collection ceilings', () => {
+  const identities = Array.from({ length: 513 }, (_, index) => `identity-${String(index)}`);
+  const trial = EvaluationTrialSchema.parse({
+    caseId: 'case-evaluation-unbounded-01',
+    variant: 'vulnerable',
+    repetition: 1,
+    status: 'completed',
+    reviewedPlanFingerprint: null,
+    planScore: null,
+    findingScore: null,
+    planKeys: identities,
+    findingKeys: identities,
+    reviewRequiredKeys: identities,
+    durationMs: 1,
+    errorCode: null,
+  });
+  expect(trial.planKeys).toHaveLength(513);
+  expect(trial.findingKeys).toHaveLength(513);
+  expect(trial.reviewRequiredKeys).toHaveLength(513);
+});
+
 test('rejects a corpus manifest that assigns more than one case to one repository', async () => {
   const root = join(tmpdir(), `security-reviewer-corpus-project-limit-${crypto.randomUUID()}`);
   await cp('evaluation/corpora', root, { recursive: true });

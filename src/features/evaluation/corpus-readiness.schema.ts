@@ -65,16 +65,16 @@ export const CorpusReadinessReportSchema = z.strictObject({
   packVersion: z.string().trim().min(1).max(32),
   generatedAt: IsoDateTimeSchema,
   counts: CorpusReadinessCountsSchema,
-  byEvidenceOrigin: z.array(CorpusReadinessDistributionSchema).max(16),
-  byLanguage: z.array(CorpusReadinessDistributionSchema).max(128),
-  byDataset: z.array(CorpusReadinessDistributionSchema).max(128),
+  byEvidenceOrigin: z.array(CorpusReadinessDistributionSchema),
+  byLanguage: z.array(CorpusReadinessDistributionSchema),
+  byDataset: z.array(CorpusReadinessDistributionSchema),
   byControlFamily: z
     .array(CorpusControlFamilyReadinessSchema)
     .length(CorpusControlFamilySchema.options.length),
-  criteria: z.array(CorpusReadinessCriterionSchema).min(1).max(32),
+  criteria: z.array(CorpusReadinessCriterionSchema).min(1),
   pilotReady: z.boolean(),
   reliabilityGateReady: z.boolean(),
-  limitations: z.array(BoundedTextSchema.min(1).max(500)).max(32),
+  limitations: z.array(BoundedTextSchema.min(1).max(500)),
 });
 
 export type CorpusReadinessCriterion = z.infer<typeof CorpusReadinessCriterionSchema>;

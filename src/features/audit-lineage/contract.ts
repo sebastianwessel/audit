@@ -40,7 +40,7 @@ export const AuditReportLineageSchema = z
     previous: AuditLineageReportIdentitySchema,
     current: AuditLineageReportIdentitySchema,
     counts: AuditLineageCountsSchema,
-    entries: z.array(AuditLineageEntrySchema).max(2_000),
+    entries: z.array(AuditLineageEntrySchema),
   })
   .superRefine((lineage, context) => {
     const identities = lineage.entries.map((entry) => entry.findingIdentity);

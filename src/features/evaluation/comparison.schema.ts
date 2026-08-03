@@ -86,10 +86,10 @@ export const EvaluationRunComparisonSchema = z.strictObject({
   baseline: EvaluationComparisonIdentitySchema,
   candidate: EvaluationComparisonIdentitySchema,
   comparable: z.boolean(),
-  incompatibilities: z.array(z.string().trim().min(1).max(500)).max(32),
+  incompatibilities: z.array(z.string().trim().min(1).max(500)),
   /** Withheld unless every comparison identity dimension is identical. */
   metrics: EvaluationComparisonMetricsSchema.nullable(),
-  stages: z.array(EvaluationStageComparisonSchema).max(5),
+  stages: z.array(EvaluationStageComparisonSchema),
 });
 
 export type EvaluationRunComparison = z.infer<typeof EvaluationRunComparisonSchema>;

@@ -43,8 +43,8 @@ export type JailedReadOnlyFilesystemOptions = z.input<typeof JailedReadOnlyFiles
 
 export const ListFilesInputSchema = z.strictObject({
   root: FilesystemRootSchema.default('target'),
-  includeGlobs: z.array(GlobSchema).min(1).max(32).default(['**/*']),
-  excludeGlobs: z.array(GlobSchema).max(32).default([]),
+  includeGlobs: z.array(GlobSchema).min(1).default(['**/*']),
+  excludeGlobs: z.array(GlobSchema).default([]),
 });
 export type ListFilesInput = z.input<typeof ListFilesInputSchema>;
 

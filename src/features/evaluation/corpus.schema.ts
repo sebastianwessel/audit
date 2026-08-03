@@ -457,9 +457,9 @@ export const EvaluationTrialSchema = z.strictObject({
   stageEvidenceCoverage: EvidenceStageCoverageSchema.optional(),
   /** Diagnostic-only match score for source-backed human-review items; never a release gate. */
   reviewRequiredScore: FindingScoreSchema.nullable().optional(),
-  planKeys: z.array(z.string().min(1).max(256)),
-  findingKeys: z.array(z.string().min(1).max(512)),
-  reviewRequiredKeys: z.array(z.string().min(1).max(512)).optional(),
+  planKeys: z.array(z.string().min(1)),
+  findingKeys: z.array(z.string().min(1)),
+  reviewRequiredKeys: z.array(z.string().min(1)).optional(),
   durationMs: z.int().nonnegative(),
   errorCode: z.string().trim().min(1).max(64).nullable(),
   /** Source-free audited vector state; required whenever an audit returned. */

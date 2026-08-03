@@ -107,7 +107,6 @@
       "additionalProperties": false
     },
     "byEvidenceOrigin": {
-      "maxItems": 16,
       "type": "array",
       "items": {
         "type": "object",
@@ -137,7 +136,6 @@
       }
     },
     "byLanguage": {
-      "maxItems": 128,
       "type": "array",
       "items": {
         "type": "object",
@@ -167,7 +165,6 @@
       }
     },
     "byDataset": {
-      "maxItems": 128,
       "type": "array",
       "items": {
         "type": "object",
@@ -235,7 +232,6 @@
     },
     "criteria": {
       "minItems": 1,
-      "maxItems": 32,
       "type": "array",
       "items": {
         "type": "object",
@@ -297,7 +293,6 @@
       "type": "boolean"
     },
     "limitations": {
-      "maxItems": 32,
       "type": "array",
       "items": {
         "type": "string",

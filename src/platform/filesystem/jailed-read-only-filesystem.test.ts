@@ -118,6 +118,14 @@ describe('createJailedReadOnlyFilesystem', () => {
       ],
     });
     await expect(
+      filesystem.listFiles({
+        includeGlobs: Array.from({ length: 33 }, () => '**/*'),
+        excludeGlobs: [],
+      }),
+    ).resolves.toMatchObject({
+      entries: [{ relativePath: 'a.ts' }, { relativePath: 'b.ts' }, { relativePath: 'large.ts' }],
+    });
+    await expect(
       filesystem.grepFiles({
         pattern: 'token',
         mode: 'literal',

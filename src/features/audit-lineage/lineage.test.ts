@@ -224,3 +224,33 @@ test('rejects an impossible duplicate deterministic identity instead of choosing
     }),
   ).toThrow('duplicate stable finding fingerprints');
 });
+
+test('retains every lineage entry beyond the retired product ceiling', () => {
+  const entries = Array.from({ length: 2_001 }, (_, index) => ({
+    findingIdentity: `finding-lineage-${String(index).padStart(4, '0')}`,
+    previousFindingId: null,
+    currentFindingId: `finding-current-${String(index).padStart(4, '0')}`,
+    previousVectorId: null,
+    currentVectorId: 'vector-review-01',
+    status: 'new' as const,
+    reason: 'no-exact-match-and-coverage-complete' as const,
+  }));
+  const lineage = AuditReportLineageSchema.parse({
+    schemaVersion: 2,
+    lineageId: 'lineage-unbounded-entries',
+    generatedAt: '2026-08-03T12:00:00.000Z',
+    previous: {
+      reportId: 'report-previous-01',
+      planId: 'plan-previous-01',
+      targetFingerprint: 'a'.repeat(64),
+    },
+    current: {
+      reportId: 'report-current-001',
+      planId: 'plan-current-001',
+      targetFingerprint: 'b'.repeat(64),
+    },
+    counts: { new: entries.length, persisting: 0, resolved: 0, unknown: 0 },
+    entries,
+  });
+  expect(lineage.entries).toHaveLength(2_001);
+});
