@@ -34,7 +34,10 @@ import type {
   FindingAdmissionFunnel,
   HypothesisGroundingFunnel,
 } from '../audit-execution/audit.schema.js';
-import type { AuditCheckpointBaseBinding } from '../audit-execution/checkpoints.js';
+import {
+  type AuditCheckpointBaseBinding,
+  createAuditResumeState,
+} from '../audit-execution/checkpoints.js';
 import {
   type ModelPricing,
   type ModelRunObservation,
@@ -564,15 +567,17 @@ async function runTrial(
       runId: `${trialId}-audit`,
       generatedAt: input.startedAt,
       sessionId: `${trialId}-audit`,
-      priorVectorResults: reusable?.vectorResults,
-      priorCandidateGroundingDrafts: reusable?.candidateGroundingDrafts,
-      priorCandidateAwareCheckpoints: reusable?.candidateAwareCheckpoints,
-      priorEvidenceMapDrafts: reusable?.evidenceMapDrafts,
-      priorSourcePostureDrafts: reusable?.sourcePostureDrafts,
-      priorContextOverflowLedgers: reusable?.contextOverflowLedgers,
-      priorEvidenceMapRecoveryLeaves: reusable?.evidenceMapRecoveryLeaves,
-      priorSourcePostureRecoveryLeaves: reusable?.sourcePostureRecoveryLeaves,
-      priorCandidateGroundingRecoveryLeaves: reusable?.candidateGroundingRecoveryLeaves,
+      resumeState: createAuditResumeState({
+        vectorResults: reusable?.vectorResults,
+        candidateGroundingDrafts: reusable?.candidateGroundingDrafts,
+        candidateAwareCheckpoints: reusable?.candidateAwareCheckpoints,
+        evidenceMapDrafts: reusable?.evidenceMapDrafts,
+        sourcePostureDrafts: reusable?.sourcePostureDrafts,
+        contextOverflowLedgers: reusable?.contextOverflowLedgers,
+        evidenceMapRecoveryLeaves: reusable?.evidenceMapRecoveryLeaves,
+        sourcePostureRecoveryLeaves: reusable?.sourcePostureRecoveryLeaves,
+        candidateGroundingRecoveryLeaves: reusable?.candidateGroundingRecoveryLeaves,
+      }),
       retryUnfinished: input.retryUnfinished ?? false,
       onEvidenceMapDraft: async (checkpointDraft) => {
         evidenceMaps.push(checkpointDraft.evidenceMap);

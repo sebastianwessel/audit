@@ -38,6 +38,7 @@ import {
   createAuditContextOverflowLedger,
   createAuditEvidenceMapDraft,
   createAuditEvidenceMapRecoveryLeaf,
+  createAuditResumeState,
   createAuditSourcePostureDraft,
   createAuditSourcePostureRecoveryLeaf,
   createAuditVectorCheckpoint,
@@ -432,6 +433,17 @@ export async function runAudit(
             readOptionalAuditCandidateGroundingRecoveryLeaf(output, artifactPath),
         })
       : [];
+    const resumeState = createAuditResumeState({
+      vectorResults: priorVectorResults,
+      candidateGroundingDrafts: priorCandidateGroundingDrafts,
+      candidateAwareCheckpoints: priorCandidateAwareCheckpoints,
+      evidenceMapDrafts: priorEvidenceMapDrafts,
+      sourcePostureDrafts: priorSourcePostureDrafts,
+      contextOverflowLedgers: priorContextOverflowLedgers,
+      evidenceMapRecoveryLeaves: priorEvidenceMapRecoveryLeaves,
+      sourcePostureRecoveryLeaves: priorSourcePostureRecoveryLeaves,
+      candidateGroundingRecoveryLeaves: priorCandidateGroundingRecoveryLeaves,
+    });
     const service = createReviewService(provider, selectedModel, {
       maxParallelVectors: maxParallelVectors(options, runtime),
       modelPricing: selectedModelPricing(options, runtime),
@@ -457,15 +469,7 @@ export async function runAudit(
       runId,
       generatedAt: startedAt,
       sessionId: runId,
-      priorVectorResults,
-      priorCandidateGroundingDrafts,
-      priorCandidateAwareCheckpoints,
-      priorEvidenceMapDrafts,
-      priorSourcePostureDrafts,
-      priorContextOverflowLedgers,
-      priorEvidenceMapRecoveryLeaves,
-      priorSourcePostureRecoveryLeaves,
-      priorCandidateGroundingRecoveryLeaves,
+      resumeState,
       retryUnfinished,
       retainedSnapshot,
       onSnapshotCaptured: async (capture) =>

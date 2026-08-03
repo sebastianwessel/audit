@@ -19,6 +19,7 @@ import {
 } from '../../shared/contracts/core.js';
 import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
 import { createPlan } from '../attack-planning/plan.js';
+import { createAuditResumeState } from '../audit-execution/checkpoints.js';
 import { emptyVerificationTerminalLaneCounts } from '../audit-execution/verification/contract.js';
 import { ModelCostCeilingUsdSchema } from '../model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../model-operations/model-pricing-catalogue.js';
@@ -255,15 +256,17 @@ export async function runProviderSmoke(input: {
         runId: input.options.runId,
         generatedAt: startedAt,
         sessionId: input.options.runId,
-        priorVectorResults: reusable?.vectorResults,
-        priorCandidateGroundingDrafts: reusable?.candidateGroundingDrafts,
-        priorCandidateAwareCheckpoints: reusable?.candidateAwareCheckpoints,
-        priorEvidenceMapDrafts: reusable?.evidenceMapDrafts,
-        priorSourcePostureDrafts: reusable?.sourcePostureDrafts,
-        priorContextOverflowLedgers: reusable?.contextOverflowLedgers,
-        priorEvidenceMapRecoveryLeaves: reusable?.evidenceMapRecoveryLeaves,
-        priorSourcePostureRecoveryLeaves: reusable?.sourcePostureRecoveryLeaves,
-        priorCandidateGroundingRecoveryLeaves: reusable?.candidateGroundingRecoveryLeaves,
+        resumeState: createAuditResumeState({
+          vectorResults: reusable?.vectorResults,
+          candidateGroundingDrafts: reusable?.candidateGroundingDrafts,
+          candidateAwareCheckpoints: reusable?.candidateAwareCheckpoints,
+          evidenceMapDrafts: reusable?.evidenceMapDrafts,
+          sourcePostureDrafts: reusable?.sourcePostureDrafts,
+          contextOverflowLedgers: reusable?.contextOverflowLedgers,
+          evidenceMapRecoveryLeaves: reusable?.evidenceMapRecoveryLeaves,
+          sourcePostureRecoveryLeaves: reusable?.sourcePostureRecoveryLeaves,
+          candidateGroundingRecoveryLeaves: reusable?.candidateGroundingRecoveryLeaves,
+        }),
         retryUnfinished: input.options.retryUnfinished,
         onEvidenceMapDraft: async (draft) =>
           auditCheckpointStore.saveEvidenceMap({ binding: checkpointBinding, plan, draft }),

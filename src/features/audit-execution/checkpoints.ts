@@ -49,6 +49,178 @@ export type AuditCheckpointBaseBinding = Omit<
   'planDigest' | 'vectorId' | 'vectorDigest'
 >;
 
+/** Already-loaded, validated artifacts from one immutable audit resume boundary. */
+export type AuditResumeArtifacts = Readonly<{
+  vectorResults?: readonly AuditVectorResult[];
+  candidateGroundingDrafts?: readonly AuditCandidateGroundingDraft[];
+  candidateAwareCheckpoints?: readonly AuditCandidateAwareCheckpoint[];
+  evidenceMapDrafts?: readonly AuditEvidenceMapDraft[];
+  sourcePostureDrafts?: readonly AuditSourcePostureDraft[];
+  contextOverflowLedgers?: readonly AuditContextOverflowLedger[];
+  evidenceMapRecoveryLeaves?: readonly AuditEvidenceMapRecoveryLeaf[];
+  sourcePostureRecoveryLeaves?: readonly AuditSourcePostureRecoveryLeaf[];
+  candidateGroundingRecoveryLeaves?: readonly AuditCandidateGroundingRecoveryLeaf[];
+}>;
+
+/**
+ * The only resume input accepted by the audit core. It centralizes duplicate
+ * rejection and exact artifact selection after the external loader has
+ * validated every persisted schema and binding.
+ */
+export class AuditResumeState {
+  readonly #vectorResults: ReadonlyMap<string, AuditVectorResult>;
+  readonly #candidateGroundingDrafts: ReadonlyMap<string, AuditCandidateGroundingDraft>;
+  readonly #candidateAwareCheckpoints: ReadonlyMap<string, AuditCandidateAwareCheckpoint>;
+  readonly #evidenceMapDrafts: ReadonlyMap<string, AuditEvidenceMapDraft>;
+  readonly #sourcePostureDrafts: ReadonlyMap<string, AuditSourcePostureDraft>;
+  readonly #contextOverflowLedgers: ReadonlyMap<string, AuditContextOverflowLedger>;
+  readonly #evidenceMapRecoveryLeaves: ReadonlyMap<string, readonly AuditEvidenceMapRecoveryLeaf[]>;
+  readonly #sourcePostureRecoveryLeaves: ReadonlyMap<
+    string,
+    readonly AuditSourcePostureRecoveryLeaf[]
+  >;
+  readonly #candidateGroundingRecoveryLeaves: ReadonlyMap<
+    string,
+    readonly AuditCandidateGroundingRecoveryLeaf[]
+  >;
+
+  public constructor(input: AuditResumeArtifacts = {}) {
+    this.#vectorResults = uniqueIndex(
+      input.vectorResults ?? [],
+      (result) => result.coverage.vectorId,
+    );
+    this.#candidateGroundingDrafts = uniqueIndex(
+      input.candidateGroundingDrafts ?? [],
+      (draft) => draft.vectorId,
+    );
+    this.#candidateAwareCheckpoints = uniqueIndex(
+      input.candidateAwareCheckpoints ?? [],
+      (checkpoint) =>
+        `${checkpoint.vectorId}\0${checkpoint.phase}\0${checkpoint.candidateOrdinal}\0${checkpoint.candidateFingerprint}`,
+    );
+    this.#evidenceMapDrafts = uniqueIndex(input.evidenceMapDrafts ?? [], (draft) => draft.vectorId);
+    this.#sourcePostureDrafts = uniqueIndex(
+      input.sourcePostureDrafts ?? [],
+      (draft) => draft.vectorId,
+    );
+    this.#contextOverflowLedgers = uniqueIndex(
+      input.contextOverflowLedgers ?? [],
+      (ledger) => `${ledger.vectorId}\0${ledger.phase}`,
+    );
+    this.#evidenceMapRecoveryLeaves = groupedUniqueIndex(
+      input.evidenceMapRecoveryLeaves ?? [],
+      (leaf) => leaf.vectorId,
+      (leaf) => leaf.scopeFingerprint,
+    );
+    this.#sourcePostureRecoveryLeaves = groupedUniqueIndex(
+      input.sourcePostureRecoveryLeaves ?? [],
+      (leaf) => leaf.vectorId,
+      (leaf) => leaf.scopeFingerprint,
+    );
+    this.#candidateGroundingRecoveryLeaves = groupedUniqueIndex(
+      input.candidateGroundingRecoveryLeaves ?? [],
+      (leaf) => leaf.vectorId,
+      (leaf) => leaf.scopeFingerprint,
+    );
+  }
+
+  public vectorResult(vectorId: string): AuditVectorResult | undefined {
+    return this.#vectorResults.get(vectorId);
+  }
+
+  public evidenceMapDraft(vectorId: string): AuditEvidenceMapDraft | undefined {
+    return this.#evidenceMapDrafts.get(vectorId);
+  }
+
+  public sourcePostureDraft(vectorId: string): AuditSourcePostureDraft | undefined {
+    return this.#sourcePostureDrafts.get(vectorId);
+  }
+
+  public candidateGroundingDraft(vectorId: string): AuditCandidateGroundingDraft | undefined {
+    return this.#candidateGroundingDrafts.get(vectorId);
+  }
+
+  public candidateAwareCheckpoint(input: {
+    vectorId: string;
+    phase: AuditCandidateAwareCheckpoint['phase'];
+    candidateOrdinal: number;
+    candidate: VerifiableHypothesis;
+  }): AuditCandidateAwareCheckpoint | undefined {
+    return this.#candidateAwareCheckpoints.get(
+      `${input.vectorId}\0${input.phase}\0${input.candidateOrdinal}\0${candidateAwareFingerprint(input.candidate)}`,
+    );
+  }
+
+  public scopedArtifacts(input: {
+    vectorId: string;
+    phase: AuditContextOverflowLedger['phase'];
+  }): Readonly<{
+    contextOverflowLedger?: AuditContextOverflowLedger;
+    evidenceMapRecoveryLeaves?: readonly AuditEvidenceMapRecoveryLeaf[];
+    sourcePostureRecoveryLeaves?: readonly AuditSourcePostureRecoveryLeaf[];
+    candidateGroundingRecoveryLeaves?: readonly AuditCandidateGroundingRecoveryLeaf[];
+  }> {
+    const contextOverflowLedger = this.#contextOverflowLedgers.get(
+      `${input.vectorId}\0${input.phase}`,
+    );
+    const evidenceMapRecoveryLeaves =
+      input.phase === 'evidence-mapping'
+        ? this.#evidenceMapRecoveryLeaves.get(input.vectorId)
+        : undefined;
+    const sourcePostureRecoveryLeaves =
+      input.phase === 'source-posture'
+        ? this.#sourcePostureRecoveryLeaves.get(input.vectorId)
+        : undefined;
+    const candidateGroundingRecoveryLeaves =
+      input.phase === 'candidate-grounding'
+        ? this.#candidateGroundingRecoveryLeaves.get(input.vectorId)
+        : undefined;
+    return {
+      ...(contextOverflowLedger === undefined ? {} : { contextOverflowLedger }),
+      ...(evidenceMapRecoveryLeaves === undefined ? {} : { evidenceMapRecoveryLeaves }),
+      ...(sourcePostureRecoveryLeaves === undefined ? {} : { sourcePostureRecoveryLeaves }),
+      ...(candidateGroundingRecoveryLeaves === undefined
+        ? {}
+        : { candidateGroundingRecoveryLeaves }),
+    };
+  }
+}
+
+/** Builds one opaque resume state after external artifact reads and validation. */
+export function createAuditResumeState(input: AuditResumeArtifacts = {}): AuditResumeState {
+  return new AuditResumeState(input);
+}
+
+function uniqueIndex<Value>(
+  values: readonly Value[],
+  key: (value: Value) => string,
+): ReadonlyMap<string, Value> {
+  const indexed = new Map<string, Value>();
+  for (const value of values) {
+    const identity = key(value);
+    if (indexed.has(identity)) throw incompatibleCheckpoint();
+    indexed.set(identity, value);
+  }
+  return indexed;
+}
+
+function groupedUniqueIndex<Value>(
+  values: readonly Value[],
+  group: (value: Value) => string,
+  identity: (value: Value) => string,
+): ReadonlyMap<string, readonly Value[]> {
+  const indexed = new Map<string, Value[]>();
+  for (const value of values) {
+    const groupKey = group(value);
+    const existing = indexed.get(groupKey) ?? [];
+    if (existing.some((candidate) => identity(candidate) === identity(value))) {
+      throw incompatibleCheckpoint();
+    }
+    indexed.set(groupKey, [...existing, value]);
+  }
+  return indexed;
+}
+
 /** Derives every sealed identity from the one supplied executable plan. */
 export function createAuditCheckpointBinding(input: {
   binding: AuditCheckpointBaseBinding;

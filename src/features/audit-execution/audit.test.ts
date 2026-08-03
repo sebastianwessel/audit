@@ -18,6 +18,7 @@ import {
   runStaticAudit,
 } from './audit.js';
 import type { AuditEvidenceMapDraft } from './audit.schema.js';
+import { createAuditResumeState } from './checkpoints.js';
 import type {
   AuditCountercheckRequest,
   AuditVerificationRequest,
@@ -685,27 +686,29 @@ test('reuses a validated evidence map and continues at the earliest unfinished p
     sources: source,
     runId: 'run-resume-map-01',
     generatedAt: '2026-07-31T12:01:00.000Z',
-    priorEvidenceMapDrafts:
-      savedMap === undefined
-        ? []
-        : [
-            {
-              schemaVersion: 1,
-              phase: 'evidence-mapping' as const,
-              runId: 'run-resume-map-01',
-              planId: plan.planId,
-              planDigest: plan.planDigest,
-              targetFingerprint,
-              provider: 'fixture-provider',
-              model: 'fixture-model',
-              verificationRouteFingerprint: 'c'.repeat(64),
-              evidenceMapProtocolFingerprint: 'd'.repeat(64),
-              reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
-              vectorDigest: vector.vectorDigest,
-              savedAt: '2026-07-31T12:00:01.000Z',
-              ...savedMap,
-            },
-          ],
+    resumeState: createAuditResumeState({
+      evidenceMapDrafts:
+        savedMap === undefined
+          ? []
+          : [
+              {
+                schemaVersion: 1,
+                phase: 'evidence-mapping' as const,
+                runId: 'run-resume-map-01',
+                planId: plan.planId,
+                planDigest: plan.planDigest,
+                targetFingerprint,
+                provider: 'fixture-provider',
+                model: 'fixture-model',
+                verificationRouteFingerprint: 'c'.repeat(64),
+                evidenceMapProtocolFingerprint: 'd'.repeat(64),
+                reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+                vectorDigest: vector.vectorDigest,
+                savedAt: '2026-07-31T12:00:01.000Z',
+                ...savedMap,
+              },
+            ],
+    }),
     mapEvidence: async () => {
       throw new Error('A matching evidence map must not be generated again.');
     },
@@ -1551,39 +1554,41 @@ test('reuses a canonical candidate-grounding draft to retry verification without
     generatedAt: '2026-07-29T12:02:00.000Z',
     mapEvidence,
     assessSourcePosture,
-    priorCandidateGroundingDrafts: [
-      {
-        schemaVersion: 4,
-        phase: 'candidate-grounding',
-        candidateGroundingProtocolFingerprint: 'e'.repeat(64),
-        runId: 'run-draft-resume-01',
-        planId: plan.planId,
-        planDigest: plan.planDigest,
-        targetFingerprint,
-        provider: 'fixture',
-        model: 'fixture',
-        verificationRouteFingerprint: 'c'.repeat(64),
-        evidenceMapProtocolFingerprint: 'd'.repeat(64),
-        reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
-        vectorId: vector.vectorId,
-        vectorDigest: vector.vectorDigest,
-        savedAt: '2026-07-29T12:01:00.000Z',
-        findings: [sourceBackedCanonicalHypothesis(vector.vectorId)],
-        closures: [
-          {
-            planObligation: { obligationId: 'audit-obligation-01' },
-            disposition: 'candidate-raised',
-            evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
-            sourcePostureAssessmentIds: ['posture-question-01'],
-            limitations: [],
-          },
-        ],
-        hypothesisGroundingFunnel: emptyHypothesisGroundingFunnel(),
-        candidateIntegrityRejections: emptyCandidateIntegrityRejectionLedger(),
-        discoveryObservation,
-        modelObservation: groundingObservation,
-      },
-    ],
+    resumeState: createAuditResumeState({
+      candidateGroundingDrafts: [
+        {
+          schemaVersion: 4,
+          phase: 'candidate-grounding',
+          candidateGroundingProtocolFingerprint: 'e'.repeat(64),
+          runId: 'run-draft-resume-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorId: vector.vectorId,
+          vectorDigest: vector.vectorDigest,
+          savedAt: '2026-07-29T12:01:00.000Z',
+          findings: [sourceBackedCanonicalHypothesis(vector.vectorId)],
+          closures: [
+            {
+              planObligation: { obligationId: 'audit-obligation-01' },
+              disposition: 'candidate-raised',
+              evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+              sourcePostureAssessmentIds: ['posture-question-01'],
+              limitations: [],
+            },
+          ],
+          hypothesisGroundingFunnel: emptyHypothesisGroundingFunnel(),
+          candidateIntegrityRejections: emptyCandidateIntegrityRejectionLedger(),
+          discoveryObservation,
+          modelObservation: groundingObservation,
+        },
+      ],
+    }),
     investigate: async (request) => {
       investigationCalls += 1;
       return { seeds: [], closures: closuresFor(request, 'no-source-backed-candidate') };
@@ -1680,41 +1685,43 @@ test('reuses a completed vector result and checkpoints only newly executed vecto
     generatedAt: '2026-07-29T12:02:00.000Z',
     mapEvidence,
     assessSourcePosture,
-    priorVectorResults: [
-      {
-        coverage: {
-          vectorId: first.vectorId,
-          planned: true,
-          completed: true,
-          matchedSourcePaths: 1,
-          deterministicCandidateCount: 0,
-          evidenceMapFactCount: first.reviewObligations.length,
-          evidenceMapUnansweredObligationCount: 0,
-          sourcePostureAssessmentCount: first.reviewObligations.length,
-          sourcePostureSupportedCount: first.reviewObligations.length,
-          sourcePostureContradictedCount: 0,
-          sourcePostureInconclusiveCount: 0,
-          findingCount: 0,
-          outcome: 'completed',
-          errorCode: null,
-          limitations: [],
-          obligationClosure: first.reviewObligations.map((obligation) => ({
-            obligationId: obligation.obligationId,
-            planObligation: { obligationId: obligation.obligationId },
-            mapState: 'mapped' as const,
-            evidenceMapFactCount: 1,
-            sourcePostureConclusion: 'risk-supported' as const,
-            investigationState: 'no-source-backed-candidate' as const,
-            candidateCount: 0,
-            admittedFindingCount: 0,
-            terminalDisposition: 'no-source-backed-candidate' as const,
-          })),
+    resumeState: createAuditResumeState({
+      vectorResults: [
+        {
+          coverage: {
+            vectorId: first.vectorId,
+            planned: true,
+            completed: true,
+            matchedSourcePaths: 1,
+            deterministicCandidateCount: 0,
+            evidenceMapFactCount: first.reviewObligations.length,
+            evidenceMapUnansweredObligationCount: 0,
+            sourcePostureAssessmentCount: first.reviewObligations.length,
+            sourcePostureSupportedCount: first.reviewObligations.length,
+            sourcePostureContradictedCount: 0,
+            sourcePostureInconclusiveCount: 0,
+            findingCount: 0,
+            outcome: 'completed',
+            errorCode: null,
+            limitations: [],
+            obligationClosure: first.reviewObligations.map((obligation) => ({
+              obligationId: obligation.obligationId,
+              planObligation: { obligationId: obligation.obligationId },
+              mapState: 'mapped' as const,
+              evidenceMapFactCount: 1,
+              sourcePostureConclusion: 'risk-supported' as const,
+              investigationState: 'no-source-backed-candidate' as const,
+              candidateCount: 0,
+              admittedFindingCount: 0,
+              terminalDisposition: 'no-source-backed-candidate' as const,
+            })),
+          },
+          errors: [],
+          proposed: [],
+          reviewRequired: [],
         },
-        errors: [],
-        proposed: [],
-        reviewRequired: [],
-      },
-    ],
+      ],
+    }),
     investigate: async (request) => {
       investigations += 1;
       return { seeds: [], closures: closuresFor(request, 'no-source-backed-candidate') };

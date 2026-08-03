@@ -22,17 +22,13 @@ import {
   runAudit,
 } from '../audit-execution/audit.js';
 import type {
-  AuditCandidateAwareCheckpoint,
   AuditCandidateGroundingDraft,
-  AuditCandidateGroundingRecoveryLeaf,
-  AuditContextOverflowLedger,
   AuditEvidenceMapDraft,
-  AuditEvidenceMapRecoveryLeaf,
   AuditReport,
   AuditSourcePostureDraft,
-  AuditSourcePostureRecoveryLeaf,
   AuditVectorResult,
 } from '../audit-execution/audit.schema.js';
+import type { AuditResumeState } from '../audit-execution/checkpoints.js';
 import {
   createModelCostCeiling,
   type ModelCostCeilingState,
@@ -77,15 +73,7 @@ export type ReviewService = Readonly<{
       runId: string;
       generatedAt: string;
       sessionId: string;
-      priorVectorResults?: readonly AuditVectorResult[];
-      priorCandidateGroundingDrafts?: readonly AuditCandidateGroundingDraft[];
-      priorCandidateAwareCheckpoints?: readonly AuditCandidateAwareCheckpoint[];
-      priorEvidenceMapDrafts?: readonly AuditEvidenceMapDraft[];
-      priorSourcePostureDrafts?: readonly AuditSourcePostureDraft[];
-      priorContextOverflowLedgers?: readonly AuditContextOverflowLedger[];
-      priorEvidenceMapRecoveryLeaves?: readonly AuditEvidenceMapRecoveryLeaf[];
-      priorSourcePostureRecoveryLeaves?: readonly AuditSourcePostureRecoveryLeaf[];
-      priorCandidateGroundingRecoveryLeaves?: readonly AuditCandidateGroundingRecoveryLeaf[];
+      resumeState?: AuditResumeState;
       retryUnfinished?: boolean;
       retainedSnapshot?: TargetInventoryCapture;
       onSnapshotCaptured?: (capture: TargetInventoryCapture) => Promise<void>;
@@ -245,15 +233,7 @@ export function createReviewService(
         runId: input.runId,
         generatedAt: input.generatedAt,
         maxParallelVectors,
-        priorVectorResults: input.priorVectorResults,
-        priorCandidateGroundingDrafts: input.priorCandidateGroundingDrafts,
-        priorCandidateAwareCheckpoints: input.priorCandidateAwareCheckpoints,
-        priorEvidenceMapDrafts: input.priorEvidenceMapDrafts,
-        priorSourcePostureDrafts: input.priorSourcePostureDrafts,
-        priorContextOverflowLedgers: input.priorContextOverflowLedgers,
-        priorEvidenceMapRecoveryLeaves: input.priorEvidenceMapRecoveryLeaves,
-        priorSourcePostureRecoveryLeaves: input.priorSourcePostureRecoveryLeaves,
-        priorCandidateGroundingRecoveryLeaves: input.priorCandidateGroundingRecoveryLeaves,
+        resumeState: input.resumeState,
         retryUnfinished: input.retryUnfinished,
         onEvidenceMapDraft: input.onEvidenceMapDraft,
         onCandidateGroundingDraft: input.onCandidateGroundingDraft,

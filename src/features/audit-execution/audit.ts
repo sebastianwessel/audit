@@ -39,7 +39,6 @@ import {
   type CandidateAwareDispatchPool,
   createCandidateAwareDispatchPool,
 } from './candidate-aware-dispatch.js';
-import { candidateAwareFingerprint } from './candidate-aware-identity.js';
 import {
   type CandidateGroundingOutput,
   type CandidateGroundingRequest,
@@ -50,6 +49,7 @@ import {
   selectCanonicalSeedBoundGroundings,
   selectSeedBoundGroundings,
 } from './candidate-grounding/identity.js';
+import type { AuditResumeState } from './checkpoints.js';
 import {
   deriveObligationClosureMatrix,
   hasCompleteObligationClosure,
@@ -255,15 +255,7 @@ export type AuditInput = Readonly<{
   /** Evaluation-only: production admission currently relies on verifier evidence alone. */
   countercheck?: AuditCounterchecker;
   maxParallelVectors?: number;
-  priorVectorResults?: readonly AuditVectorResult[];
-  priorCandidateGroundingDrafts?: readonly AuditCandidateGroundingDraft[];
-  priorCandidateAwareCheckpoints?: readonly AuditCandidateAwareCheckpoint[];
-  priorEvidenceMapDrafts?: readonly AuditEvidenceMapDraft[];
-  priorSourcePostureDrafts?: readonly AuditSourcePostureDraft[];
-  priorContextOverflowLedgers?: readonly AuditContextOverflowLedger[];
-  priorEvidenceMapRecoveryLeaves?: readonly AuditEvidenceMapRecoveryLeaf[];
-  priorSourcePostureRecoveryLeaves?: readonly AuditSourcePostureRecoveryLeaf[];
-  priorCandidateGroundingRecoveryLeaves?: readonly AuditCandidateGroundingRecoveryLeaf[];
+  resumeState?: AuditResumeState;
   /** Re-executes only terminal candidate-aware incompleteness when explicitly requested. */
   retryUnfinished?: boolean;
   onEvidenceMapDraft?: (
@@ -299,14 +291,11 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   assertPlanMatchesTarget(input.plan, input.targetFingerprint, input.contextDigest);
   const maxParallelVectors = MaxParallelVectorsSchema.parse(input.maxParallelVectors ?? 1);
   const candidateAwareDispatchPool = createCandidateAwareDispatchPool(maxParallelVectors);
-  const priorByVectorId = new Map(
-    (input.priorVectorResults ?? []).map((result) => [result.coverage.vectorId, result] as const),
-  );
   const vectorResults = await mapWithConcurrency(
     input.plan.vectors,
     maxParallelVectors,
     async (vector) => {
-      const prior = priorByVectorId.get(vector.vectorId);
+      const prior = input.resumeState?.vectorResult(vector.vectorId);
       if (prior !== undefined) return AuditVectorResultSchema.parse(prior);
       const result = await executeVector(input, vector, candidateAwareDispatchPool);
       await input.onVectorResult?.(result);
@@ -371,9 +360,7 @@ async function executeVector(
       availableSourcePaths: scopedSources.map((source) => source.path),
       limitations: [...evidencePackage.limitations],
     };
-    const priorMapDraft = input.priorEvidenceMapDrafts?.find(
-      (draft) => draft.vectorId === vector.vectorId,
-    );
+    const priorMapDraft = input.resumeState?.evidenceMapDraft(vector.vectorId);
     activeStage = 'evidence-mapping';
     const mapped =
       priorMapDraft === undefined
@@ -443,9 +430,7 @@ async function executeVector(
       ...mapRequest,
       evidenceMap: verifiedMap.evidenceMap,
     };
-    const priorSourcePostureDraft = input.priorSourcePostureDrafts?.find(
-      (draft) => draft.vectorId === vector.vectorId,
-    );
+    const priorSourcePostureDraft = input.resumeState?.sourcePostureDraft(vector.vectorId);
     activeStage = 'source-posture';
     const assessed =
       priorSourcePostureDraft === undefined
@@ -518,9 +503,7 @@ async function executeVector(
           : { modelObservation: assessed.modelObservation }),
       });
     }
-    const priorDraft = input.priorCandidateGroundingDrafts?.find(
-      (draft) => draft.vectorId === vector.vectorId,
-    );
+    const priorDraft = input.resumeState?.candidateGroundingDraft(vector.vectorId);
     activeStage = 'investigation';
     const discovery =
       priorDraft === undefined
@@ -1019,21 +1002,11 @@ function scopedStageContext(
   vectorId: string,
   phase: AuditContextOverflowLedger['phase'],
 ): AuditScopedStageContext | undefined {
-  const priorContextOverflowLedger = input.priorContextOverflowLedgers?.find(
-    (ledger) => ledger.vectorId === vectorId && ledger.phase === phase,
-  );
-  const priorEvidenceMapRecoveryLeaves =
-    phase === 'evidence-mapping'
-      ? input.priorEvidenceMapRecoveryLeaves?.filter((leaf) => leaf.vectorId === vectorId)
-      : undefined;
-  const priorSourcePostureRecoveryLeaves =
-    phase === 'source-posture'
-      ? input.priorSourcePostureRecoveryLeaves?.filter((leaf) => leaf.vectorId === vectorId)
-      : undefined;
-  const priorCandidateGroundingRecoveryLeaves =
-    phase === 'candidate-grounding'
-      ? input.priorCandidateGroundingRecoveryLeaves?.filter((leaf) => leaf.vectorId === vectorId)
-      : undefined;
+  const prior = input.resumeState?.scopedArtifacts({ vectorId, phase });
+  const priorContextOverflowLedger = prior?.contextOverflowLedger;
+  const priorEvidenceMapRecoveryLeaves = prior?.evidenceMapRecoveryLeaves;
+  const priorSourcePostureRecoveryLeaves = prior?.sourcePostureRecoveryLeaves;
+  const priorCandidateGroundingRecoveryLeaves = prior?.candidateGroundingRecoveryLeaves;
   if (
     priorContextOverflowLedger === undefined &&
     priorEvidenceMapRecoveryLeaves === undefined &&
@@ -1693,12 +1666,11 @@ async function runCandidateAwareStage(input: {
     context: CandidateAwareModelStageContext,
   ) => Promise<AuditVerificationResultWithObservation>;
 }): Promise<NormalizedCandidateAwareResult> {
-  const priorCheckpoint = candidateAwareCheckpoint({
-    checkpoints: input.input.priorCandidateAwareCheckpoints ?? [],
+  const priorCheckpoint = input.input.resumeState?.candidateAwareCheckpoint({
     vectorId: input.vector.vectorId,
     phase: input.phase,
     candidateOrdinal: input.candidateOrdinal,
-    hypothesis: input.hypothesis,
+    candidate: input.hypothesis,
   });
   const prior = reusableCandidateAwareResult({
     checkpoint: priorCheckpoint,
@@ -1776,23 +1748,6 @@ function reusableCandidateAwareResult(input: {
     ...checkpoint.result,
     reason: 'The exact persisted candidate-aware terminal result was reused.',
   };
-}
-
-function candidateAwareCheckpoint(input: {
-  checkpoints: readonly AuditCandidateAwareCheckpoint[];
-  vectorId: string;
-  phase: AuditCandidateAwareCheckpoint['phase'];
-  candidateOrdinal: number;
-  hypothesis: VerifiableHypothesis;
-}): AuditCandidateAwareCheckpoint | undefined {
-  const candidateFingerprint = candidateAwareFingerprint(input.hypothesis);
-  return input.checkpoints.find(
-    (candidate) =>
-      candidate.vectorId === input.vectorId &&
-      candidate.phase === input.phase &&
-      candidate.candidateOrdinal === input.candidateOrdinal &&
-      candidate.candidateFingerprint === candidateFingerprint,
-  );
 }
 
 function runtimeContextOverflowTopology(

@@ -21,6 +21,7 @@ import {
   createAuditCheckpointBinding,
   createAuditContextOverflowLedger,
   createAuditEvidenceMapRecoveryLeaf,
+  createAuditResumeState,
   createAuditSourcePostureDraft,
   createAuditSourcePostureRecoveryLeaf,
   createAuditVectorCheckpoint,
@@ -773,6 +774,9 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
     state: 'pending',
     savedAt: '2026-07-30T12:03:01.000Z',
   });
+  expect(() =>
+    createAuditResumeState({ candidateAwareCheckpoints: [completed, completed] }),
+  ).toThrow('does not match');
   const reader = async (path: string) => {
     if (
       path ===
