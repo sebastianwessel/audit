@@ -7,6 +7,7 @@ evaluation/
   fixtures/     small reviewed cases and safety probes
   corpora/      pinned offline source snapshots, manifests, and trusted answer keys
   acquisition-snapshots/  unlabelled, evaluator-only vulnerable/patched source pairs
+  curation-dossiers/  source-only preparation for future targeted internal cases
   baselines/    reviewed regression thresholds for a corpus pack
   benchmarks/   future benchmark-pack definitions
   runs/         generated output; ignored by Git
@@ -22,6 +23,8 @@ evaluation/
 
 `bun run eval:plan-semantic:summary -- --output <root> --run-id <id>` aggregates only completed semantic adjudications for that generated-plan run. It writes source-free JSON/Markdown and reports the missing-adjudication count explicitly; partial review never becomes a zero or a complete plan-quality result.
 
-`bun run eval:acquire -- --registry <registry> --candidate <id> --repository <local-git-repository> --output <directory>` copies one vulnerable/patched pair from an already-local Git object store into `acquisition-snapshots/`. It verifies the registry binding, exact revisions, every tracked regular-file mode, and every byte digest before atomically publishing the snapshot. It never fetches, runs, builds, labels, reviews, or mounts target source for a model. An acquired pair is provenance work for human curation, not an evaluation case or a readiness contribution.
+`bun run eval:acquire -- --registry <registry> --candidate <id> --repository <local-git-repository> --output <directory>` copies one vulnerable/patched pair from an already-local Git object store into `acquisition-snapshots/`. It verifies the registry binding, exact revisions, every tracked regular-file mode, and every byte digest before atomically publishing the snapshot. It never fetches, runs, builds, labels, reviews, or mounts target source for a model. An acquired pair is provenance work for source-only curation, not an evaluation case or a readiness contribution.
 
 `bun run eval:acquisition-snapshots` rechecks every checked-in acquisition workspace. It verifies the manifest, file modes, and every stored byte; rejects symlinks, unexpected workspace entries, and duplicate workspace identities; and prints only snapshot identifiers, file counts, and digests. It never reads an answer key, changes a candidate, imports a case, calls a provider, or opens a target through the audit jail.
+
+`evaluation/curation-dossiers/` prepares every acquired pair before a paid provider run. A dossier binds an already-validated pair to independent advisory provenance, a source-only review question, and a paired-negative condition. It is never model input or an answer key. A `ready-for-key-authoring` dossier still requires a separate AI-assisted key, reviewed plan, and isolated corpus copy before it can be measured; `materialized` points only to that already-created separate case.

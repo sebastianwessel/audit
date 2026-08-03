@@ -1,6 +1,6 @@
 # Acquired source pairs
 
-This directory holds evaluator-only, unlabelled vulnerable/patched source pairs obtained from already-local Git object stores. It is a provenance workspace for human curation, not a corpus and never model input.
+This directory holds evaluator-only, unlabelled vulnerable/patched source pairs obtained from already-local Git object stores. It is a provenance workspace for source-only curation, not a corpus and never model input.
 
 Each snapshot contains complete tracked regular files for both pinned revisions and a `snapshot.json` manifest. The manifest binds the pair to its metadata-only candidate, verifies each file mode and byte digest, and records a content-root digest. It contains no expected finding, category, priority, reviewer judgment, answer key, reviewed plan, or model output.
 
@@ -18,7 +18,7 @@ The command never fetches, executes, builds, tests, labels, or sends source to a
 
 Each workspace contains only `snapshot.json`, `vulnerable/`, and `patched/`. Recheck the complete set at any time with `bun run eval:acquisition-snapshots`; it validates every manifest, copied byte, and mode without reading an answer key or calling a provider.
 
-The current pairs are unreviewed and have recorded source-license status `unverified`, so none is an approved corpus inclusion:
+All current pairs have passed complete manifest validation and retain recorded source-license status `unverified`. The separate curation dossiers record source-only preparation; they do not change a snapshot into a corpus inclusion or a readiness contribution:
 
 | Snapshot | Candidate | Language | Files (vulnerable/patched) |
 | --- | --- | --- | ---: |

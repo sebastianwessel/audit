@@ -30,24 +30,22 @@ PrimeVul remains a complementary C/C++ metadata reservoir: it publishes commit, 
 
 This preserves language diversity without changing the reviewed-target path: acquisition metadata, reviewer artifacts, and corpus source snapshots remain evaluator-only and cannot become model instructions or deterministic security rules.
 
-### Immediate local human-curation queue
+### Immediate local source-only curation queue
 
-Before acquiring another external source pair, start with the four already-local provenance workspaces. This is an effort-ordering decision, not a vulnerability, priority, or label claim. Each currently has an unverified upstream-project license and zero human adjudication; none is a corpus case, answer key, baseline input, or provider-quality evidence.
+Before acquiring another external source pair, prepare the four already-local provenance workspaces. This is an effort-ordering decision, not a vulnerability, priority, or label claim. Each retains an unverified upstream-project license; none gains corpus, baseline, or provider-quality weight from source-only preparation alone.
 
 | Order | Source pair | Candidate | Target language | Why it is first | Required action before import |
 | ---: | --- | --- | --- | --- | --- |
-| 1 | `source-pair-e7f2be359ec3b494` | `openssf-cve-2017-16023` | JavaScript | Smallest local pair (9 vulnerable / 9 patched files; 3 changed) gives the AI-assisted review protocol a calibration case. | One traceable source-only AI-assisted review for an internal key; do not run upstream tooling. |
-| 2 | `source-pair-f2d690530afa8fe5` | `cwe-bench-java-cve-2016-9177` | Java | Adds Java coverage with a bounded but broader pair (187 / 186 files; 21 changed). | Same AI-assisted internal-key process. |
-| 3 | `source-pair-2be21bd89c0aa2b3` | `osv-cve-2023-45803-urllib3` | Python | Adds Python coverage (151 / 148 files; 54 changed). | Same AI-assisted internal-key process. |
-| 4 | `source-pair-b04707ed51b422f0` | `osv-cve-2026-34165-go-git` | Go | Adds Go coverage but has the largest review surface (387 / 476 files; 248 changed). | Same AI-assisted internal-key process after calibration. |
+| 1 | `source-pair-e7f2be359ec3b494` | `openssf-cve-2017-16023` | JavaScript | Smallest local pair (9 vulnerable / 9 patched files; 3 changed) gives the AI-assisted review protocol a calibration case. | Materialized as a separate targeted internal development case. |
+| 2 | `source-pair-f2d690530afa8fe5` | `cwe-bench-java-cve-2016-9177` | Java | Adds Java coverage with a bounded but broader pair (187 / 186 files; 21 changed). | Source-only dossier complete; ready for a separate AI-assisted internal key. |
+| 3 | `source-pair-2be21bd89c0aa2b3` | `osv-cve-2023-45803-urllib3` | Python | Adds Python coverage (151 / 148 files; 54 changed). | Source-only dossier complete; ready for a separate AI-assisted internal key. |
+| 4 | `source-pair-b04707ed51b422f0` | `osv-cve-2026-34165-go-git` | Go | Adds Go coverage but has the largest review surface (387 / 476 files; 248 changed). | Source-only dossier complete; ready for a separate AI-assisted internal key. |
 
-Candidate metadata, snapshots, upstream CVE/CWE labels, filenames, and patch diffs are discovery aids only. For low-cost internal development, one traceable source-only AI-assisted review records applicability, expected vulnerable evidence, a patched no-matching-finding expectation, plan scenarios/paths, and an include/exclude decision. Its key is targeted and is useful for one-run regression signals only. Two independent human reviews remain optional and are required only before an external reliability claim. A resolver may record disagreement but cannot replace either original review.
+Candidate metadata, snapshots, upstream CVE/CWE labels, filenames, and patch diffs are discovery aids only. `evaluation/curation-dossiers/` records source-only preparation separately from the closed snapshot workspace: pair binding, independent advisory provenance, review question, source anchors, paired-negative condition, and scope limitation. It is never agent input or a substitute for an answer key. For low-cost internal development, one traceable source-only AI-assisted review then records applicability, expected vulnerable evidence, a patched no-matching-finding expectation, plan scenarios/paths, and an include/exclude decision. Its key is targeted and is useful for one-run regression signals only. Two independent human reviews remain optional and are required only before an external reliability claim. A resolver may record disagreement but cannot replace either original review.
 
-### Python pair curation preflight (2026-08-03)
+### Local curation preparation complete (2026-08-03)
 
-The locally verified urllib3 pair is suitable for the next **targeted** source-only development case, subject to the normal AI-assisted key authoring step. The vulnerable revision is urllib3 `2.0.0`; the paired revision is `2.0.7`. The official advisory identifies those versions as affected and patched respectively, and describes a request-body confidentiality leak when a redirect changes the request method to `GET`. [GitHub Advisory](https://github.com/advisories/GHSA-g4mx-q9vg-27p4), [NVD](https://nvd.nist.gov/vuln/detail/CVE-2023-45803)
-
-The source-only review anchor is `src/urllib3/connectionpool.py`: the vulnerable 303 redirect branch changes `method` to `GET` but retains the existing `body` and headers; the paired revision clears the body and prepares headers for the method change before redirect retry. The future reviewed plan must scope that redirect hand-off and state the business-level obligation: automatic redirects must not forward a request body after changing the request to a bodyless method. The paired expectation is no matching finding. This record is a curation dossier, not an answer key, plan, corpus import, provider result, or readiness contribution.
+All four checked-in source pairs now have an upfront preparation record under `evaluation/curation-dossiers/`; preparation used no provider call, target execution, or source download. The JavaScript pair is already materialized as the existing targeted development case. The Java, Python, and Go dossiers bind their exact pair digests and revisions to source-backed review questions and paired-negative expectations. They are ready for separate AI-assisted key authoring and corpus copying, but remain non-qualifying until then. The Java and Python records are path-boundary and redirect-content cases; the Go record adds malformed structured-input resource-boundary coverage. This is a mixed-language preparation set, not an evaluation score or a claim that the product uses language-specific logic.
 
 ## Dataset assessment
 
