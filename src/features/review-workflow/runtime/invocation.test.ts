@@ -67,7 +67,7 @@ test('does not retry a provider-neutral cancellation or timeout', async () => {
   expect(cancellationAttempts).toBe(1);
 });
 
-test('keeps model-output validation diagnostics content-free and path-only', () => {
+test('keeps complete model-output validation diagnostics content-free and stable', () => {
   const error = new ValidationError('Agent output validation failed.', {
     where: 'agent_output',
     issues: [
@@ -76,7 +76,31 @@ test('keeps model-output validation diagnostics content-free and path-only', () 
       { path: ['facts', 0, 'planObligations'], message: 'contains source text' },
     ],
   });
-  expect(stageErrorCode(error)).toBe(
-    'validation-output-facts.evidence.endLine+facts.planObligations',
-  );
+  const code = stageErrorCode(error);
+  expect(code).toMatch(/^validation-output-2-[a-f0-9]{16}$/u);
+  expect(code).not.toContain('facts');
+  expect(code).not.toContain('source text');
+  expect(
+    stageErrorCode(
+      new ValidationError('Agent output validation failed.', {
+        where: 'agent_output',
+        issues: [
+          { path: ['facts', 0, 'planObligations'], message: 'other message' },
+          { path: ['facts', 1, 'evidence', 0, 'endLine'], message: 'other message' },
+        ],
+      }),
+    ),
+  ).toBe(code);
+  expect(
+    stageErrorCode(
+      new ValidationError('Agent output validation failed.', {
+        where: 'agent_output',
+        issues: [
+          { path: ['facts', 0, 'evidence', 0, 'endLine'], message: 'other message' },
+          { path: ['facts', 0, 'planObligations'], message: 'other message' },
+          { path: ['facts', 0, 'limitations'], message: 'other message' },
+        ],
+      }),
+    ),
+  ).not.toBe(code);
 });

@@ -205,6 +205,10 @@ not a quality denominator.
 
 ### Plan 009-D — preserve diagnostic distinctness without retaining content
 
+**Progress (2026-08-03):** implemented. Validation telemetry now stores a
+fixed category, the complete unique schema-path count, and a digest of the
+complete canonical path set. It retains neither a path label nor a value.
+
 **Goal:** make malformed model output diagnosable while preserving the product's
 content-free logging rule.
 

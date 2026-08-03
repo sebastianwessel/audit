@@ -1,5 +1,6 @@
 import { AgentLoopBudgetError, isHarnessError } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
+import { sha256 } from '../../../shared/contracts/core.js';
 import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
 import { isContextLengthExceeded } from './context-overflow.js';
 
@@ -40,7 +41,7 @@ export function stageErrorCode(error: unknown): string {
     const paths = validationIssuePathLabels(error.meta);
     return paths.length === 0
       ? 'validation-output-shape'
-      : `validation-output-${paths.join('+')}`.slice(0, 64);
+      : `validation-output-${paths.length}-${sha256(paths.join('\0')).slice(0, 16)}`;
   }
   return error instanceof SecurityReviewerError ? error.code : 'provider-failure';
 }
@@ -51,8 +52,8 @@ function isProviderStop(error: unknown): boolean {
 }
 
 /**
- * Converts only Zod's static schema path components into a short diagnostic
- * label. Values, messages, source paths, and model content are never retained.
+ * Converts only Zod's static schema path components into a canonical diagnostic
+ * basis. Values, messages, source paths, and model content are never retained.
  */
 function validationIssuePathLabels(meta: unknown): string[] {
   if (!isRecord(meta) || meta.where !== 'agent_output' || !Array.isArray(meta.issues)) return [];
@@ -60,11 +61,10 @@ function validationIssuePathLabels(meta: unknown): string[] {
     if (!isRecord(issue) || !Array.isArray(issue.path)) return [];
     const path = issue.path
       .filter((segment): segment is string => typeof segment === 'string')
-      .slice(0, 3)
       .join('.');
     return path.length === 0 ? [] : [path];
   });
-  return [...new Set(labels)].sort((left, right) => left.localeCompare(right)).slice(0, 3);
+  return [...new Set(labels)].sort((left, right) => left.localeCompare(right));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
