@@ -43,6 +43,12 @@ Before acquiring another external source pair, start with the four already-local
 
 Candidate metadata, snapshots, upstream CVE/CWE labels, filenames, and patch diffs are discovery aids only. For low-cost internal development, one traceable source-only AI-assisted review records applicability, expected vulnerable evidence, a patched no-matching-finding expectation, plan scenarios/paths, and an include/exclude decision. Its key is targeted and is useful for one-run regression signals only. Two independent human reviews remain optional and are required only before an external reliability claim. A resolver may record disagreement but cannot replace either original review.
 
+### Python pair curation preflight (2026-08-03)
+
+The locally verified urllib3 pair is suitable for the next **targeted** source-only development case, subject to the normal AI-assisted key authoring step. The vulnerable revision is urllib3 `2.0.0`; the paired revision is `2.0.7`. The official advisory identifies those versions as affected and patched respectively, and describes a request-body confidentiality leak when a redirect changes the request method to `GET`. [GitHub Advisory](https://github.com/advisories/GHSA-g4mx-q9vg-27p4), [NVD](https://nvd.nist.gov/vuln/detail/CVE-2023-45803)
+
+The source-only review anchor is `src/urllib3/connectionpool.py`: the vulnerable 303 redirect branch changes `method` to `GET` but retains the existing `body` and headers; the paired revision clears the body and prepares headers for the method change before redirect retry. The future reviewed plan must scope that redirect hand-off and state the business-level obligation: automatic redirects must not forward a request body after changing the request to a bodyless method. The paired expectation is no matching finding. This record is a curation dossier, not an answer key, plan, corpus import, provider result, or readiness contribution.
+
 ## Dataset assessment
 
 | Dataset | Fit | Evidence | Decision |

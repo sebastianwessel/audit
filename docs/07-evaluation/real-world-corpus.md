@@ -57,6 +57,15 @@ bun run eval:provider --provider openai --model your-model-name
 
 This is useful for debugging one concrete result, but it is not a stability or reliability claim. Use at least five repetitions only for a deliberate reliability experiment.
 
+Before a paid run, use the identical no-network preflight. It checks the configured credential is present without reading or displaying it, confirms the exact bundled price record, validates the selected corpus and source checksums, and prints a content-free run identity. It does not create an evaluation artifact or contact a provider.
+
+```bash
+bun run eval:provider:preflight \
+  --corpus evaluation/research-corpora/ai-assisted-real-world-v1 \
+  --case-id openssf-cve-2017-16023-decamelize \
+  --plan-profile reviewed-plan
+```
+
 ### Choose what is being measured
 
 The default `generated-plan` profile measures the full workflow: the provider creates the plan, then the evaluator approves it for the test and the provider audits it. This is the right profile for measuring end-to-end behavior, but a miss can come from planning or investigation.

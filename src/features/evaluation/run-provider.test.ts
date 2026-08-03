@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { mkdtemp } from 'node:fs/promises';
+import { access, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
@@ -10,6 +10,7 @@ import { ProviderEvaluationCheckpointSchema } from './corpus.schema.js';
 import { readProviderEvaluationCheckpoint } from './real-world-artifacts.js';
 import {
   parseProviderEvaluationArguments,
+  preflightProviderEvaluation,
   primaryModelPricingForEvaluation,
   runProviderEvaluation,
   terminalProviderEvaluationCheckpoint,
@@ -396,4 +397,70 @@ test('derives pricing from an explicitly selected evaluation route instead of ru
       model: 'not-catalogued',
     }),
   ).toEqual({});
+});
+
+test('preflights the exact provider evaluation without constructing a provider or writing artifacts', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-provider-preflight-'));
+  const output = join(root, 'preflight-output');
+  const options = parseProviderEvaluationArguments([
+    '--provider',
+    'openai',
+    '--model',
+    'gpt-5.6-terra',
+    '--case-id',
+    'ossf-cve-2018-16492',
+    '--plan-profile',
+    'reviewed-plan',
+    '--output',
+    output,
+  ]);
+  await expect(
+    preflightProviderEvaluation({
+      options,
+      runtime: evaluationRuntime,
+      environment: { OPENAI_API_KEY: 'present-only-for-readiness-check' },
+    }),
+  ).resolves.toMatchObject({
+    primaryRoute: {
+      provider: 'openai',
+      model: 'gpt-5.6-terra',
+      apiKeyEnvironmentVariable: 'OPENAI_API_KEY',
+      credentialConfigured: true,
+      exactCataloguePricing: true,
+    },
+    verificationMode: 'same-route',
+    independentVerifierRoute: null,
+    corpus: { selectedCaseCount: 1 },
+    planProfile: 'reviewed-plan',
+  });
+  await expect(access(output)).rejects.toMatchObject({ code: 'ENOENT' });
+});
+
+test('fails an offline preflight before corpus access when a credential or exact price is unavailable', async () => {
+  const missingCredential = parseProviderEvaluationArguments([
+    '--provider',
+    'openai',
+    '--model',
+    'gpt-5.6-terra',
+  ]);
+  await expect(
+    preflightProviderEvaluation({
+      options: missingCredential,
+      runtime: evaluationRuntime,
+      environment: {},
+    }),
+  ).rejects.toThrow('primary API key environment variable OPENAI_API_KEY is not set');
+  const unavailablePrice = parseProviderEvaluationArguments([
+    '--provider',
+    'openai',
+    '--model',
+    'uncatalogued-model',
+  ]);
+  await expect(
+    preflightProviderEvaluation({
+      options: unavailablePrice,
+      runtime: evaluationRuntime,
+      environment: { OPENAI_API_KEY: 'present-only-for-readiness-check' },
+    }),
+  ).rejects.toThrow('has no exact bundled model-price record');
 });

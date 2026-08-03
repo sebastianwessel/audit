@@ -25,6 +25,7 @@
     "eval:acquisition-snapshots": "bun run src/features/evaluation/run-acquired-source-pairs.ts",
     "eval:import": "bun run src/features/evaluation/run-import.ts",
     "eval:provider": "bun run --bun src/features/evaluation/run-provider.ts",
+    "eval:provider:preflight": "bun run --bun src/features/evaluation/run-provider-preflight.ts",
     "eval:plan-semantic": "bun run --bun src/features/evaluation/run-plan-semantic-adjudication.ts",
     "eval:plan-semantic:summary": "bun run --bun src/features/evaluation/run-plan-semantic-summary.ts",
     "eval:smoke": "bun run --bun src/features/evaluation/run-provider-smoke.ts",

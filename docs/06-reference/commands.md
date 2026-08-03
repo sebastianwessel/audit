@@ -14,6 +14,7 @@
 | `bun run eval:acquire -- --registry path --candidate id --repository path --output path` | Materialize one complete, pinned vulnerable/patched source pair from an already-local Git repository for evaluator-only human curation. | No. |
 | `bun run eval:import` | Copy a fully local reviewed corpus through checksum and license gates. | No. |
 | `bun run eval:provider` | Measure an explicitly selected provider over repeated corpus trials. | Yes, opt-in. |
+| `bun run eval:provider:preflight` | Validate the exact provider route, credential presence, bundled price, corpus checksums, selected population, and holdout inputs without constructing a provider, writing artifacts, or making a network call. | No. |
 | `bun run eval:compare --baseline <run> --candidate <run> [--kind same-route-regression\|primary-model-experiment]` | Compare two source-free run artifacts only when their corpus, execution configuration, and prompt protocol match. A primary-model experiment changes only the sole same-route model. | No. |
 
 ## Common inputs

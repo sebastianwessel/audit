@@ -20,6 +20,12 @@ When enabled:
 
 The ceiling does not pre-split, pre-trim, skip, change scopes, change models, or restrict file tools. It must not be used to optimize benchmark output or conceal incomplete coverage.
 
+## Offline provider-evaluation preflight
+
+`bun run eval:provider:preflight` accepts the exact `eval:provider` option grammar and validates the resolved primary and, when selected, independent route before a paid evaluation. It performs no provider construction, network request, artifact write, target execution, or target mutation. It validates credential **presence** only inside the provider-resolution adapter; key values never leave that adapter or appear in its output.
+
+The command fails before corpus work when a selected route lacks its credential or an exact bundled catalogue price. It then validates the corpus manifest, all selected source digests, case selection, measurement-profile restrictions, independent-route distinction, benchmark/config fingerprints, and private-holdout attestation where applicable. Its sole result is a content-free JSON readiness record containing route identities, boolean credential and pricing readiness, selected-case count, corpus identity, and protocol/config fingerprints. It neither creates a resumable checkpoint nor reserves cost. `eval:provider` reuses this same preparation path before it constructs a provider, so preflight and paid execution cannot drift.
+
 ## Single ownership and accounting
 
 `features/model-operations/` owns the strict ceiling schema, finite-decimal validation, aggregate-from-observation logic, and the shared pre-dispatch/post-response ledger. It reuses `ModelPricingSchema`, `summarizeModelCost`, and `ModelStageObservationSchema`; it must not duplicate token or cost arithmetic. `review-workflow/stages/scoped-model-stage` mounts that one ledger around every provider request. Product and provider-evaluation runners compose an initial ledger from their reusable checkpoints/drafts or prior trials, and the product CLI writes its source-free terminal state. No other stage, agent, tool, or provider adapter owns a separate budget counter.
@@ -46,4 +52,5 @@ Acceptance requires colocated tests proving all of the following:
 - a stopped vector is failed and cannot produce an accepted finding or clean CI outcome;
 - checkpoint/draft reuse initializes the ledger exactly once and a resumed run can proceed under a changed ceiling;
 - manifests surface only the specified source-free fields, while reports retain their existing stage ledger; and
+- the no-network preflight rejects missing credentials, absent exact pricing, invalid corpus/selection/attestation, and invalid route configuration without creating a provider, checkpoint, or artifact; and
 - full language-neutral scope, file-tool behavior, source/context recovery, pricing provenance, and model-output contracts remain unchanged.

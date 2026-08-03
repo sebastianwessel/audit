@@ -8,6 +8,7 @@ import {
   VerificationModeSchema,
 } from '../../platform/configuration/environment.js';
 import {
+  configuredProviderCredentialState,
   createConfiguredModelRoute,
   providerCacheRoutingKey,
 } from '../../platform/harness/provider.js';
@@ -100,6 +101,36 @@ const ProviderEvaluationOptionsSchema = ProviderEvaluationArgumentsSchema.extend
 
 export type ProviderEvaluationOptions = z.output<typeof ProviderEvaluationOptionsSchema>;
 
+const ProviderEvaluationRouteReadinessSchema = z.strictObject({
+  provider: ProviderNameSchema,
+  model: z.string().trim().min(1).max(160),
+  apiKeyEnvironmentVariable: z.string().trim().min(1).max(160),
+  credentialConfigured: z.boolean(),
+  exactCataloguePricing: z.boolean(),
+});
+
+/** Content-free, no-network readiness result for one exact provider evaluation invocation. */
+export const ProviderEvaluationPreflightSchema = z.strictObject({
+  primaryRoute: ProviderEvaluationRouteReadinessSchema,
+  verificationMode: VerificationModeSchema,
+  independentVerifierRoute: ProviderEvaluationRouteReadinessSchema.nullable(),
+  corpus: z.strictObject({
+    packId: IdentifierSchema,
+    packVersion: z.string().trim().min(1).max(160),
+    manifestDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+    selectedCaseCount: z.number().int().positive(),
+  }),
+  split: CorpusSplitSchema,
+  repetitions: z.number().int().positive(),
+  planProfile: PlanEvaluationProfileSchema,
+  measurementScope: EvaluationMeasurementScopeSchema,
+  populationDigest: z.string().regex(/^[a-f0-9]{64}$/u),
+  benchmarkProtocolFingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
+  configFingerprint: z.string().regex(/^[a-f0-9]{64}$/u),
+  holdoutAttestationVerified: z.boolean(),
+});
+export type ProviderEvaluationPreflight = z.output<typeof ProviderEvaluationPreflightSchema>;
+
 /** Evaluation flags own their effective route, so their price lookup must not use runtime defaults. */
 export function primaryModelPricingForEvaluation(input: { provider: string; model: string }) {
   return catalogueModelPricing(input);
@@ -163,6 +194,18 @@ async function main(argv: readonly string[]): Promise<number> {
   return execution.exitCode;
 }
 
+/**
+ * Validates every provider-free prerequisite for an exact evaluation invocation.
+ * It does not construct a provider, send source, create an output artifact, or make a network call.
+ */
+export async function preflightProviderEvaluation(input: {
+  options: ProviderEvaluationOptions;
+  runtime: RuntimeConfiguration;
+  environment: Readonly<Record<string, string | undefined>>;
+}): Promise<ProviderEvaluationPreflight> {
+  return (await prepareProviderEvaluation({ ...input, requirePrimaryCredential: true })).summary;
+}
+
 /** Executes an explicitly configured provider evaluation; tests may supply an in-process provider. */
 export async function runProviderEvaluation(input: {
   options: ProviderEvaluationOptions;
@@ -175,83 +218,40 @@ export async function runProviderEvaluation(input: {
   paths: Readonly<{ jsonPath: string; markdownPath: string; trialTracePath: string }>;
   exitCode: number;
 }> {
-  const { options, runtime } = input;
-  const primaryModelPricing = primaryModelPricingForEvaluation(options);
-  const verificationMode = options['verification-mode'] ?? runtime.verificationMode;
-  validateMeasurementScope(options, verificationMode);
-  const pack = await loadCorpusPack(options.corpus);
-  selectCasesForEvaluation(pack, options.split, options.caseIdFilter);
+  const { options } = input;
+  const prepared = await prepareProviderEvaluation({
+    options,
+    runtime: input.runtime,
+    environment: input.environment,
+    requirePrimaryCredential: input.modelProvider === undefined,
+  });
   const modelProvider =
     input.modelProvider ??
     createConfiguredModelRoute({
       provider: options.provider,
       model: options.model,
       apiKeyEnvironmentVariable: options['api-key-env'],
-      modelPricing: primaryModelPricing,
+      modelPricing: prepared.primaryModelPricing,
       environment: input.environment,
       requestTimeoutMs: options.executionBudget.modelTimeoutMs,
     }).modelProvider;
-  const independentVerifierRoute = resolveIndependentVerifierRoute(
-    runtime,
-    input.environment,
-    {
-      provider: options.provider,
-      model: options.model,
-    },
+  const independentVerifierRoute =
+    prepared.independentVerifierConfiguration === undefined
+      ? undefined
+      : createIndependentVerifierRoute(
+          prepared.independentVerifierConfiguration,
+          input.environment,
+          options.executionBudget.modelTimeoutMs,
+        );
+  const {
     verificationMode,
-    options.executionBudget.modelTimeoutMs,
-  );
-  const verificationRouteFingerprint =
-    independentVerifierRoute?.fingerprint ??
-    createVerificationRouteFingerprint({
-      route: 'primary',
-      provider: options.provider,
-      model: options.model,
-    });
-  const populationDigest = evaluationPopulationDigest({
     pack,
-    split: options.split,
-    ...(options.caseIdFilter === undefined ? {} : { caseIdFilter: options.caseIdFilter }),
-  });
-  const benchmarkProtocolFingerprint = evaluationBenchmarkProtocolFingerprint({
-    pack,
-    split: options.split,
-    ...(options.caseIdFilter === undefined ? {} : { caseIdFilter: options.caseIdFilter }),
-    mode: 'provider',
-    provider: options.provider,
-    model: options.model,
-    verificationMode,
-    verificationRouteFingerprint,
-    repetitions: options.repetitions,
-    planProfile: options.planProfile,
-    measurementScope: options.measurementScope,
-    executionBudget: options.executionBudget,
-    maxParallelVectors: runtime.maxParallelVectors,
-    promptProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-  });
-  const holdoutAttestation = await resolveHoldoutAttestation(
-    options,
-    pack,
+    populationDigest,
     benchmarkProtocolFingerprint,
-  );
+    configFingerprint,
+  } = prepared;
+  const { verificationRouteFingerprint, holdoutAttestation } = prepared;
   const startedAt = new Date().toISOString();
-  const configFingerprint = sha256(
-    canonicalJson({
-      benchmarkProtocolFingerprint,
-      modelPricing: {
-        inputPerMillion: primaryModelPricing.inputPerMillion ?? null,
-        cachedInputPerMillion: primaryModelPricing.cachedInputPerMillion ?? null,
-        outputPerMillion: primaryModelPricing.outputPerMillion ?? null,
-        source: primaryModelPricing.source ?? null,
-      },
-      cacheRoutingEnabled:
-        providerCacheRoutingKey({
-          provider: options.provider,
-          model: options.model,
-        }) !== undefined,
-      holdoutAttestation: holdoutAttestation ?? null,
-    }),
-  );
   const lock = await acquireProviderEvaluationLock(options.output, options.runId);
   let persistedCheckpoint: ProviderEvaluationCheckpoint | undefined;
   try {
@@ -284,7 +284,7 @@ export async function runProviderEvaluation(input: {
       planProfile: options.planProfile,
       measurementScope: options.measurementScope,
       executionBudget: options.executionBudget,
-      maxParallelVectors: runtime.maxParallelVectors,
+      maxParallelVectors: input.runtime.maxParallelVectors,
       modelCostCeilingState: initialModelCostCeilingState(options['max-estimated-cost-usd']),
       status: 'running',
       errorCode: null,
@@ -314,11 +314,11 @@ export async function runProviderEvaluation(input: {
       startedAt: checkpoint.startedAt,
       mode: 'provider',
       executionBudget: options.executionBudget,
-      maxParallelVectors: runtime.maxParallelVectors,
+      maxParallelVectors: input.runtime.maxParallelVectors,
       ...(options['max-estimated-cost-usd'] === undefined
         ? {}
         : { maxEstimatedCostUsd: options['max-estimated-cost-usd'] }),
-      modelPricing: primaryModelPricing,
+      modelPricing: prepared.primaryModelPricing,
       modelCacheRoutingKey: providerCacheRoutingKey({
         provider: options.provider,
         model: options.model,
@@ -406,6 +406,157 @@ export async function runProviderEvaluation(input: {
   }
 }
 
+async function prepareProviderEvaluation(input: {
+  options: ProviderEvaluationOptions;
+  runtime: RuntimeConfiguration;
+  environment: Readonly<Record<string, string | undefined>>;
+  requirePrimaryCredential: boolean;
+}) {
+  const { options, runtime, environment } = input;
+  const primaryModelPricing = primaryModelPricingForEvaluation(options);
+  requireExactCataloguePricing(primaryModelPricing, 'primary provider route');
+  const primaryCredential = configuredProviderCredentialState({
+    provider: options.provider,
+    apiKeyEnvironmentVariable: options['api-key-env'],
+    environment,
+  });
+  if (input.requirePrimaryCredential && !primaryCredential.configured) {
+    throw usage(
+      `The configured primary API key environment variable ${primaryCredential.environmentVariable} is not set.`,
+    );
+  }
+  const verificationMode = options['verification-mode'] ?? runtime.verificationMode;
+  validateMeasurementScope(options, verificationMode);
+  const independentVerifierConfiguration = resolveIndependentVerifierConfiguration(
+    runtime,
+    { provider: options.provider, model: options.model },
+    verificationMode,
+  );
+  const independentCredential =
+    independentVerifierConfiguration === undefined
+      ? undefined
+      : configuredProviderCredentialState({
+          provider: independentVerifierConfiguration.provider,
+          apiKeyEnvironmentVariable: independentVerifierConfiguration.apiKeyEnvironmentVariable,
+          environment,
+        });
+  if (
+    input.requirePrimaryCredential &&
+    independentCredential !== undefined &&
+    !independentCredential.configured
+  ) {
+    throw usage(
+      `The configured verifier API key environment variable ${independentCredential.environmentVariable} is not set.`,
+    );
+  }
+  if (independentVerifierConfiguration !== undefined) {
+    requireExactCataloguePricing(
+      independentVerifierConfiguration.modelPricing,
+      'independent verifier route',
+    );
+  }
+  const verificationRouteFingerprint =
+    independentVerifierConfiguration === undefined
+      ? createVerificationRouteFingerprint({
+          route: 'primary',
+          provider: options.provider,
+          model: options.model,
+        })
+      : createVerificationRouteFingerprint({
+          route: 'independent',
+          provider: independentVerifierConfiguration.provider,
+          model: independentVerifierConfiguration.model,
+        });
+  const pack = await loadCorpusPack(options.corpus);
+  const selectedCases = selectCasesForEvaluation(pack, options.split, options.caseIdFilter);
+  const populationDigest = evaluationPopulationDigest({
+    pack,
+    split: options.split,
+    ...(options.caseIdFilter === undefined ? {} : { caseIdFilter: options.caseIdFilter }),
+  });
+  const benchmarkProtocolFingerprint = evaluationBenchmarkProtocolFingerprint({
+    pack,
+    split: options.split,
+    ...(options.caseIdFilter === undefined ? {} : { caseIdFilter: options.caseIdFilter }),
+    mode: 'provider',
+    provider: options.provider,
+    model: options.model,
+    verificationMode,
+    verificationRouteFingerprint,
+    repetitions: options.repetitions,
+    planProfile: options.planProfile,
+    measurementScope: options.measurementScope,
+    executionBudget: options.executionBudget,
+    maxParallelVectors: runtime.maxParallelVectors,
+    promptProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
+  });
+  const holdoutAttestation = await resolveHoldoutAttestation(
+    options,
+    pack,
+    benchmarkProtocolFingerprint,
+  );
+  const configFingerprint = sha256(
+    canonicalJson({
+      benchmarkProtocolFingerprint,
+      modelPricing: {
+        inputPerMillion: primaryModelPricing.inputPerMillion ?? null,
+        cachedInputPerMillion: primaryModelPricing.cachedInputPerMillion ?? null,
+        outputPerMillion: primaryModelPricing.outputPerMillion ?? null,
+        source: primaryModelPricing.source ?? null,
+      },
+      cacheRoutingEnabled:
+        providerCacheRoutingKey({ provider: options.provider, model: options.model }) !== undefined,
+      holdoutAttestation: holdoutAttestation ?? null,
+    }),
+  );
+  const summary = ProviderEvaluationPreflightSchema.parse({
+    primaryRoute: {
+      provider: options.provider,
+      model: options.model,
+      apiKeyEnvironmentVariable: primaryCredential.environmentVariable,
+      credentialConfigured: primaryCredential.configured,
+      exactCataloguePricing: true,
+    },
+    verificationMode,
+    independentVerifierRoute:
+      independentVerifierConfiguration === undefined || independentCredential === undefined
+        ? null
+        : {
+            provider: independentVerifierConfiguration.provider,
+            model: independentVerifierConfiguration.model,
+            apiKeyEnvironmentVariable: independentCredential.environmentVariable,
+            credentialConfigured: independentCredential.configured,
+            exactCataloguePricing: true,
+          },
+    corpus: {
+      packId: pack.manifest.packId,
+      packVersion: pack.manifest.packVersion,
+      manifestDigest: pack.manifest.manifestDigest,
+      selectedCaseCount: selectedCases.length,
+    },
+    split: options.split,
+    repetitions: options.repetitions,
+    planProfile: options.planProfile,
+    measurementScope: options.measurementScope,
+    populationDigest,
+    benchmarkProtocolFingerprint,
+    configFingerprint,
+    holdoutAttestationVerified: holdoutAttestation !== undefined,
+  });
+  return Object.freeze({
+    summary,
+    pack,
+    primaryModelPricing,
+    verificationMode,
+    verificationRouteFingerprint,
+    holdoutAttestation,
+    independentVerifierConfiguration,
+    populationDigest,
+    benchmarkProtocolFingerprint,
+    configFingerprint,
+  });
+}
+
 /**
  * Retains a source-free terminal command state when evaluation orchestration
  * fails after its resumable checkpoint has begun. Individual trial statuses
@@ -474,13 +625,11 @@ export function validateMeasurementScope(
   }
 }
 
-function resolveIndependentVerifierRoute(
+function resolveIndependentVerifierConfiguration(
   runtime: RuntimeConfiguration,
-  environment: Readonly<Record<string, string | undefined>>,
   primary: Readonly<{ provider: string; model: string }>,
   verificationMode: z.output<typeof VerificationModeSchema>,
-  requestTimeoutMs: number,
-): ResolvedVerificationRoute | undefined {
+): NonNullable<RuntimeConfiguration['independentVerifierRoute']> | undefined {
   if (verificationMode === 'same-route') return undefined;
   const configured = runtime.independentVerifierRoute;
   if (configured === undefined) throw usage('Independent verifier route is incomplete.');
@@ -490,6 +639,14 @@ function resolveIndependentVerifierRoute(
   ) {
     throw usage('Independent verifier route must use another provider/model pair.');
   }
+  return configured;
+}
+
+function createIndependentVerifierRoute(
+  configured: NonNullable<RuntimeConfiguration['independentVerifierRoute']>,
+  environment: Readonly<Record<string, string | undefined>>,
+  requestTimeoutMs: number,
+): ResolvedVerificationRoute {
   const route = createConfiguredModelRoute({
     provider: configured.provider,
     model: configured.model,
@@ -511,6 +668,19 @@ function resolveIndependentVerifierRoute(
       model: route.model,
     }),
   });
+}
+
+function requireExactCataloguePricing(
+  pricing: ReturnType<typeof primaryModelPricingForEvaluation>,
+  route: string,
+): void {
+  if (
+    pricing.source !== 'catalogue' ||
+    pricing.inputPerMillion === undefined ||
+    pricing.outputPerMillion === undefined
+  ) {
+    throw usage(`The ${route} has no exact bundled model-price record.`);
+  }
 }
 
 function usage(message: string): SecurityReviewerError {

@@ -20,6 +20,25 @@ export function providerRequestTimeout(timeoutMs: number | undefined): number | 
   return timeoutMs === undefined || timeoutMs === 0 ? undefined : timeoutMs;
 }
 
+/**
+ * Reports credential readiness without returning or persisting the credential.
+ * Provider construction remains the only boundary that obtains the key value.
+ */
+export function configuredProviderCredentialState(input: {
+  provider: ProviderName;
+  apiKeyEnvironmentVariable?: string;
+  environment?: Readonly<Record<string, string | undefined>>;
+}) {
+  const environmentVariable =
+    input.apiKeyEnvironmentVariable ??
+    (input.provider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY');
+  const value = (input.environment ?? process.env)[environmentVariable];
+  return Object.freeze({
+    environmentVariable,
+    configured: value !== undefined && value.trim().length > 0,
+  });
+}
+
 /** Creates an explicitly configured optional provider without persisting credentials. */
 export function createConfiguredProvider(input: {
   provider: ProviderName;
@@ -28,14 +47,12 @@ export function createConfiguredProvider(input: {
   /** Propagates the bounded model deadline into the provider SDK transport. */
   requestTimeoutMs?: number;
 }): ModelProvider {
-  const environmentVariable =
-    input.apiKeyEnvironmentVariable ??
-    (input.provider === 'openai' ? 'OPENAI_API_KEY' : 'ANTHROPIC_API_KEY');
-  const apiKey = (input.environment ?? process.env)[environmentVariable];
-  if (apiKey === undefined || apiKey.length === 0) {
+  const credential = configuredProviderCredentialState(input);
+  const apiKey = (input.environment ?? process.env)[credential.environmentVariable];
+  if (!credential.configured || apiKey === undefined) {
     throw new SecurityReviewerError(
       'provider-failure',
-      `The configured provider API key environment variable ${environmentVariable} is not set.`,
+      `The configured provider API key environment variable ${credential.environmentVariable} is not set.`,
     );
   }
   const timeout = providerRequestTimeout(input.requestTimeoutMs);
