@@ -46,6 +46,7 @@ import type { HoldoutAttestationReference } from './holdout-attestation.schema.j
 import {
   acquireProviderEvaluationLock,
   createEvaluationAuditCheckpointStore,
+  createEvaluationExpectedEvidenceTraceCheckpointStore,
   createEvaluationPlanningCheckpointStore,
   readProviderEvaluationCheckpoint,
   writeProviderEvaluationCheckpoint,
@@ -258,7 +259,7 @@ export async function runProviderEvaluation(input: {
       throw usage('The checkpoint configuration does not match this provider evaluation.');
     }
     let checkpoint: ProviderEvaluationCheckpoint = existing ?? {
-      schemaVersion: 6,
+      schemaVersion: 7,
       runId: options.runId,
       configFingerprint,
       packId: pack.manifest.packId,
@@ -331,6 +332,11 @@ export async function runProviderEvaluation(input: {
         outputRoot: options.output,
         evaluationRunId: options.runId,
         configFingerprint,
+        savedAt: () => new Date().toISOString(),
+      }),
+      expectedEvidenceTraceCheckpoints: createEvaluationExpectedEvidenceTraceCheckpointStore({
+        outputRoot: options.output,
+        evaluationRunId: options.runId,
         savedAt: () => new Date().toISOString(),
       }),
       promptProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,

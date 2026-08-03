@@ -66,6 +66,7 @@ import {
   type EvaluationGeneratedPlanCheckpoint,
   EvaluationGeneratedPlanCheckpointSchema,
   EvaluationTrialSchema,
+  ExpectedEvidenceTraceCheckpointSchema,
   type ProviderEvaluationCheckpoint,
   ProviderEvaluationCheckpointSchema,
   type RealWorldEvaluationRun,
@@ -77,6 +78,7 @@ import {
 } from './provider-smoke.schema.js';
 import type {
   EvaluationAuditCheckpointStore,
+  EvaluationExpectedEvidenceTraceCheckpointStore,
   EvaluationPlanningCheckpointStore,
 } from './real-world-runner.js';
 
@@ -89,6 +91,10 @@ function evaluatorWorkPath(runId: string, artifactPath: string): string {
 
 function generatedPlanCheckpointPath(trialId: string): string {
   return `plans/${trialId}.json`;
+}
+
+function expectedEvidenceTraceCheckpointPath(trialId: string): string {
+  return `traces/${trialId}.expected-evidence.json`;
 }
 
 export type ProviderEvaluationLock = Awaited<ReturnType<typeof acquireArtifactLease>>;
@@ -508,6 +514,50 @@ export function createEvaluationPlanningCheckpointStore(input: {
   };
 }
 
+/** Persists only derived role booleans, never answer-key locations or discovery seeds. */
+export function createEvaluationExpectedEvidenceTraceCheckpointStore(input: {
+  outputRoot: string;
+  evaluationRunId: string;
+  savedAt: () => string;
+}): EvaluationExpectedEvidenceTraceCheckpointStore {
+  return {
+    load: async (binding) => {
+      const checkpoint = await readOptionalExpectedEvidenceTraceArtifact(
+        input.outputRoot,
+        evaluatorWorkPath(
+          input.evaluationRunId,
+          expectedEvidenceTraceCheckpointPath(binding.trialId),
+        ),
+      );
+      if (checkpoint === undefined) return undefined;
+      if (JSON.stringify(checkpoint.binding) !== JSON.stringify(binding)) {
+        throw new ArtifactStoreError(
+          'artifact-read-failed',
+          'Expected-evidence trace checkpoint does not match this evaluation trial.',
+        );
+      }
+      return checkpoint.roleTraces;
+    },
+    save: async (binding, roleTraces) => {
+      const checkpoint = ExpectedEvidenceTraceCheckpointSchema.parse({
+        schemaVersion: 1,
+        binding,
+        roleTraces,
+        savedAt: input.savedAt(),
+      });
+      await writeJsonArtifact(
+        input.outputRoot,
+        evaluatorWorkPath(
+          input.evaluationRunId,
+          expectedEvidenceTraceCheckpointPath(binding.trialId),
+        ),
+        ExpectedEvidenceTraceCheckpointSchema,
+        checkpoint,
+      );
+    },
+  };
+}
+
 async function readOptionalAuditArtifact(outputRoot: string, artifactPath: string) {
   const schema = auditArtifactSchemaForPath(artifactPath);
   if (schema === undefined) return undefined;
@@ -556,6 +606,16 @@ async function readOptionalEvaluationPlanArtifact(
       artifactPath,
       EvaluationGeneratedPlanCheckpointSchema,
     );
+  } catch (error) {
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
+      return undefined;
+    throw error;
+  }
+}
+
+async function readOptionalExpectedEvidenceTraceArtifact(outputRoot: string, artifactPath: string) {
+  try {
+    return await readJsonArtifact(outputRoot, artifactPath, ExpectedEvidenceTraceCheckpointSchema);
   } catch (error) {
     if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
       return undefined;

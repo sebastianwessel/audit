@@ -28,7 +28,7 @@ test('fails a baseline comparison for a missing case and vulnerable recall regre
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 6,
+    schemaVersion: 7,
     runId: 'run-001',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -128,7 +128,7 @@ test('fails closed when a baseline has another plan profile', () => {
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 6,
+    schemaVersion: 7,
     runId: 'profile-run-001',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -208,7 +208,7 @@ test('requires a route-bound baseline for an independent verifier experiment', (
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 6,
+    schemaVersion: 7,
     runId: 'independent-route-run',
     packId: 'seed-pack',
     packVersion: '1.0.0',
@@ -288,7 +288,7 @@ test('rejects a baseline comparison when finding-label coverage differs', () => 
     },
   });
   const run = RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 6,
+    schemaVersion: 7,
     runId: 'targeted-run',
     packId: 'seed-pack',
     packVersion: '1.0.0',

@@ -923,6 +923,7 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
     }),
     verify: acceptVerifier,
   };
+  const discoveryUpdates: { vectorId: string; evidenceMapFactIds: readonly string[] }[] = [];
   const grounded = await runApprovedAudit({
     ...input,
     runId: 'run-candidate-grounding-accepted-01',
@@ -937,7 +938,13 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
         },
       };
     },
+    onVerifiedDiscoverySeed: async (update) => {
+      discoveryUpdates.push(update);
+    },
   });
+  expect(discoveryUpdates).toEqual([
+    { vectorId: vector.vectorId, evidenceMapFactIds: ['fact-input-01', 'fact-query-01'] },
+  ]);
   expect(grounded.findings).toHaveLength(1);
   expect(grounded.coverage[0]?.admissionFunnel).toMatchObject({
     integrityRejectedCount: 0,

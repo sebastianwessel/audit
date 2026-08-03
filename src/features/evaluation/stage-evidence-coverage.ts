@@ -1,7 +1,7 @@
 import type { SourceEvidence } from '../attack-planning/plan.schema.js';
 import type { EvidenceMap } from '../audit-execution/evidence-map/contract.js';
 
-import type { CorpusAnswerKey } from './corpus.schema.js';
+import type { CorpusAnswerKey, ExpectedEvidenceRoleTrace } from './corpus.schema.js';
 import { type EvidenceStageCoverage, EvidenceStageCoverageSchema } from './corpus.schema.js';
 
 /**
@@ -14,7 +14,9 @@ export function stageEvidenceCoverage(input: {
   evidenceMaps: readonly EvidenceMap[];
   groundedEvidence: readonly SourceEvidence[];
   verifiedEvidence: readonly SourceEvidence[];
+  roleTraces?: readonly ExpectedEvidenceRoleTrace[];
 }): EvidenceStageCoverage {
+  if (input.roleTraces !== undefined) return coverageFromRoleTraces(input.roleTraces);
   const expectedRoles = input.answerKey.staticReviewApplicable
     ? input.answerKey.expectedFindings
         .filter((finding) => finding.staticReviewApplicable)
@@ -50,6 +52,36 @@ function firstIncompleteStage(input: {
   if (input.groundedRoleCount < input.expectedRoleCount) return 'candidate-grounding';
   if (input.verifiedRoleCount < input.expectedRoleCount) return 'verification';
   return 'complete';
+}
+
+function coverageFromRoleTraces(
+  roleTraces: readonly ExpectedEvidenceRoleTrace[],
+): EvidenceStageCoverage {
+  const first = roleTraces
+    .map((trace) => trace.firstIncompleteStage)
+    .sort((left, right) => stageOrder(left) - stageOrder(right))[0];
+  return EvidenceStageCoverageSchema.parse({
+    expectedRoleCount: roleTraces.length,
+    mappedLocationCount: roleTraces.filter((trace) => trace.mapperSelected).length,
+    groundedRoleCount: roleTraces.filter((trace) => trace.groundingSelected).length,
+    verifiedRoleCount: roleTraces.filter((trace) => trace.verifierSelected).length,
+    firstIncompleteStage: first ?? 'not-applicable',
+    roleTraces,
+  });
+}
+
+function stageOrder(stage: ExpectedEvidenceRoleTrace['firstIncompleteStage']): number {
+  return [
+    'not-applicable',
+    'planning-scope',
+    'evidence-mapping',
+    'source-posture',
+    'investigation',
+    'candidate-grounding',
+    'verification',
+    'terminal',
+    'complete',
+  ].indexOf(stage);
 }
 
 function countCovered(

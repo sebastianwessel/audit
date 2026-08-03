@@ -17,6 +17,7 @@ import {
   type AuditEvidenceMapRecoveryLeafUpdate,
   type AuditScopedStageContext,
   type AuditSourcePostureRecoveryLeafUpdate,
+  type AuditVerifiedDiscoverySeedUpdate,
   type CandidateAwareCheckpointUpdate,
   runAudit,
 } from '../audit-execution/audit.js';
@@ -91,6 +92,7 @@ export type ReviewService = Readonly<{
           | 'modelObservation'
         >,
       ) => Promise<void>;
+      onVerifiedDiscoverySeed?: (update: AuditVerifiedDiscoverySeedUpdate) => Promise<void>;
       onCandidateAwareCheckpoint?: (update: CandidateAwareCheckpointUpdate) => Promise<void>;
       onSourcePostureDraft?: (
         draft: Pick<AuditSourcePostureDraft, 'vectorId' | 'sourcePosture' | 'modelObservation'>,
@@ -226,6 +228,7 @@ export function createReviewService(
         retryUnfinished: input.retryUnfinished,
         onEvidenceMapDraft: input.onEvidenceMapDraft,
         onCandidateGroundingDraft: input.onCandidateGroundingDraft,
+        onVerifiedDiscoverySeed: input.onVerifiedDiscoverySeed,
         onCandidateAwareCheckpoint: input.onCandidateAwareCheckpoint,
         onSourcePostureDraft: input.onSourcePostureDraft,
         onContextOverflowTransition: input.onContextOverflowTransition,

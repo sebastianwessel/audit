@@ -37,7 +37,7 @@ export function scorePlan(answerKey: CorpusAnswerKey, plan: AttackPlan): PlanSco
   };
 }
 
-function vectorScopesPath(
+export function vectorScopesPath(
   vectors: readonly AttackPlan['vectors'][number][],
   path: string,
 ): boolean {

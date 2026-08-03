@@ -439,11 +439,32 @@ export const FindingScoreSchema = z.strictObject({
 /** Source-free evaluator diagnostic; it cannot influence product admission or scores. */
 export const FirstIncompleteEvidenceStageSchema = z.enum([
   'not-applicable',
+  'planning-scope',
   'evidence-mapping',
+  'source-posture',
+  'investigation',
   'candidate-grounding',
   'verification',
+  'terminal',
   'complete',
 ]);
+
+/**
+ * Evaluator-only derived trace. It deliberately retains neither an answer-key
+ * source location nor any product/model identity below the expected role.
+ */
+export const ExpectedEvidenceRoleTraceSchema = z.strictObject({
+  findingId: IdentifierSchema,
+  role: ExpectedFindingEvidenceRoleSchema,
+  planScoped: z.boolean(),
+  mapperSelected: z.boolean(),
+  postureReconciled: z.boolean(),
+  discoverySeeded: z.boolean(),
+  groundingSelected: z.boolean(),
+  verifierSelected: z.boolean(),
+  terminalCompleted: z.boolean(),
+  firstIncompleteStage: FirstIncompleteEvidenceStageSchema,
+});
 
 export const EvidenceStageCoverageSchema = z.strictObject({
   expectedRoleCount: z.int().nonnegative(),
@@ -452,6 +473,8 @@ export const EvidenceStageCoverageSchema = z.strictObject({
   verifiedRoleCount: z.int().nonnegative(),
   /** First normal evidence stage that did not retain every expected role overlap. */
   firstIncompleteStage: FirstIncompleteEvidenceStageSchema,
+  /** Evaluator-only derived stage booleans; never model input or a score. */
+  roleTraces: z.array(ExpectedEvidenceRoleTraceSchema).optional(),
 });
 
 export const EvaluationTrialSchema = z.strictObject({
@@ -516,6 +539,28 @@ export const EvaluationGeneratedPlanCheckpointSchema = z
     }
   });
 
+/** Exact evaluator-only binding for resumable derived expected-role trace state. */
+export const ExpectedEvidenceTraceCheckpointBindingSchema = z.strictObject({
+  trialId: IdentifierSchema,
+  planId: IdentifierSchema,
+  planDigest: Sha256Schema,
+  targetFingerprint: Sha256Schema,
+  contextDigest: Sha256Schema,
+  provider: z.string().trim().min(1).max(160),
+  model: z.string().trim().min(1).max(160),
+  verificationRouteFingerprint: Sha256Schema,
+  promptProtocolFingerprint: Sha256Schema,
+  answerKeyDigest: Sha256Schema,
+});
+
+/** Separate evaluator-work artifact; raw answer-key locations and discovery seeds are excluded. */
+export const ExpectedEvidenceTraceCheckpointSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  binding: ExpectedEvidenceTraceCheckpointBindingSchema,
+  roleTraces: z.array(ExpectedEvidenceRoleTraceSchema),
+  savedAt: IsoDateTimeSchema,
+});
+
 export const ProviderEvaluationCheckpointErrorCodeSchema = z.enum([
   'provider-cancelled',
   'evaluation-run-failed',
@@ -523,7 +568,7 @@ export const ProviderEvaluationCheckpointErrorCodeSchema = z.enum([
 
 export const ProviderEvaluationCheckpointSchema = z
   .strictObject({
-    schemaVersion: z.literal(6),
+    schemaVersion: z.literal(7),
     runId: IdentifierSchema,
     configFingerprint: Sha256Schema,
     packId: IdentifierSchema,
@@ -596,7 +641,7 @@ export const EvaluationBaselineSchema = z.strictObject({
 });
 
 export const RealWorldEvaluationRunSchema = z.strictObject({
-  schemaVersion: z.literal(6),
+  schemaVersion: z.literal(7),
   runId: IdentifierSchema,
   packId: IdentifierSchema,
   packVersion: z.string().trim().min(1).max(32),
@@ -650,9 +695,14 @@ export type CheckpointedEvaluationTrial = z.infer<typeof CheckpointedEvaluationT
 export type EvaluationGeneratedPlanCheckpoint = z.infer<
   typeof EvaluationGeneratedPlanCheckpointSchema
 >;
+export type ExpectedEvidenceTraceCheckpoint = z.infer<typeof ExpectedEvidenceTraceCheckpointSchema>;
+export type ExpectedEvidenceTraceCheckpointBinding = z.infer<
+  typeof ExpectedEvidenceTraceCheckpointBindingSchema
+>;
 export type EvaluationTrial = z.infer<typeof EvaluationTrialSchema>;
 export type FindingScore = z.infer<typeof FindingScoreSchema>;
 export type EvidenceStageCoverage = z.infer<typeof EvidenceStageCoverageSchema>;
+export type ExpectedEvidenceRoleTrace = z.infer<typeof ExpectedEvidenceRoleTraceSchema>;
 export type PlanScore = z.infer<typeof PlanScoreSchema>;
 export type RealWorldEvaluationRun = z.infer<typeof RealWorldEvaluationRunSchema>;
 export type ReliabilitySummary = z.infer<typeof ReliabilitySummarySchema>;

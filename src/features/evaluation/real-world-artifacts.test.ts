@@ -10,6 +10,7 @@ import { observeModelStage, summarizeModelStages } from '../model-operations/mod
 import {
   acquireProviderEvaluationLock,
   createEvaluationAuditCheckpointStore,
+  createEvaluationExpectedEvidenceTraceCheckpointStore,
   createEvaluationPlanningCheckpointStore,
   evaluatorCheckpointModelStages,
 } from './real-world-artifacts.js';
@@ -89,6 +90,43 @@ test('reuses an evaluator-private terminal checkpoint only for the exact audit b
     configFingerprint: 'f'.repeat(64),
     savedAt: () => '2026-07-31T12:00:01.000Z',
   });
+  const traceStore = createEvaluationExpectedEvidenceTraceCheckpointStore({
+    outputRoot: root,
+    evaluationRunId: 'evaluation-run-01',
+    savedAt: () => '2026-07-31T12:00:01.000Z',
+  });
+  const traceBinding = {
+    trialId: 'evaluation-trial-trace-01',
+    planId: plan.planId,
+    planDigest: plan.planDigest,
+    targetFingerprint: plan.targetFingerprint,
+    contextDigest: plan.contextDigest,
+    provider: 'fixture-provider',
+    model: 'fixture-model',
+    verificationRouteFingerprint: 'c'.repeat(64),
+    promptProtocolFingerprint: 'e'.repeat(64),
+    answerKeyDigest: 'f'.repeat(64),
+  };
+  await traceStore.save(traceBinding, [
+    {
+      findingId: 'expected-finding-01',
+      role: 'operation',
+      planScoped: true,
+      mapperSelected: true,
+      postureReconciled: false,
+      discoverySeeded: false,
+      groundingSelected: false,
+      verifierSelected: false,
+      terminalCompleted: false,
+      firstIncompleteStage: 'source-posture',
+    },
+  ]);
+  await expect(traceStore.load(traceBinding)).resolves.toEqual([
+    expect.objectContaining({ firstIncompleteStage: 'source-posture' }),
+  ]);
+  await expect(
+    traceStore.load({ ...traceBinding, answerKeyDigest: '0'.repeat(64) }),
+  ).rejects.toThrow('does not match');
   await planningStore.save({
     trialId: 'evaluation-trial-plan-01',
     targetFingerprint: draft.targetFingerprint,

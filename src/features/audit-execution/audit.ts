@@ -240,6 +240,12 @@ export type AuditCandidateGroundingRecoveryLeafUpdate = Readonly<{
   groundings: AuditCandidateGroundingRecoveryLeaf['groundings'];
 }>;
 
+/** Evaluator-only source-free projection of a structurally accepted discovery seed. */
+export type AuditVerifiedDiscoverySeedUpdate = Readonly<{
+  vectorId: string;
+  evidenceMapFactIds: readonly string[];
+}>;
+
 export type AuditInput = Readonly<{
   plan: AttackPlan;
   targetFingerprint: string;
@@ -273,6 +279,7 @@ export type AuditInput = Readonly<{
       | 'modelObservation'
     >,
   ) => Promise<void>;
+  onVerifiedDiscoverySeed?: (update: AuditVerifiedDiscoverySeedUpdate) => Promise<void>;
   onCandidateAwareCheckpoint?: (update: CandidateAwareCheckpointUpdate) => Promise<void>;
   onSourcePostureDraft?: (
     draft: Pick<AuditSourcePostureDraft, 'vectorId' | 'sourcePosture' | 'modelObservation'>,
@@ -565,6 +572,12 @@ async function executeVector(
         ]),
       ),
     );
+    for (const seed of verifiedSeeds.verified) {
+      await input.onVerifiedDiscoverySeed?.({
+        vectorId: vector.vectorId,
+        evidenceMapFactIds: seed.evidenceMapFactIds,
+      });
+    }
     activeStage = 'candidate-grounding';
     const grounding =
       priorDraft !== undefined ||

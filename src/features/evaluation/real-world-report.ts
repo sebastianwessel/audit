@@ -109,6 +109,14 @@ export function renderRealWorldEvaluationReport(
     '| ---: | ---: | ---: | ---: | --- |',
     ...formatStageEvidenceCoverage(run),
     '',
+    '### Expected-role first-loss trace',
+    '',
+    'Evaluator-only derived trace for each applicable expected evidence role. It contains no source locations, map facts, seeds, candidates, prompts, tool data, or model output. A `no` value means that stage did not retain a matching evaluator-only role projection; it is not a security conclusion.',
+    '',
+    '| Case | Variant | Repeat | Expected finding | Role | Plan scope | Map | Posture | Discovery | Grounding | Verifier | Terminal | First loss |',
+    '| --- | --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    ...formatExpectedEvidenceRoleTraces(run),
+    '',
     '### Finding admission funnel',
     '',
     'Aggregate terminal hypothesis decisions from completed new-format trials. It is diagnostic only and contains no source or model content.',
@@ -203,6 +211,24 @@ function formatStageEvidenceCoverage(run: RealWorldEvaluationRun): string[] {
       ? '| unavailable | unavailable | unavailable | unavailable | unavailable |'
       : `| ${coverage.expectedRoleCount} | ${coverage.mappedLocationCount} | ${coverage.groundedRoleCount} | ${coverage.verifiedRoleCount} | ${coverage.firstIncompleteStage} |`;
   });
+}
+
+function formatExpectedEvidenceRoleTraces(run: RealWorldEvaluationRun): string[] {
+  const rows = run.trials.flatMap((trial) =>
+    (trial.stageEvidenceCoverage?.roleTraces ?? []).map(
+      (trace) =>
+        `| \`${trial.caseId}\` | ${trial.variant} | ${trial.repetition} | \`${trace.findingId}\` | ${trace.role} | ${yesNo(trace.planScoped)} | ${yesNo(trace.mapperSelected)} | ${yesNo(trace.postureReconciled)} | ${yesNo(trace.discoverySeeded)} | ${yesNo(trace.groundingSelected)} | ${yesNo(trace.verifierSelected)} | ${yesNo(trace.terminalCompleted)} | ${trace.firstIncompleteStage} |`,
+    ),
+  );
+  return rows.length === 0
+    ? [
+        '| unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |',
+      ]
+    : rows;
+}
+
+function yesNo(value: boolean): string {
+  return value ? 'yes' : 'no';
 }
 
 function formatHoldoutAttestation(run: RealWorldEvaluationRun): string {

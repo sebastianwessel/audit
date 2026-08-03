@@ -5,7 +5,7 @@ import { RealWorldEvaluationRunSchema } from './corpus.schema.js';
 
 function providerRun(runId: string, promptProtocolFingerprint: string) {
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 6,
+    schemaVersion: 7,
     runId,
     packId: 'comparison-pack',
     packVersion: '1.0.0',

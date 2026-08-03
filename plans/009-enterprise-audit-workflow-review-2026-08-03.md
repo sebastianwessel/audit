@@ -250,6 +250,24 @@ lossless recovery reduction. Its provider-free test proves an unknown-extension
 source remains eligible and requires a scoped `repo_grep` inspection. It does
 not assert prompt text, source contents, or a security conclusion.
 
+### Plan 009-F — replace aggregate expected-evidence loss with a resumable role trace
+
+**Progress (2026-08-03):** implemented as evaluation-run schema version 7.
+
+The evaluator now records one source-free row per applicable expected finding
+and required evidence role. The row tracks only booleans for plan scope,
+evidence mapping, source posture, validated discovery, canonical grounding,
+verifier evidence, and terminal vector coverage, plus the first missing stage.
+It never writes locations, map/posture identifiers, seeds, candidates, prompts,
+tool data, or model output.
+
+The product emits an evaluation-only discovery callback after structural seed
+validation with just vector id and map-fact ids. The evaluator immediately
+reduces it to booleans. Trace progress is stored independently beneath the
+evaluator work root, exact-bound to the trial, sealed plan, target/context,
+provider/model/route, prompt protocol, and answer-key digest. This lets a
+resumed trial retain the diagnostic without ever persisting a discovery seed.
+
 ## Release gate after the wave
 
 - `bun run check` passes without provider dispatch.

@@ -59,6 +59,8 @@ import {
   type EvaluationGeneratedPlanCheckpoint,
   type EvaluationMeasurementScope,
   type EvaluationTrial,
+  type ExpectedEvidenceRoleTrace,
+  type ExpectedEvidenceTraceCheckpointBinding,
   type FindingCoverageClass,
   type PlanEvaluationProfile,
   type RealWorldEvaluationRun,
@@ -72,6 +74,15 @@ import {
   evaluationBenchmarkProtocolFingerprint,
   evaluationPopulationDigest,
 } from './evaluation-identity.js';
+import {
+  createExpectedEvidenceRoleTraces,
+  traceDiscoveryEvidence,
+  traceGroundedEvidence,
+  traceMappedEvidence,
+  tracePostureEvidence,
+  traceTerminalCoverage,
+  traceVerifiedEvidence,
+} from './expected-evidence-trace.js';
 import type { HoldoutAttestationReference } from './holdout-attestation.schema.js';
 import { evaluatorCheckpointModelStages } from './real-world-artifacts.js';
 import {
@@ -112,6 +123,7 @@ export type CorpusEvaluationInput = Readonly<{
   holdoutAttestation?: HoldoutAttestationReference;
   auditCheckpoints?: EvaluationAuditCheckpointStore;
   planningCheckpoints?: EvaluationPlanningCheckpointStore;
+  expectedEvidenceTraceCheckpoints?: EvaluationExpectedEvidenceTraceCheckpointStore;
 }>;
 
 /**
@@ -208,6 +220,17 @@ export type EvaluationPlanningCheckpointStore = Readonly<{
     plan: AttackPlan;
     modelObservation: ModelRunObservation;
   }) => Promise<void>;
+}>;
+
+/** Evaluator-private, source-free phase progress for an expected-role trace. */
+export type EvaluationExpectedEvidenceTraceCheckpointStore = Readonly<{
+  load: (
+    binding: ExpectedEvidenceTraceCheckpointBinding,
+  ) => Promise<readonly ExpectedEvidenceRoleTrace[] | undefined>;
+  save: (
+    binding: ExpectedEvidenceTraceCheckpointBinding,
+    roleTraces: readonly ExpectedEvidenceRoleTrace[],
+  ) => Promise<void>;
 }>;
 
 /** Executes the normal plan/audit flow against an isolated corpus variant. */
@@ -333,7 +356,7 @@ export async function runCorpusEvaluation(
         }));
   const finishedAt = new Date().toISOString();
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 6,
+    schemaVersion: 7,
     runId: input.runId,
     packId: input.pack.manifest.packId,
     packVersion: input.pack.manifest.packVersion,
@@ -440,8 +463,10 @@ async function runTrial(
       >
     | undefined;
   const evidenceMaps: AuditEvidenceMapDraft['evidenceMap'][] = [];
+  const evidenceMapsByVector = new Map<string, AuditEvidenceMapDraft['evidenceMap']>();
   const groundedSourceEvidence: AuditCandidateGroundingDraft['findings'][number]['evidence'][number][] =
     [];
+  let expectedEvidenceRoleTraces: ExpectedEvidenceRoleTrace[] = [];
   let planKeys: string[] = [];
   let planScore: EvaluationTrial['planScore'] = null;
   try {
@@ -504,6 +529,10 @@ async function runTrial(
         vectors: input.reviewedPlan.vectors,
         createdAt: input.startedAt,
       });
+    expectedEvidenceRoleTraces = createExpectedEvidenceRoleTraces({
+      answerKey: input.answerKey,
+      plan: draft,
+    });
     planKeys = generatedPlan ? [...normalizedPlanKeys(draft)] : [];
     planScore = generatedPlan ? scorePlan(input.answerKey, draft) : null;
     if (input.measurementScope === 'planning-only') {
@@ -542,6 +571,29 @@ async function runTrial(
       evidenceMapProtocolFingerprint,
       reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
     };
+    const expectedEvidenceTraceBinding = {
+      trialId,
+      planId: draft.planId,
+      planDigest: draft.planDigest,
+      targetFingerprint: inventory.targetFingerprint,
+      contextDigest: inventory.contextDigest,
+      provider: input.provider,
+      model: input.model,
+      verificationRouteFingerprint: checkpointBinding.verificationRouteFingerprint,
+      promptProtocolFingerprint: input.promptProtocolFingerprint,
+      answerKeyDigest: sha256(canonicalJson(input.answerKey)),
+    };
+    const persistedExpectedEvidenceTrace = await input.expectedEvidenceTraceCheckpoints?.load(
+      expectedEvidenceTraceBinding,
+    );
+    if (persistedExpectedEvidenceTrace !== undefined) {
+      expectedEvidenceRoleTraces = [...persistedExpectedEvidenceTrace];
+    }
+    const saveExpectedEvidenceTrace = async (): Promise<void> =>
+      input.expectedEvidenceTraceCheckpoints?.save(
+        expectedEvidenceTraceBinding,
+        expectedEvidenceRoleTraces,
+      );
     const reusable =
       input.auditCheckpoints === undefined
         ? undefined
@@ -551,14 +603,50 @@ async function runTrial(
             retryUnfinished: input.retryUnfinished ?? false,
           });
     if (reusable !== undefined) {
-      evidenceMaps.push(...reusable.evidenceMapDrafts.map((draft) => draft.evidenceMap));
+      for (const reusableMap of reusable.evidenceMapDrafts) {
+        evidenceMaps.push(reusableMap.evidenceMap);
+        evidenceMapsByVector.set(reusableMap.vectorId, reusableMap.evidenceMap);
+        expectedEvidenceRoleTraces = traceMappedEvidence(
+          expectedEvidenceRoleTraces,
+          input.answerKey,
+          reusableMap.evidenceMap,
+        );
+      }
+      for (const reusablePosture of reusable.sourcePostureDrafts) {
+        const evidenceMap = evidenceMapsByVector.get(reusablePosture.vectorId);
+        if (evidenceMap !== undefined) {
+          expectedEvidenceRoleTraces = tracePostureEvidence(
+            expectedEvidenceRoleTraces,
+            input.answerKey,
+            evidenceMap,
+            reusablePosture.sourcePosture,
+          );
+        }
+      }
       groundedSourceEvidence.push(
         ...reusable.candidateGroundingDrafts.flatMap((draft) =>
           draft.findings.flatMap((finding) => finding.evidence),
         ),
       );
+      expectedEvidenceRoleTraces = traceGroundedEvidence(
+        expectedEvidenceRoleTraces,
+        input.answerKey,
+        reusable.candidateGroundingDrafts.flatMap((draft) =>
+          draft.findings.flatMap((finding) => finding.evidence),
+        ),
+      );
+      expectedEvidenceRoleTraces = traceVerifiedEvidence(
+        expectedEvidenceRoleTraces,
+        input.answerKey,
+        reusable.candidateAwareCheckpoints.flatMap((checkpoint) =>
+          checkpoint.phase === 'verification' && checkpoint.result?.verifiedEvidence !== null
+            ? (checkpoint.result?.verifiedEvidence ?? [])
+            : [],
+        ),
+      );
       input.service.recordPriorModelStages(evaluatorCheckpointModelStages(reusable));
     }
+    await saveExpectedEvidenceTrace();
     const audited = await input.service.audit({
       targetRoot: input.targetRoot,
       contextRoot: input.contextRoot,
@@ -581,18 +669,48 @@ async function runTrial(
       retryUnfinished: input.retryUnfinished ?? false,
       onEvidenceMapDraft: async (checkpointDraft) => {
         evidenceMaps.push(checkpointDraft.evidenceMap);
+        evidenceMapsByVector.set(checkpointDraft.vectorId, checkpointDraft.evidenceMap);
         await input.auditCheckpoints?.saveEvidenceMap({
           binding: checkpointBinding,
           plan: draft,
           draft: checkpointDraft,
         });
+        expectedEvidenceRoleTraces = traceMappedEvidence(
+          expectedEvidenceRoleTraces,
+          input.answerKey,
+          checkpointDraft.evidenceMap,
+        );
+        await saveExpectedEvidenceTrace();
       },
-      onSourcePostureDraft: async (checkpointDraft) =>
-        input.auditCheckpoints?.saveSourcePosture({
+      onSourcePostureDraft: async (checkpointDraft) => {
+        await input.auditCheckpoints?.saveSourcePosture({
           binding: checkpointBinding,
           plan: draft,
           draft: checkpointDraft,
-        }),
+        });
+        const evidenceMap = evidenceMapsByVector.get(checkpointDraft.vectorId);
+        if (evidenceMap !== undefined) {
+          expectedEvidenceRoleTraces = tracePostureEvidence(
+            expectedEvidenceRoleTraces,
+            input.answerKey,
+            evidenceMap,
+            checkpointDraft.sourcePosture,
+          );
+        }
+        await saveExpectedEvidenceTrace();
+      },
+      onVerifiedDiscoverySeed: async (update) => {
+        const evidenceMap = evidenceMapsByVector.get(update.vectorId);
+        if (evidenceMap !== undefined) {
+          expectedEvidenceRoleTraces = traceDiscoveryEvidence(
+            expectedEvidenceRoleTraces,
+            input.answerKey,
+            evidenceMap,
+            update.evidenceMapFactIds,
+          );
+        }
+        await saveExpectedEvidenceTrace();
+      },
       onCandidateGroundingDraft: async (checkpointDraft) => {
         groundedSourceEvidence.push(
           ...checkpointDraft.findings.flatMap((finding) => finding.evidence),
@@ -602,13 +720,28 @@ async function runTrial(
           plan: draft,
           draft: checkpointDraft,
         });
+        expectedEvidenceRoleTraces = traceGroundedEvidence(
+          expectedEvidenceRoleTraces,
+          input.answerKey,
+          checkpointDraft.findings.flatMap((finding) => finding.evidence),
+        );
+        await saveExpectedEvidenceTrace();
       },
-      onCandidateAwareCheckpoint: async (update) =>
-        input.auditCheckpoints?.saveCandidateAware({
+      onCandidateAwareCheckpoint: async (update) => {
+        await input.auditCheckpoints?.saveCandidateAware({
           binding: checkpointBinding,
           plan: draft,
           update,
-        }),
+        });
+        if (update.phase === 'verification' && update.state === 'completed') {
+          expectedEvidenceRoleTraces = traceVerifiedEvidence(
+            expectedEvidenceRoleTraces,
+            input.answerKey,
+            update.result?.verifiedEvidence ?? [],
+          );
+        }
+        await saveExpectedEvidenceTrace();
+      },
       onVectorResult: async (result) =>
         input.auditCheckpoints?.saveVectorResult({
           binding: checkpointBinding,
@@ -641,6 +774,13 @@ async function runTrial(
         }),
     });
     auditObservation = audited.modelObservation;
+    expectedEvidenceRoleTraces = traceTerminalCoverage(
+      expectedEvidenceRoleTraces,
+      input.answerKey,
+      draft,
+      audited.report.coverage,
+    );
+    await saveExpectedEvidenceTrace();
     auditProjection = {
       vectorCoverage: audited.report.coverage,
       findingKeys: normalizedFindingKeys(audited.report.findings, draft),
@@ -656,6 +796,7 @@ async function runTrial(
       verifiedEvidence: [...audited.report.findings, ...audited.report.reviewRequired].flatMap(
         (finding) => finding.evidence,
       ),
+      roleTraces: expectedEvidenceRoleTraces,
     });
     const status = trialStatusFromCoverage(audited.report.coverage);
     const completed = status === 'completed';
@@ -698,6 +839,7 @@ async function runTrial(
         evidenceMaps,
         groundedEvidence: groundedSourceEvidence,
         verifiedEvidence: [],
+        roleTraces: expectedEvidenceRoleTraces,
       }),
       planKeys,
       findingKeys: auditProjection?.findingKeys ?? [],
