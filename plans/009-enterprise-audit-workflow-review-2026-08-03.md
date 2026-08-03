@@ -1,9 +1,9 @@
 # Enterprise audit workflow review and next wave
 
-> **Status:** advisory and implementation plan only. This review made no product,
-> specification, or public-documentation changes. It was written against commit
-> `dce8947` on 2026-08-03; the working tree also contains a separately verified,
-> uncommitted resume-state consolidation that is outside this review's baseline.
+> **Status:** active execution record. It was written against commit `dce8947`
+> on 2026-08-03 and reconciled on 2026-08-03 after the resume, stage-trace,
+> provider-error, and planning-boundary work was committed and one explicitly
+> authorised provider smoke completed.
 
 ## Executive verdict
 
@@ -18,16 +18,24 @@ The latest offline corpus command completed correctly as a contract test, but
 all six selected trials stopped at `evidence-map-incomplete`. Its deterministic
 provider performed a grep then returned no map facts, so the result proves that
 the fail-closed path works; it says nothing about provider detection accuracy.
-No quality number should be published from that run.
+
+The authorised one-case reviewed-plan provider smoke then completed all five
+audit phases on a scoped target: evidence mapping, source posture,
+investigation, candidate grounding, and verification. It made ten model calls,
+used 22,608 input tokens (4,096 cached) and 1,957 output tokens, and had a
+catalogue-derived observed cost of $0.060512 under the $2 dispatch guard. Its
+single vector reached completed coverage and produced one admitted finding.
+The smoke has no answer-key comparison, so this is operational evidence only:
+it proves that the real provider, bounded tools, evidence lifecycle, and report
+admission can complete together; it is not recall, precision, or reliability.
 
 ## Findings that remain actionable
 
 | Priority | Finding | Evidence | Impact | Effort | Confidence |
 | --- | --- | --- | --- | --- | --- |
-| P0 | Current evaluation does not isolate the cause of zero semantic completions for a real provider. | `evaluation/runs/*/evaluation-report.md` records six `evidence-map-incomplete` trials; `src/features/evaluation/deterministic-provider.ts` intentionally returns scripted responses; `src/features/evaluation/run-real-world.ts` exits successfully for the deterministic contract run. | A zero finding score can be mistaken for a model result although no finding stage was reached. | M | High |
+| P0 | The prior real-provider lifecycle uncertainty is resolved for one reviewed-plan smoke, but provider quality still cannot be measured. | Source-free smoke `root-cause-smoke-20260803-v2` completed all five audit phases, with one completed vector and a bounded $0.060512 observed cost; the deterministic corpus command remains deliberately non-semantic. | Do not mistake an operational completion or a deterministic incomplete trial for recall, precision, or model comparison evidence. | S | High |
 | P0 | The corpus is not yet eligible for an enterprise reliability or precision claim. | `src/features/evaluation/corpus.schema.ts:207-278` permits provisional keys; current evaluation report labels the selected corpus diagnostic and targeted. | Reported recall or precision would be statistically and semantically misleading. | L | High |
 | P1 | The prompt protocol is structurally safe but has no outcome-based regression suite for the actual planning and evidence-mapping behavior. | `src/features/review-workflow/agents/*/instructions.ts`; only shared inspection text has a direct instruction test at `scoped-inspection-instructions.test.ts`. | Prompt edits can silently reduce plan coverage or cause evidence-map incompleteness. | M | High |
-| P1 | Diagnostic validation codes collide by design. | `src/features/review-workflow/runtime/invocation.ts:39-44,57-68` retains at most three schema paths then slices the token to 64 characters. | Different malformed model outputs can become indistinguishable in source-free telemetry, slowing safe recovery. | S | High |
 | P1 | `eval:corpus` is useful but its name suggests a semantic evaluation even though its default deterministic provider deliberately cannot find source facts. | `src/features/evaluation/deterministic-provider.ts:60-110`; the latest report has no completed trials and `bun run check` still exits successfully. | Engineers can interpret a green command as evidence of audit quality. | S | High |
 
 ### Explicitly rejected as stale or already fixed
@@ -49,18 +57,20 @@ No quality number should be published from that run.
 - **`relevantPathCoverage` derived from true positives:** it is currently
   calculated from enabled-vector scope against answer-key relevant paths
   (`src/features/evaluation/real-world-scorer.ts:16-45`).
+- **Validation-diagnostic collisions:** the provider-invocation boundary now
+  records a fixed category, the complete issue count, and a digest of the full
+  sorted schema-path set. It preserves diagnostic distinction without retaining
+  source, model values, or raw provider metadata.
 
 ## Recommended execution order
 
 ### Plan 009-A — make every evaluation outcome explainable
 
-**Progress (2026-08-03):** the version-6 run artifact now records a strict,
-source-free `firstIncompleteStage` for the observable expected-role chain:
-evidence mapping, canonical grounding, or verification (plus complete and
-not-applicable). It deliberately does not claim a posture or discovery
-expected-role match, because those phases do not persist a truthful
-answer-key-to-role identity. Their existing source-free funnels remain the
-separate diagnostic.
+**Progress (2026-08-03):** complete. The version-7 run artifact records a
+strict, resumable source-free role trace for the observable expected-evidence
+chain: plan scope, evidence mapping, source posture, discovery, grounding,
+verification, terminal coverage, and first loss. It deliberately does not
+retain a source, prompt, answer-key text, tool data, or model content.
 
 **Goal:** a single real-provider trial must say exactly which stage lost the
 expected source-backed evidence, without exposing source, prompts, answer keys,
@@ -280,11 +290,15 @@ security heuristics.
 ## Release gate after the wave
 
 - `bun run check` passes without provider dispatch.
-- A current-schema, one-run `reviewed-plan` provider trial produces a complete
-  trace or an explicit first-loss stage; it is not a quality claim.
+- The current-schema, one-run `reviewed-plan` provider smoke has completed its
+  full audit path within a $2 guard at $0.060512 observed catalogue cost; it is
+  not a quality claim.
 - A generated-plan trial is reported separately from reviewed-plan behavior.
-- No model comparison or model change is justified until a qualified corpus
-  provides a scoreable result.
+- No further provider quality run, model comparison, or model change is
+  justified until a qualified corpus provides a scoreable result.
+- The next critical path is offline corpus curation: acquire immutable paired
+  source workspaces from the existing metadata queues, then record two agreeing
+  source-only human reviews per pair before any case enters a scoring pack.
 - The separately prepared `AuditResumeState` refactor is code-reviewed and
   committed on its own; do not mix it with this evaluation/prompt wave.
 
