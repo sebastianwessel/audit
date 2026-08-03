@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
 import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
-import { PlanModelRequestSchema } from '../agents/planning/contract.js';
+import { PlanModelInputSchema, PlanModelRequestSchema } from '../agents/planning/contract.js';
 import { runPlanningStage } from './planning.js';
 
 test('creates a source-inspected draft for an unknown-language source file', async () => {
@@ -81,4 +81,28 @@ test('creates a source-inspected draft for an unknown-language source file', asy
       toolUsage: { successfulGrepFilesCallCount: 1 },
     },
   });
+
+  const initialInput = firstPlannerModelInput(provider);
+  expect(initialInput).toMatchObject({
+    sourcePaths: ['reviewed.unknown'],
+    inspectionRequirement: {
+      required: true,
+      allowedToolIds: ['repo_read', 'repo_grep'],
+    },
+  });
+  expect(Object.hasOwn(initialInput, 'findings')).toBeFalse();
+  expect(Object.hasOwn(initialInput, 'answerKey')).toBeFalse();
+  expect(JSON.stringify(initialInput)).not.toContain('value = request.input');
 });
+
+/** Test-only projection of the first model input; it never persists or logs the request. */
+function firstPlannerModelInput(provider: FakeModelProvider) {
+  const request = provider.requests[0];
+  if (request === undefined) throw new Error('The planner did not make an initial model request.');
+  if (!('messages' in request)) throw new Error('The planner made a non-message model request.');
+  const message = request.messages.find((entry) => entry.role === 'user');
+  if (message === undefined || typeof message.content !== 'string') {
+    throw new Error('The planner did not send a JSON user input.');
+  }
+  return PlanModelInputSchema.parse(JSON.parse(message.content));
+}
