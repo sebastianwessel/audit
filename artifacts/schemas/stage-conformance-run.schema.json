@@ -15,8 +15,8 @@
       "const": "in-process-scripted-fixture"
     },
     "stages": {
-      "minItems": 6,
-      "maxItems": 6,
+      "minItems": 7,
+      "maxItems": 7,
       "type": "array",
       "items": {
         "type": "object",
@@ -24,6 +24,7 @@
           "stage": {
             "type": "string",
             "enum": [
+              "planning",
               "evidence-mapping",
               "source-posture",
               "investigation",
