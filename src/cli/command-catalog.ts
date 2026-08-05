@@ -30,6 +30,75 @@ const examples = {
   lineage: 'audit lineage --previous reports/<previous>.json --current reports/<current>.json',
 } satisfies Record<ProductCliCommand, string>;
 
+/**
+ * Human-facing meanings for every accepted CLI option. The command schemas
+ * remain the authority for validation; rendering fails loudly if a schema
+ * gains an option without its user-facing explanation.
+ */
+const optionDescriptions = {
+  plan: {
+    context: 'Directory of optional Markdown context documents about the system around the target.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+    resume: 'Use `true` only to finish a previously interrupted plan publication.',
+    'run-id': 'Plan run identity; required together with `--resume true`.',
+    target: 'Root directory of the repository to inspect.',
+    'target-name': 'Human-readable target label shown in plan artifacts.',
+  },
+  'plan-draft': {
+    draft: 'New private-work path for the editable JSON draft to create.',
+    plan: 'Private-work path of the sealed plan JSON to edit.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+  },
+  'plan-reseal': {
+    draft: 'Private-work path of the edited JSON draft to validate and reseal.',
+    plan: 'Private-work path of the sealed plan JSON the draft was created from.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+    resume: 'Use `true` only to finish a previously interrupted reseal publication.',
+    'run-id': 'Reseal run identity; required together with `--resume true`.',
+  },
+  audit: {
+    context: 'Directory of optional Markdown context documents bound to the plan target.',
+    plan: 'Private-work path of the matching sealed plan JSON to execute.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+    resume: 'Use `true` to resume the exact stopped audit run named by `--run-id`.',
+    'retry-unfinished': 'Use `true` with resume to retry explicitly unfinished stage work.',
+    'run-id': 'Audit run identity; required when resuming an existing run.',
+    target: 'Root directory of the repository that matches the sealed plan.',
+    'target-name': 'Human-readable target label shown in report artifacts.',
+  },
+  guidance: {
+    context: 'Directory of optional Markdown context documents bound to the plan target.',
+    plan: 'Private-work path of the matching sealed plan JSON.',
+    report: 'Public-artifact path of the accepted report JSON to explain.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+    resume: 'Use `true` to resume the exact stopped guidance run named by `--run-id`.',
+    'retry-unfinished': 'Use `true` with resume to retry explicitly unfinished guidance work.',
+    'run-id': 'Guidance run identity; required when resuming an existing run.',
+    target: 'Root directory of the repository that matches the sealed plan.',
+    'target-name': 'Human-readable target label shown in guidance artifacts.',
+  },
+  discard: {
+    plan: 'Private-work path of the sealed plan bound to the stopped audit run.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+    'run-id': 'Exact stopped audit run identity to discard from private work.',
+  },
+  lock: {
+    operation: 'Required confirmation of the locked operation when releasing a lease.',
+    release: 'Use `true` with `--operation` to release the exact known-abandoned lease.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+    'run-id': 'Identity of the private-work lease to inspect or release.',
+  },
+  report: {
+    report: 'Public-artifact path of the validated report JSON to render as Markdown.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+  },
+  lineage: {
+    current: 'Public-artifact path of the newer validated report JSON.',
+    previous: 'Public-artifact path of the earlier validated report JSON.',
+    'result-format': 'Use `json` for a machine-readable command result.',
+  },
+} satisfies Record<ProductCliCommand, Readonly<Record<string, string>>>;
+
 export function isProductCliCommand(value: string): value is ProductCliCommand {
   return productCliCommands.includes(value as ProductCliCommand);
 }
@@ -42,11 +111,21 @@ function commandUsage(command: ProductCliCommand): string {
   return `audit ${command} ${[...required, ...optional].join(' ')}`.trim();
 }
 
+function optionDescription(command: ProductCliCommand, option: string): string {
+  const descriptionsForCommand: Readonly<Record<string, string>> = optionDescriptions[command];
+  const description = descriptionsForCommand[option];
+  if (description === undefined) {
+    throw new Error(`Missing CLI help description for ${command} --${option}.`);
+  }
+  return description;
+}
+
 export function renderCliHelp(command?: ProductCliCommand | null): string {
   if (command !== undefined && command !== null) {
     const required = new Set(requiredCommandOptionNames(command));
     const options = commandOptionNames(command).map(
-      (option) => `- \`--${option}\` — ${required.has(option) ? 'required' : 'optional'}.`,
+      (option) =>
+        `- \`--${option} <value>\` — ${required.has(option) ? 'Required.' : 'Optional.'} ${optionDescription(command, option)}`,
     );
     return [
       `# audit ${command}`,
