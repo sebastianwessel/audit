@@ -51,10 +51,43 @@ test('reloads the exact admitted source and advisory context without reopening a
     targetFingerprint: capture.inventory.targetFingerprint,
     contextDigest: capture.inventory.contextDigest,
   });
-  expect(retained.snapshot.documents()).toEqual([
+  expect(await retained.snapshot.documents()).toEqual([
     { path: 'service.custom', content: 'before\r\n', languageHint: null },
   ]);
   expect(retained.inventory.context[0]?.body).toBe('Original context.\r\n');
+});
+
+test('revalidates a private source object at each on-demand repository read', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-retained-lazy-source-'));
+  roots.push(root);
+  const targetRoot = join(root, 'target');
+  const outputRoot = join(root, 'output');
+  await Promise.all([mkdir(targetRoot), mkdir(outputRoot)]);
+  await writeFile(join(targetRoot, 'service.custom'), 'source\n', 'utf8');
+  const capture = await captureTargetInventory(
+    await createJailedReadOnlyFilesystem({ targetRoot }),
+  );
+  await retainTargetSnapshot({ outputRoot, runId: 'audit-run-01', capture });
+  const retained = await loadRetainedTargetSnapshot({
+    outputRoot,
+    runId: 'audit-run-01',
+    targetFingerprint: capture.inventory.targetFingerprint,
+    contextDigest: capture.inventory.contextDigest,
+  });
+  const objectRef = capture.inventory.sourceSnapshot.rows.find(
+    (
+      row,
+    ): row is Extract<
+      (typeof capture.inventory.sourceSnapshot.rows)[number],
+      { disposition: 'admitted' }
+    > => row.disposition === 'admitted',
+  )?.objectRef;
+  if (objectRef === undefined) throw new Error('Expected an admitted source object.');
+  await writeFile(join(outputRoot, objectRef), 'changed\n', 'utf8');
+
+  await expect(
+    retained.snapshot.readFile({ root: 'target', relativePath: 'service.custom', startLine: 1 }),
+  ).rejects.toThrow('does not match its admission manifest');
 });
 
 test('releases snapshot bytes only after the final resumable run owner finishes', async () => {

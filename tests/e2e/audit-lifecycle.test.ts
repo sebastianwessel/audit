@@ -132,7 +132,7 @@ test('audit resume uses the retained snapshot after the target changes', async (
     targetFingerprint: plan.targetFingerprint,
     contextDigest: plan.contextDigest,
   });
-  expect(retained.snapshot.documents()).toEqual([
+  expect(await retained.snapshot.documents()).toEqual([
     { path: 'service.custom', content: 'original source\n', languageHint: null },
   ]);
 

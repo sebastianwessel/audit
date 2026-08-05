@@ -51,7 +51,7 @@ export async function prepareStageIsolatedCanonicalFixture(input: {
   const vector = plan.vectors[input.descriptor.canonicalPredecessor.vectorIndex];
   if (vector === undefined)
     throw invalidFixture('The canonical predecessor selects no reviewed vector.');
-  const scopedSources = selectScopedSources(vector, captured.snapshot.documents());
+  const scopedSources = selectScopedSources(vector, await captured.snapshot.documents());
   if (scopedSources.length === 0) {
     throw invalidFixture(
       'The canonical predecessor reviewed vector has no admitted scoped source.',

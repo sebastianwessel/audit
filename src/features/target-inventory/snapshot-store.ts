@@ -22,7 +22,7 @@ import {
   type TargetInventory,
   TargetInventorySchema,
 } from './inventory.schema.js';
-import { createSourceSnapshot } from './source-snapshot.js';
+import { SourceSnapshot } from './source-snapshot.js';
 
 const ContextSnapshotSchema = z.array(ContextDocumentSchema);
 
@@ -39,7 +39,7 @@ export async function retainTargetSnapshot(input: {
   try {
     const { capture } = input;
     const sourcesByPath = new Map(
-      capture.snapshot.documents().map((source) => [source.path, source]),
+      (await capture.snapshot.documents()).map((source) => [source.path, source]),
     );
     for (const row of capture.inventory.sourceSnapshot.rows) {
       if (row.disposition !== 'admitted') continue;
@@ -124,9 +124,11 @@ export async function loadRetainedTargetSnapshot(input: {
   if (actualContextDigest !== input.contextDigest) {
     throw new Error('The retained context snapshot does not match the executable plan.');
   }
-  const sources = [];
-  for (const row of sourceSnapshot.rows) {
-    if (row.disposition !== 'admitted') continue;
+  const admittedRows = sourceSnapshot.rows.filter(
+    (row): row is Extract<typeof row, { disposition: 'admitted' }> =>
+      row.disposition === 'admitted',
+  );
+  const readAdmittedSource = async (row: (typeof admittedRows)[number]) => {
     const content = await readPrivateUtf8Artifact(input.outputRoot, row.objectRef);
     if (
       sha256(content) !== row.contentDigest ||
@@ -134,15 +136,15 @@ export async function loadRetainedTargetSnapshot(input: {
     ) {
       throw new Error('A retained source object does not match its admission manifest.');
     }
-    sources.push({ path: row.path, content, languageHint: row.languageHint });
-  }
+    return { path: row.path, content, languageHint: row.languageHint };
+  };
+  // A resumed run validates every private object before any provider dispatch,
+  // but keeps no repository-wide source-content cache afterwards.
+  for (const row of admittedRows) await readAdmittedSource(row);
   const summary = {
-    fileCount: sources.length,
-    totalBytes: sources.reduce(
-      (total, source) => total + new TextEncoder().encode(source.content).byteLength,
-      0,
-    ),
-    languageHints: [...new Set(sources.flatMap((source) => source.languageHint ?? []))].sort(),
+    fileCount: admittedRows.length,
+    totalBytes: admittedRows.reduce((total, row) => total + row.byteLength, 0),
+    languageHints: [...new Set(admittedRows.flatMap((row) => row.languageHint ?? []))].sort(),
   };
   const inventory: TargetInventory = TargetInventorySchema.parse({
     targetFingerprint: input.targetFingerprint,
@@ -151,7 +153,18 @@ export async function loadRetainedTargetSnapshot(input: {
     sourceSnapshot,
     context,
   });
-  return { inventory, snapshot: createSourceSnapshot(sources) };
+  return {
+    inventory,
+    snapshot: new SourceSnapshot({
+      entries: admittedRows.map((row) => ({ relativePath: row.path, sizeBytes: row.byteLength })),
+      readDocument: async (path) => {
+        const row = admittedRows.find((candidate) => candidate.path === path);
+        if (row === undefined)
+          throw new Error('The requested source is not in the retained snapshot.');
+        return readAdmittedSource(row);
+      },
+    }),
+  };
 }
 
 /** Releases one run's reference and removes bytes only after the final owner finishes. */

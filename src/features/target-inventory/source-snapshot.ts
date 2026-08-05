@@ -19,32 +19,38 @@ import {
 } from '../../platform/filesystem/text-lines.js';
 import type { SourceDocument } from '../audit-execution/audit.schema.js';
 
+export type SourceSnapshotDocumentReader = (path: string) => Promise<SourceDocument>;
+
 export type SourceRepository = Pick<
   JailedReadOnlyFilesystem,
   'listFiles' | 'readFile' | 'grepFiles'
 >;
 
 /**
- * Immutable in-memory source view. It is built from one accepted inventory and
- * keeps all model-facing reads detached from the mutable target filesystem.
+ * Immutable source view. Its content reader is bound to one accepted snapshot,
+ * so model-facing reads never reopen the mutable target filesystem.
  */
 export class SourceSnapshot implements SourceRepository {
-  readonly #sources: ReadonlyMap<string, SourceDocument>;
+  readonly #readDocument: SourceSnapshotDocumentReader;
   readonly #entries: readonly FileEntry[];
 
-  public constructor(sources: readonly SourceDocument[]) {
-    this.#sources = new Map(sources.map((source) => [source.path, Object.freeze({ ...source })]));
-    this.#entries = [...this.#sources.values()]
-      .map((source) => ({
-        relativePath: source.path,
-        sizeBytes: new TextEncoder().encode(source.content).byteLength,
-      }))
-      .sort((left, right) => left.relativePath.localeCompare(right.relativePath));
+  public constructor(input: {
+    entries: readonly FileEntry[];
+    readDocument: SourceSnapshotDocumentReader;
+  }) {
+    this.#readDocument = input.readDocument;
+    this.#entries = [...input.entries].sort((left, right) =>
+      left.relativePath.localeCompare(right.relativePath),
+    );
   }
 
-  /** Internal orchestration projection; no artifact writer receives these bytes. */
-  public documents(): readonly SourceDocument[] {
-    return [...this.#sources.values()].map((source) => ({ ...source }));
+  /**
+   * Transitional orchestration projection. Callers must prefer the repository
+   * operations above; this method reads sequentially and never caches source
+   * content in the snapshot itself.
+   */
+  public async documents(): Promise<readonly SourceDocument[]> {
+    return Promise.all(this.#entries.map((entry) => this.#readDocument(entry.relativePath)));
   }
 
   public async listFiles(input: ListFilesInput): Promise<ListFilesResult> {
@@ -62,8 +68,7 @@ export class SourceSnapshot implements SourceRepository {
 
   public async readFile(input: ReadFileInput): Promise<ReadFileResult> {
     if ((input.root ?? 'target') !== 'target') throw snapshotTargetOnly();
-    const source = this.#sources.get(input.relativePath);
-    if (source === undefined) throw missingSnapshotSource();
+    const source = await this.readDocument(input.relativePath);
     const startLine = input.startLine ?? 1;
     const selection = selectTextLineRange(source.content, startLine, input.endLine);
     if (selection === undefined) throw missingSnapshotSource();
@@ -86,8 +91,7 @@ export class SourceSnapshot implements SourceRepository {
     const contextLines = input.contextLines ?? 0;
     const matches: GrepFilesResult['matches'] = [];
     for (const path of [...new Set(paths)].sort()) {
-      const source = this.#sources.get(path);
-      if (source === undefined) throw missingSnapshotSource();
+      const source = await this.readDocument(path);
       const lines = textLinesWithoutEndings(source.content);
       for (let index = 0; index < lines.length; index += 1) {
         const line = lines[index];
@@ -105,10 +109,26 @@ export class SourceSnapshot implements SourceRepository {
     }
     return { matches };
   }
+
+  private async readDocument(path: string): Promise<SourceDocument> {
+    if (!this.#entries.some((entry) => entry.relativePath === path)) throw missingSnapshotSource();
+    return this.#readDocument(path);
+  }
 }
 
 export function createSourceSnapshot(sources: readonly SourceDocument[]): SourceSnapshot {
-  return new SourceSnapshot(sources);
+  const byPath = new Map(sources.map((source) => [source.path, Object.freeze({ ...source })]));
+  return new SourceSnapshot({
+    entries: [...byPath.values()].map((source) => ({
+      relativePath: source.path,
+      sizeBytes: new TextEncoder().encode(source.content).byteLength,
+    })),
+    readDocument: async (path) => {
+      const source = byPath.get(path);
+      if (source === undefined) throw missingSnapshotSource();
+      return { ...source };
+    },
+  });
 }
 
 function snapshotTargetOnly(): FilesystemBoundaryError {

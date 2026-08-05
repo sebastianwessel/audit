@@ -417,7 +417,7 @@ export function createReviewService(
         plan: input.plan,
         targetFingerprint: inventory.targetFingerprint,
         contextDigest: inventory.contextDigest,
-        sources: sourceSnapshot.documents(),
+        sources: await sourceSnapshot.documents(),
         runId: input.runId,
         generatedAt: input.generatedAt,
         maxParallelVectors,
@@ -494,9 +494,9 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: sourceSnapshot
-              .documents()
-              .filter((source) => request.availableSourcePaths.includes(source.path)),
+            sources: (await sourceSnapshot.documents()).filter((source) =>
+              request.availableSourcePaths.includes(source.path),
+            ),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map`,
             modelName,
@@ -582,9 +582,9 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: sourceSnapshot
-              .documents()
-              .filter((source) => request.availableSourcePaths.includes(source.path)),
+            sources: (await sourceSnapshot.documents()).filter((source) =>
+              request.availableSourcePaths.includes(source.path),
+            ),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map-repair`,
             modelName,
@@ -765,9 +765,9 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: sourceSnapshot
-              .documents()
-              .filter((source) => request.availableSourcePaths.includes(source.path)),
+            sources: (await sourceSnapshot.documents()).filter((source) =>
+              request.availableSourcePaths.includes(source.path),
+            ),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-candidate-grounding`,
             modelName,
