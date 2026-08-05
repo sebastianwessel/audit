@@ -3,6 +3,7 @@ import { FakeModelProvider } from '@purista/harness/testing';
 import { verifyModelFindings } from '../../features/audit-execution/investigation/verify.js';
 import {
   createAuditHarness,
+  EffectivelyUnboundedHarnessAgentIterations,
   HarnessExecutionConfigurationSchema,
   harnessProviderRetry,
   type ReviewToolset,
@@ -117,7 +118,10 @@ test('uses the deterministic Purista provider to create a strict draft plan', as
   }
 });
 
-test('does not silently cap one agent invocation at 64 tool rounds', async () => {
+test('uses an effectively unbounded iteration setting rather than a hidden Harness default', async () => {
+  expect(EffectivelyUnboundedHarnessAgentIterations).toBe(Number.MAX_SAFE_INTEGER);
+  expect(Number.isSafeInteger(EffectivelyUnboundedHarnessAgentIterations)).toBeTrue();
+
   const provider = new FakeModelProvider();
   for (let index = 0; index < 65; index += 1) {
     provider.enqueueObject({

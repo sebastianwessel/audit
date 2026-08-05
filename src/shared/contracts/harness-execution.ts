@@ -7,6 +7,15 @@ export const TimeoutMillisecondsSchema = z.number().int().nonnegative();
 export const TimeoutMillisecondsOptionSchema = z.coerce.number().pipe(TimeoutMillisecondsSchema);
 
 /**
+ * Purista Harness requires a finite positive integer for agent iterations. This
+ * is JavaScript's largest exactly representable integer, centralized so the
+ * adapter does not accidentally fall back to Harness's limited default.
+ * Workflow completion, cancellation, and explicit operational deadlines—not
+ * this transport requirement—bound normal product work.
+ */
+export const EffectivelyUnboundedHarnessAgentIterations = Number.MAX_SAFE_INTEGER;
+
+/**
  * Shared execution policy for all model-backed product and evaluator stages.
  * It is dependency-free so persisted evaluator contracts cannot initialize a
  * live harness while their schemas are loading.

@@ -57,6 +57,7 @@ import {
   scopedInspectionRequirement,
 } from '../../features/review-workflow/tools/contract.js';
 import {
+  EffectivelyUnboundedHarnessAgentIterations,
   type HarnessExecutionConfiguration,
   HarnessExecutionConfigurationSchema,
 } from '../../shared/contracts/harness-execution.js';
@@ -69,6 +70,7 @@ import {
 } from './structured-output-compatibility.js';
 
 export {
+  EffectivelyUnboundedHarnessAgentIterations,
   type HarnessExecutionConfiguration,
   HarnessExecutionConfigurationSchema,
   TimeoutMillisecondsOptionSchema,
@@ -162,10 +164,10 @@ export function createAuditHarnessWithExecution(
     .telemetry({ contentCaptureMode: 'NO_CONTENT' })
     .sandbox(inMemorySandbox())
     .defaults({
-      // Source access is recovered from provider-signalled overflow. There is
-      // no default deadline or agent-loop cap; an operator can still choose an
-      // explicit cancellation/deadline at an invocation boundary.
-      agentMaxIterations: Number.POSITIVE_INFINITY,
+      // Source access is recovered from provider-signalled overflow. Harness
+      // requires a finite integer, so use the shared effectively unbounded
+      // transport value instead of its fixed default of 16.
+      agentMaxIterations: EffectivelyUnboundedHarnessAgentIterations,
       maxParallelToolCalls: 2,
       runTimeoutMs: execution.runTimeoutMs,
       modelTimeoutMs: execution.modelTimeoutMs,

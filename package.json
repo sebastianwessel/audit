@@ -37,22 +37,20 @@
     "update:model-pricing:write": "bun run scripts/update-model-pricing.ts --write",
     "start": "bun run --bun src/cli/main.ts",
     "ci:scripts": "bun run scripts/check-ci-scripts.ts",
-    "spec:check": "bun run scripts/check-specs.ts"
+    "spec:check": "bun run scripts/check-specs.ts",
+    "schema:check": "bun run spec:check"
   },
   "dependencies": {
-    "@purista/harness": "^1.7.1",
+    "@purista/harness": "^1.7.2",
     "zod": "^4.4.3"
   },
   "optionalDependencies": {
-    "@purista/harness-anthropic": "^1.7.1",
-    "@purista/harness-openai": "^1.7.1"
+    "@purista/harness-anthropic": "^1.7.2",
+    "@purista/harness-openai": "^1.7.2"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
+    "@biomejs/biome": "^2.5.7",
     "@types/bun": "^1.3.14",
     "typescript": "^7.0.2"
-  },
-  "patchedDependencies": {
-    "@purista/harness@1.7.1": "patches/@purista%2Fharness@1.7.1.patch"
   }
 }

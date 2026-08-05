@@ -17,6 +17,7 @@ import {
   harnessProviderRetry,
 } from '../../src/platform/harness/audit-harness.js';
 import { NoContentLogger } from '../../src/platform/harness/no-content-logger.js';
+import { EffectivelyUnboundedHarnessAgentIterations } from '../../src/shared/contracts/harness-execution.js';
 
 import {
   type StageIsolatedAdjudicationModelInput,
@@ -48,7 +49,7 @@ export function createStageIsolatedAdjudicationHarness(input: {
     .telemetry({ contentCaptureMode: 'NO_CONTENT' })
     .sandbox(inMemorySandbox())
     .defaults({
-      agentMaxIterations: Number.POSITIVE_INFINITY,
+      agentMaxIterations: EffectivelyUnboundedHarnessAgentIterations,
       maxParallelToolCalls: 1,
       runTimeoutMs: input.execution.runTimeoutMs,
       modelTimeoutMs: input.execution.modelTimeoutMs,
