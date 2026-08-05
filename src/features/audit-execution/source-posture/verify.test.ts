@@ -70,14 +70,12 @@ test('retains model conclusions without deterministic source semantics and compl
     {
       assessments: [
         {
-          assessmentId: 'posture-first-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-contradicted',
           evidenceMapFactIds: ['fact-first-01'],
           limitations: [],
         },
         {
-          assessmentId: 'posture-second-01',
           obligationId: 'test-obligation-02',
           conclusion: 'inconclusive',
           evidenceMapFactIds: ['fact-second-01'],
@@ -101,7 +99,6 @@ test('rejects an assessment whose map facts do not bind its approved obligation'
     {
       assessments: [
         {
-          assessmentId: 'posture-first-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-supported',
           evidenceMapFactIds: ['fact-second-01'],
@@ -143,14 +140,12 @@ test('rejects a directional posture that omits an obligation-relevant mapped con
     {
       assessments: [
         {
-          assessmentId: 'posture-first-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-supported',
           evidenceMapFactIds: ['fact-first-01'],
           limitations: [],
         },
         {
-          assessmentId: 'posture-second-01',
           obligationId: 'test-obligation-02',
           conclusion: 'inconclusive',
           evidenceMapFactIds: ['fact-second-01'],
@@ -210,7 +205,6 @@ test('accepts a child posture with its local control and defers global control c
   const childPosture = {
     assessments: [
       {
-        assessmentId: 'posture-first-child-01',
         obligationId: 'test-obligation-01',
         conclusion: 'inconclusive' as const,
         evidenceMapFactIds: ['fact-first-01', 'fact-control-first-01'],
@@ -233,14 +227,12 @@ test('downgrades an uninspected directional posture without changing its phase b
     {
       assessments: [
         {
-          assessmentId: 'posture-first-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-supported',
           evidenceMapFactIds: ['fact-first-01'],
           limitations: [],
         },
         {
-          assessmentId: 'posture-second-01',
           obligationId: 'test-obligation-02',
           conclusion: 'risk-contradicted',
           evidenceMapFactIds: ['fact-second-01'],
@@ -254,13 +246,11 @@ test('downgrades an uninspected directional posture without changing its phase b
   const downgraded = downgradeUninspectedSourcePosture(verified.sourcePosture);
   expect(downgraded.assessments).toMatchObject([
     {
-      assessmentId: 'posture-first-01',
       obligationId: 'test-obligation-01',
       conclusion: 'inconclusive',
       evidenceMapFactIds: ['fact-first-01'],
     },
     {
-      assessmentId: 'posture-second-01',
       obligationId: 'test-obligation-02',
       conclusion: 'inconclusive',
       evidenceMapFactIds: ['fact-second-01'],
@@ -283,7 +273,6 @@ test('retains only closed not-applicable reason tokens', () => {
     {
       assessments: [
         {
-          assessmentId: 'posture-not-applicable-01',
           obligationId: 'test-obligation-01',
           conclusion: 'not-applicable',
           evidenceMapFactIds: ['fact-first-01'],

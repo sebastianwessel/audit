@@ -206,7 +206,9 @@ async function runPlanningConformance(
         rationale: 'Exercise the planning inspection protocol without a security claim.',
         enabled: true,
         scopeGlobs: [sourcePath],
-        reviewObligations: vector.reviewObligations,
+        reviewObligations: vector.reviewObligations.map(
+          ({ riskStatement, evidenceRequirement }) => ({ riskStatement, evidenceRequirement }),
+        ),
         limitations: vector.limitations,
       },
     ],
@@ -283,7 +285,6 @@ async function runSourcePostureConformance(
   const provider = inspectedProvider({
     assessments: [
       {
-        assessmentId: 'stage-conformance-posture-01',
         obligationId: 'stage-conformance-obligation-01',
         conclusion: 'inconclusive',
         summary: 'The scoped source does not resolve the approved obligation.',
@@ -356,7 +357,6 @@ async function runCandidateGroundingConformance(
   const provider = inspectedProvider({
     groundings: [
       {
-        seedId: seed.seedId,
         candidate: null,
         nullReason: 'no-source-backed-candidate',
       },

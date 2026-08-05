@@ -1,11 +1,12 @@
 import { defineHarness, inMemorySandbox, type ModelProvider } from '@purista/harness';
-import { AttackPlanSchema, createPlan } from '../../features/attack-planning/plan/index.js';
+import { AttackPlanSchema } from '../../features/attack-planning/plan/index.js';
 import {
   PlanModelInputSchema,
   PlanModelOutputSchema,
   PlanModelRequestSchema,
   planningAgentInstructions,
 } from '../../features/attack-planning/planner/agent/index.js';
+import { createExecutablePlanFromModelOutput } from '../../features/attack-planning/planner/materialize.js';
 import {
   CandidateGroundingModelInputSchema,
   CandidateGroundingModelOutputSchema,
@@ -308,15 +309,7 @@ export function createAuditHarnessWithExecution(
               inspectionRequirement: scopedInspectionRequirement(context.input.sourcePaths),
               retryGuidance: { kind: 'initial' },
             });
-            const plan = createPlan({
-              targetFingerprint: context.input.targetFingerprint,
-              contextDigest: context.input.contextDigest,
-              targetDisplayName: context.input.targetDisplayName,
-              inventorySummary: context.input.inventorySummary,
-              vectors: modelOutput.vectors,
-              additionalObservations: modelOutput.additionalObservations,
-              createdAt: context.input.createdAt,
-            });
+            const plan = createExecutablePlanFromModelOutput(context.input, modelOutput);
             context.metrics.counter('audit.plan.completed');
             return plan;
           });

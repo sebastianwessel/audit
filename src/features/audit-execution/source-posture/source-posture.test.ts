@@ -24,7 +24,6 @@ test('fails closed when a tool-guided posture completes without scoped source in
     object: {
       assessments: [
         {
-          assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-contradicted',
           summary: 'The scoped evidence contradicts the risk-positive obligation.',
@@ -95,7 +94,6 @@ test('records a source-backed not-applicable posture as a neutral outcome', asyn
     object: {
       assessments: [
         {
-          assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'not-applicable',
           summary: 'The scoped source does not represent the reviewed operation.',
@@ -230,7 +228,6 @@ function postureOutput(factId: string) {
     object: {
       assessments: [
         {
-          assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-contradicted',
           summary: 'The scoped evidence contradicts the risk-positive obligation.',

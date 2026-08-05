@@ -1,6 +1,6 @@
 import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../../platform/harness/audit-harness.js';
-import { AuditRuntimeError } from '../../../../shared/errors/audit-runtime-error.js';
+import { canonicalJson, sha256 } from '../../../../shared/contracts/core.js';
 import type { ModelPricing } from '../../../model-operations/index.js';
 import {
   type EvaluatorFailureDiagnosticSink,
@@ -16,6 +16,7 @@ import {
   PlanModelOutputSchema,
   type PlanModelRequest,
 } from '../agent/contract.js';
+import { createExecutablePlanFromModelOutput } from '../materialize.js';
 
 /** Creates one source-inspected draft plan through the shared scoped lifecycle. */
 export async function runPlanningStage(input: {
@@ -56,35 +57,22 @@ export async function runPlanningStage(input: {
       }),
     projectOutput: (output) =>
       projectScopedModelOutput(() =>
-        createExecutablePlan(input.request, PlanModelOutputSchema.parse(output)),
+        createExecutablePlanFromModelOutput(input.request, PlanModelOutputSchema.parse(output)),
       ),
     reduceRecoveredOutputs: (leaves) =>
-      createExecutablePlan(input.request, {
+      createPlan({
+        targetFingerprint: input.request.targetFingerprint,
+        contextDigest: input.request.contextDigest,
+        targetDisplayName: input.request.targetDisplayName,
+        inventorySummary: input.request.inventorySummary,
         vectors: mergeRecoveredDraftVectors(
           leaves.flatMap((leaf) => leaf.output.vectors.map(toDraftVector)),
         ),
         additionalObservations: mergeAdditionalObservations(
           leaves.flatMap((leaf) => leaf.output.additionalObservations),
         ),
+        createdAt: input.request.createdAt,
       }),
-  });
-}
-
-function createExecutablePlan(
-  request: PlanModelRequest,
-  output: Readonly<{
-    vectors: readonly DraftVectorInput[];
-    additionalObservations: readonly AdditionalObservation[];
-  }>,
-): AttackPlan {
-  return createPlan({
-    targetFingerprint: request.targetFingerprint,
-    contextDigest: request.contextDigest,
-    targetDisplayName: request.targetDisplayName,
-    inventorySummary: request.inventorySummary,
-    vectors: output.vectors,
-    additionalObservations: output.additionalObservations,
-    createdAt: request.createdAt,
   });
 }
 
@@ -102,36 +90,21 @@ function toDraftVector(vector: AttackPlan['vectors'][number]): DraftVectorInput 
 function mergeAdditionalObservations(
   observations: readonly AdditionalObservation[],
 ): AdditionalObservation[] {
-  const byId = new Map<string, AdditionalObservation>();
+  const byDigest = new Map<string, AdditionalObservation>();
   for (const observation of observations) {
-    const existing = byId.get(observation.observationId);
-    if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(observation)) {
-      throw new AuditRuntimeError(
-        'provider-context-overflow',
-        'Context recovery produced conflicting additional-observation identities.',
-      );
-    }
-    byId.set(observation.observationId, observation);
+    byDigest.set(sha256(canonicalJson(observation)), observation);
   }
-  return [...byId.entries()]
+  return [...byDigest.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, observation]) => observation);
 }
 
 function mergeRecoveredDraftVectors(vectors: readonly DraftVectorInput[]): DraftVectorInput[] {
-  const byIdentity = new Map<string, DraftVectorInput>();
+  const byDigest = new Map<string, DraftVectorInput>();
   for (const vector of vectors) {
-    const identity = vector.title;
-    const existing = byIdentity.get(identity);
-    if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(vector)) {
-      throw new AuditRuntimeError(
-        'provider-context-overflow',
-        'Context recovery produced conflicting planning-vector identities.',
-      );
-    }
-    byIdentity.set(identity, vector);
+    byDigest.set(sha256(canonicalJson(vector)), vector);
   }
-  return [...byIdentity.entries()]
+  return [...byDigest.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([, vector]) => vector);
 }

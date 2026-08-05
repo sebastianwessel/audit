@@ -38,7 +38,6 @@ test('creates a source-inspected business-level draft for an unknown-language so
           scopeGlobs: ['reviewed.unknown'],
           reviewObligations: [
             {
-              obligationId: 'tenant-boundary-01',
               riskStatement: 'Tenant-scoped data could be exposed outside its intended boundary.',
               evidenceRequirement: 'Inspect the scoped source that receives tenant-bound input.',
             },
@@ -48,13 +47,11 @@ test('creates a source-inspected business-level draft for an unknown-language so
       ],
       additionalObservations: [
         {
-          observationId: 'review-session-boundary',
           title: 'Review session-boundary propagation',
           rationale: 'A human may choose to extend the executable plan to this boundary.',
           scopeGlobs: ['reviewed.unknown'],
           reviewObligations: [
             {
-              obligationId: 'session-boundary-01',
               riskStatement: 'A session boundary may not preserve caller identity.',
               evidenceRequirement: 'Inspect session creation and identity propagation.',
             },
@@ -101,7 +98,7 @@ test('creates a source-inspected business-level draft for an unknown-language so
     status: 'completed',
     output: {
       vectors: [{ scopeGlobs: ['reviewed.unknown'], title: 'Review tenant data isolation' }],
-      additionalObservations: [{ observationId: 'review-session-boundary' }],
+      additionalObservations: [{ title: 'Review session-boundary propagation' }],
     },
     modelObservation: {
       stage: 'planning',

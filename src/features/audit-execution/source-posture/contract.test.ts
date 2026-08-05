@@ -6,7 +6,6 @@ test('normalizes only known source-posture conclusion tokens at the model bounda
   const posture = UnverifiedSourcePostureSchema.parse({
     assessments: [
       {
-        assessmentId: 'posture-question-01',
         obligationId: 'test-obligation-01',
         conclusion: ' RISK-SUPPORTED ',
         evidenceMapFactIds: ['fact-input-01'],
@@ -20,7 +19,6 @@ test('normalizes only known source-posture conclusion tokens at the model bounda
 
 test('rejects duplicate obligation assessments and unknown fields', () => {
   const assessment = {
-    assessmentId: 'posture-question-01',
     obligationId: 'test-obligation-01',
     conclusion: 'risk-supported',
     evidenceMapFactIds: ['fact-input-01'],
@@ -28,7 +26,7 @@ test('rejects duplicate obligation assessments and unknown fields', () => {
   };
   expect(() =>
     UnverifiedSourcePostureSchema.parse({
-      assessments: [assessment, { ...assessment, assessmentId: 'posture-question-02' }],
+      assessments: [assessment, { ...assessment }],
       limitations: [],
     }),
   ).toThrow('at most one');
@@ -39,7 +37,6 @@ test('rejects duplicate obligation assessments and unknown fields', () => {
 
 test('requires a closed reason only for a not-applicable assessment', () => {
   const base = {
-    assessmentId: 'posture-question-01',
     obligationId: 'test-obligation-01',
     evidenceMapFactIds: ['fact-input-01'],
     limitations: [],
@@ -67,6 +64,7 @@ test('requires a closed reason only for a not-applicable assessment', () => {
       assessments: [
         {
           ...base,
+          assessmentId: 'posture-question-01',
           conclusion: 'not-applicable',
           notApplicableReason: 'no-relevant-operation-in-scope',
         },

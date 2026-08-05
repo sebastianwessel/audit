@@ -41,8 +41,7 @@ export function selectSeedBoundGroundings(
   nullCount: number;
   rejectedCount: number;
 }> {
-  const bySeed = new Map(output.groundings.map((grounding) => [grounding.seedId, grounding]));
-  if (bySeed.size !== output.groundings.length || bySeed.size !== seeds.length) {
+  if (output.groundings.length !== seeds.length) {
     return {
       candidates: [],
       seedBoundCandidates: [],
@@ -58,8 +57,8 @@ export function selectSeedBoundGroundings(
   const seedBoundCandidates: Array<
     Readonly<{ seed: HypothesisSeed; candidate: UnverifiedAuditCandidate }>
   > = [];
-  for (const seed of seeds) {
-    const grounding = bySeed.get(seed.seedId);
+  for (const [index, seed] of seeds.entries()) {
+    const grounding = output.groundings[index];
     if (grounding === undefined) {
       rejectedCount += 1;
       continue;
@@ -99,20 +98,12 @@ export async function canonicalizeCandidateGroundingOutput(input: {
   sourcePosture: SourcePosture;
   sourceEvidence: SourceEvidenceResolver;
 }): Promise<CanonicalCandidateGroundingOutput> {
-  const rawBySeedId = new Map(
-    input.output.groundings.map((grounding) => [grounding.seedId, grounding]),
-  );
-  const expectedSeedIds = new Set(input.seeds.map((seed) => seed.seedId));
-  if (
-    rawBySeedId.size !== input.output.groundings.length ||
-    rawBySeedId.size !== expectedSeedIds.size ||
-    [...rawBySeedId.keys()].some((seedId) => !expectedSeedIds.has(seedId))
-  ) {
+  if (input.output.groundings.length !== input.seeds.length) {
     throw new CandidateGroundingProjectionError(['groundings']);
   }
   const groundings: CanonicalCandidateGroundingOutput['groundings'][number][] = [];
-  for (const seed of input.seeds) {
-    const raw = rawBySeedId.get(seed.seedId);
+  for (const [index, seed] of input.seeds.entries()) {
+    const raw = input.output.groundings[index];
     if (raw === undefined) throw new CandidateGroundingProjectionError(['groundings']);
     if (raw.candidate === null) {
       groundings.push({

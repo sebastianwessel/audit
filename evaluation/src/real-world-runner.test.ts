@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { type JsonValue, type ModelProvider, OperationCancelledError } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createPlan as createDraftPlan } from '../../src/features/attack-planning/index.js';
+import { sourcePostureAssessmentId } from '../../src/features/audit-execution/source-posture/identity.js';
 import {
   observeModelStage,
   summarizeModelStages,
@@ -166,7 +167,6 @@ test('measures generated planning without dispatching audit work', async () => {
             scopeGlobs: ['**/*'],
             reviewObligations: [
               {
-                obligationId: `planning-profile-obligation-0${String(repetition + 1)}`,
                 riskStatement: 'The bounded source may violate a security boundary.',
                 evidenceRequirement:
                   'Inspect source-backed operation and unsafe-condition evidence.',
@@ -267,7 +267,6 @@ test('fails the planning diagnostic gate when a reachable vector is semantically
             scopeGlobs: ['**/*'],
             reviewObligations: [
               {
-                obligationId: `focused-planning-obligation-0${String(repetition + 1)}`,
                 riskStatement: 'The bounded source may violate a security boundary.',
                 evidenceRequirement:
                   'Inspect source-backed operation and unsafe-condition evidence.',
@@ -282,7 +281,6 @@ test('fails the planning diagnostic gate when a reachable vector is semantically
             scopeGlobs: ['**/*'],
             reviewObligations: [
               {
-                obligationId: `speculative-planning-obligation-0${String(repetition + 1)}`,
                 riskStatement: 'An adjacent configuration might weaken a security boundary.',
                 evidenceRequirement: 'Inspect configuration and its affected operation.',
               },
@@ -352,7 +350,6 @@ test('retains a completed planning trial when semantic-plan measurement is cance
             scopeGlobs: ['**/*'],
             reviewObligations: [
               {
-                obligationId: `planning-profile-obligation-0${String(repetition + 1)}`,
                 riskStatement: 'The bounded source may violate a security boundary.',
                 evidenceRequirement:
                   'Inspect source-backed operation and unsafe-condition evidence.',
@@ -728,7 +725,9 @@ test('retains completed planning telemetry when a later evaluator persistence st
             rationale: vector.rationale,
             enabled: vector.enabled,
             scopeGlobs: vector.scopeGlobs,
-            reviewObligations: vector.reviewObligations,
+            reviewObligations: vector.reviewObligations.map(
+              ({ riskStatement, evidenceRequirement }) => ({ riskStatement, evidenceRequirement }),
+            ),
             limitations: vector.limitations,
           },
         ],
@@ -1066,7 +1065,6 @@ async function enqueueCompletedReviewedPlanResponses(
     object: {
       assessments: [
         {
-          assessmentId: 'fixture-posture',
           obligationId: obligation.obligationId,
           conclusion: 'risk-supported',
           summary:
@@ -1110,7 +1108,6 @@ async function enqueueCompletedReviewedPlanResponses(
     object: {
       groundings: [
         {
-          seedId: 'fixture-seed',
           candidate: {
             statement: 'Completed runner fixture hypothesis',
             claimEvidenceBundles: [
@@ -1166,7 +1163,7 @@ async function enqueueCompletedReviewedPlanResponses(
       ],
       postureReconciliations: [
         {
-          assessmentId: 'fixture-posture',
+          assessmentId: sourcePostureAssessmentId(vector.vectorId, obligation.obligationId),
           disposition: 'supports-claim',
           explanation: 'The fixture reconciles its selected source posture evidence.',
           evidenceSelections: [{ factId: 'fixture-operation', evidenceIndex: 0 }],
@@ -1237,7 +1234,6 @@ async function enqueueInvalidInvestigationResponses(
     object: {
       assessments: [
         {
-          assessmentId: 'fixture-posture',
           obligationId: obligation.obligationId,
           conclusion: 'risk-supported',
           summary:

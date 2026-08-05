@@ -42,12 +42,10 @@ export const CandidateGroundingNullReasonSchema = z.enum([
 
 export const CandidateGroundingResultSchema = z.union([
   z.strictObject({
-    seedId: IdentifierSchema,
     candidate: CandidateGroundingModelCandidateSchema,
     nullReason: z.null(),
   }),
   z.strictObject({
-    seedId: IdentifierSchema,
     candidate: z.null(),
     nullReason: CandidateGroundingNullReasonSchema,
   }),

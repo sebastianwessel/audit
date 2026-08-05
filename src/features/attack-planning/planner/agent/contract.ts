@@ -6,12 +6,27 @@ import {
 } from '../../../review-workflow/model-contracts/index.js';
 import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
 import {
-  AdditionalObservationSchema,
-  DraftAttackVectorBaseSchema,
   InventorySummarySchema,
+  PersistedPlanTextSchema,
+  PlanTitleSchema,
 } from '../../plan/plan.schema.js';
 
-const PlannerVectorSchema = DraftAttackVectorBaseSchema;
+/** Planner output excludes every identity derived and owned by the plan feature. */
+const PlannerReviewObligationSchema = z.strictObject({
+  riskStatement: PersistedPlanTextSchema,
+  evidenceRequirement: PersistedPlanTextSchema,
+});
+
+const PlannerVectorSchema = z.strictObject({
+  title: PlanTitleSchema,
+  rationale: PersistedPlanTextSchema,
+  enabled: z.boolean().default(true),
+  scopeGlobs: z.array(z.string().trim().min(1)).min(1),
+  reviewObligations: z.array(PlannerReviewObligationSchema).min(1),
+  limitations: z.array(PersistedPlanTextSchema).default([]),
+});
+
+const PlannerAdditionalObservationSchema = PlannerVectorSchema.omit({ enabled: true });
 
 /** Planner-owned request data before the scoped lifecycle projects its tool requirement. */
 export const PlanModelRequestSchema = z.strictObject({
@@ -38,7 +53,7 @@ export const PlanModelOutputSchema = z.strictObject({
       }),
     )
     .min(1),
-  additionalObservations: z.array(AdditionalObservationSchema).default([]),
+  additionalObservations: z.array(PlannerAdditionalObservationSchema).default([]),
 });
 
 export type PlanModelRequest = z.infer<typeof PlanModelRequestSchema>;

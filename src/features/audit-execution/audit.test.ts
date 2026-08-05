@@ -29,7 +29,7 @@ import { evidenceMapFingerprint } from './evidence-map/repair.js';
 import { verifyEvidenceMap } from './evidence-map/verify.js';
 import { modelStagesForAudit } from './model-stage-observations.js';
 import { createSourceEvidenceResolver } from './source-evidence-resolver.js';
-import { sourcePostureFingerprint } from './source-posture/identity.js';
+import { sourcePostureAssessmentId, sourcePostureFingerprint } from './source-posture/identity.js';
 import { verifySourcePosture } from './source-posture/verify.js';
 import type {
   AuditCountercheckRequest,
@@ -303,7 +303,6 @@ const mapEvidenceWithControl: AuditEvidenceMapper = async (request) => {
 const assessSourcePosture: AuditSourcePostureAssessor = async (request) => ({
   sourcePosture: {
     assessments: request.vector.reviewObligations.map((obligation) => ({
-      assessmentId: `posture-${obligation.obligationId}`,
       obligationId: obligation.obligationId,
       conclusion: 'risk-supported' as const,
       evidenceMapFactIds: request.evidenceMap.facts
@@ -452,7 +451,7 @@ function sourceBackedHypothesis(vectorId: string) {
         selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
       },
     ],
-    sourcePostureAssessmentIds: ['posture-audit-obligation-01'],
+    sourcePostureAssessmentIds: [sourcePostureAssessmentId(vectorId, 'audit-obligation-01')],
     limitations: [],
   };
 }
@@ -467,7 +466,7 @@ function sourceBackedSeed(
     hypothesis: 'A request-controlled value may reach the reviewed query operation.',
     planObligations: [{ obligationId: 'audit-obligation-01' }],
     evidenceMapFactIds,
-    sourcePostureAssessmentIds: ['posture-audit-obligation-01'],
+    sourcePostureAssessmentIds: [sourcePostureAssessmentId(vectorId, 'audit-obligation-01')],
     limitations: [],
   };
 }
@@ -526,7 +525,6 @@ function sourceBackedGroundingCandidate(vectorId: string) {
 const groundSeeds: AuditCandidateGrounder = async (request) => ({
   groundings: {
     groundings: request.seeds.map((seed) => ({
-      seedId: seed.seedId,
       candidate: {
         ...sourceBackedGroundingCandidate(seed.vectorId),
       },
@@ -721,7 +719,6 @@ test('retains an accepted finding when a separate enabled obligation remains inc
     assessSourcePosture: async (request) => ({
       sourcePosture: {
         assessments: request.vector.reviewObligations.map((obligation, index) => ({
-          assessmentId: `posture-${obligation.obligationId}`,
           obligationId: obligation.obligationId,
           conclusion: index === 0 ? ('risk-supported' as const) : ('inconclusive' as const),
           evidenceMapFactIds: request.evidenceMap.facts.map((fact) => fact.factId),
@@ -737,7 +734,9 @@ test('retains an accepted finding when a separate enabled obligation remains inc
         disposition:
           index === 0 ? ('candidate-raised' as const) : ('no-source-backed-candidate' as const),
         evidenceMapFactIds: request.evidenceMap.facts.map((fact) => fact.factId),
-        sourcePostureAssessmentIds: [`posture-${obligation.obligationId}`],
+        sourcePostureAssessmentIds: [
+          sourcePostureAssessmentId(request.vector.vectorId, obligation.obligationId),
+        ],
         limitations: [],
       })),
     }),
@@ -870,7 +869,6 @@ test('schedules every verifier and countercheck through one run-wide candidate-a
     groundCandidates: async (request) => ({
       groundings: {
         groundings: request.seeds.map((seed) => ({
-          seedId: seed.seedId,
           candidate: {
             ...sourceBackedGroundingCandidate(seed.vectorId),
             statement: 'Request-controlled value reaches query.',
@@ -1580,7 +1578,6 @@ test('grounds every discovery seed with seed-owned vector and obligation binding
         groundings: {
           groundings: [
             {
-              seedId: seed.seedId,
               candidate: sourceBackedGroundingCandidate(vector.vectorId),
               nullReason: null,
             },
@@ -1618,7 +1615,6 @@ test('grounds every discovery seed with seed-owned vector and obligation binding
         groundings: {
           groundings: [
             {
-              seedId: seed.seedId,
               candidate: sourceBackedGroundingCandidate('another-vector'),
               nullReason: null,
             },
@@ -1679,12 +1675,10 @@ test('repairs a generic grounding evidence gap candidate-blind and restarts only
           groundings: request.seeds.map((seed) =>
             groundingCalls === 1
               ? {
-                  seedId: seed.seedId,
                   candidate: null,
                   nullReason: 'map-insufficient' as const,
                 }
               : {
-                  seedId: seed.seedId,
                   candidate: {
                     ...sourceBackedGroundingCandidate(seed.vectorId),
                   },
@@ -1773,8 +1767,7 @@ test('closes explicit incomplete coverage when the same generic repair adds no n
     }),
     groundCandidates: async (request) => ({
       groundings: {
-        groundings: request.seeds.map((seed) => ({
-          seedId: seed.seedId,
+        groundings: request.seeds.map(() => ({
           candidate: null,
           nullReason: 'map-insufficient' as const,
         })),
@@ -1833,7 +1826,6 @@ test('rejects an invalid selected map location before candidate admission', asyn
         groundings: {
           groundings: [
             {
-              seedId: seed.seedId,
               candidate: {
                 ...candidate,
                 claimEvidenceBundles: [
@@ -2095,7 +2087,6 @@ test('preserves a candidate-blind contradiction for human review without promoti
     assessSourcePosture: async (request) => ({
       sourcePosture: {
         assessments: request.vector.reviewObligations.map((obligation) => ({
-          assessmentId: `posture-${obligation.obligationId}`,
           obligationId: obligation.obligationId,
           conclusion: 'risk-contradicted' as const,
           evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
@@ -2433,7 +2424,6 @@ test('resumes from a durable grounding draft after a crash before its first cand
       groundings: {
         groundings: [
           {
-            seedId: 'seed-query-01',
             candidate: sourceBackedGroundingCandidate(vector.vectorId),
             nullReason: null,
           },
@@ -2646,7 +2636,9 @@ test('reschedules an interrupted running verifier from its canonical grounding d
               planObligation: { obligationId: 'audit-obligation-01' },
               disposition: 'candidate-raised',
               evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
-              sourcePostureAssessmentIds: ['posture-question-01'],
+              sourcePostureAssessmentIds: [
+                sourcePostureAssessmentId(vector.vectorId, 'audit-obligation-01'),
+              ],
               limitations: [],
             },
           ],
@@ -2761,7 +2753,9 @@ test('explicit unfinished recovery does not treat a null grounding draft as term
               planObligation: { obligationId: 'audit-obligation-01' },
               disposition: 'candidate-raised',
               evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
-              sourcePostureAssessmentIds: ['posture-question-01'],
+              sourcePostureAssessmentIds: [
+                sourcePostureAssessmentId(vector.vectorId, 'audit-obligation-01'),
+              ],
               limitations: [],
             },
           ],
@@ -2788,7 +2782,6 @@ test('explicit unfinished recovery does not treat a null grounding draft as term
         groundings: {
           groundings: [
             {
-              seedId: seed.seedId,
               candidate: sourceBackedGroundingCandidate(vector.vectorId),
               nullReason: null,
             },
@@ -2862,7 +2855,9 @@ test('unfinished recovery reuses grounded seeds and dispatches only unresolved s
               planObligation: { obligationId: 'audit-obligation-01' },
               disposition: 'candidate-raised',
               evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
-              sourcePostureAssessmentIds: ['posture-question-01'],
+              sourcePostureAssessmentIds: [
+                sourcePostureAssessmentId(vector.vectorId, 'audit-obligation-01'),
+              ],
               limitations: [],
             },
           ],
@@ -2884,7 +2879,6 @@ test('unfinished recovery reuses grounded seeds and dispatches only unresolved s
         groundings: {
           groundings: [
             {
-              seedId: secondSeed.seedId,
               candidate: null,
               nullReason: 'no-source-backed-candidate',
             },

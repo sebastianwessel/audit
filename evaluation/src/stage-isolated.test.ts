@@ -30,7 +30,6 @@ test('runs the no-tools semantic evaluator only after the closed planning stage'
           scopeGlobs: ['reviewed.unknown'],
           reviewObligations: [
             {
-              obligationId: 'obligation-01',
               riskStatement: 'The intended boundary must be reviewed.',
               evidenceRequirement: 'Inspect the scoped source.',
             },

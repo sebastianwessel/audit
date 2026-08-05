@@ -56,7 +56,6 @@ export const SourcePostureAssessmentSchema = z
 
 export const UnverifiedSourcePostureAssessmentSchema = z
   .strictObject({
-    assessmentId: z.string().trim().min(1).max(160),
     obligationId: PlanObligationReferenceSchema.shape.obligationId,
     conclusion: SourcePostureConclusionSchema,
     summary: AuditNarrativeTextSchema.optional(),
@@ -78,18 +77,10 @@ export const UnverifiedSourcePostureAssessmentSchema = z
     }
   });
 
-function uniqueAssessments(
-  assessments: readonly { assessmentId: string; obligationId: string }[],
+function uniqueAssessmentObligations(
+  assessments: readonly { obligationId: string }[],
   context: z.RefinementCtx,
 ): void {
-  const identifiers = assessments.map((assessment) => assessment.assessmentId);
-  if (new Set(identifiers).size !== identifiers.length) {
-    context.addIssue({
-      code: 'custom',
-      path: ['assessments'],
-      message: 'Source-posture assessment identifiers must be unique.',
-    });
-  }
   const obligations = assessments.map((assessment) => assessment.obligationId);
   if (new Set(obligations).size !== obligations.length) {
     context.addIssue({
@@ -105,14 +96,24 @@ export const SourcePostureSchema = z
     assessments: z.array(SourcePostureAssessmentSchema),
     limitations: z.array(SourcePostureLimitationCodeSchema),
   })
-  .superRefine((value, context) => uniqueAssessments(value.assessments, context));
+  .superRefine((value, context) => {
+    const identifiers = value.assessments.map((assessment) => assessment.assessmentId);
+    if (new Set(identifiers).size !== identifiers.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['assessments'],
+        message: 'Source-posture assessment identifiers must be unique.',
+      });
+    }
+    uniqueAssessmentObligations(value.assessments, context);
+  });
 
 export const UnverifiedSourcePostureSchema = z
   .strictObject({
     assessments: z.array(UnverifiedSourcePostureAssessmentSchema),
     limitations: z.array(BoundedTextSchema.min(1)),
   })
-  .superRefine((value, context) => uniqueAssessments(value.assessments, context));
+  .superRefine((value, context) => uniqueAssessmentObligations(value.assessments, context));
 
 /** Canonical posture-reference collection for an investigator candidate. */
 export const SourcePostureAssessmentIdsSchema = z.array(IdentifierSchema).min(1);

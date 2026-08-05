@@ -92,7 +92,6 @@ test('retries an unbindable candidate output in the same scoped source basis', a
     object: {
       groundings: [
         {
-          seedId: 'seed-a',
           candidate: {
             statement: 'The selected map evidence supports a candidate.',
             claimEvidenceBundles: [
@@ -191,10 +190,10 @@ function enqueueScopedSearch(provider: FakeModelProvider, id: string): void {
   });
 }
 
-function nullGroundingOutput(seedId: string) {
+function nullGroundingOutput(_seedId: string) {
   return {
     object: {
-      groundings: [{ seedId, candidate: null, nullReason: 'no-source-backed-candidate' }],
+      groundings: [{ candidate: null, nullReason: 'no-source-backed-candidate' }],
     },
     usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
     finishReason: 'stop' as const,

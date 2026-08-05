@@ -2,7 +2,6 @@ import type { ModelProvider } from '@purista/harness';
 
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
 import { uniqueSorted } from '../../../shared/contracts/collections.js';
-import { createStableId } from '../../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import type { EvidenceMap } from '../../audit-execution/evidence-map/contract.js';
@@ -22,6 +21,7 @@ import {
   type EvaluatorFailureDiagnosticSink,
   evidenceMapFactIsWithinRecoveryScope,
   invalidModelOutput,
+  projectScopedModelOutput,
   runScopedModelStage,
   type ScopedModelStageOverflowTopologyBase,
   scopedInspectionRequirement,
@@ -29,6 +29,7 @@ import {
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
 import type { SourcePostureModelOutput } from './agent/contract.js';
+import { sourcePostureAssessmentId } from './identity.js';
 
 /** Candidate-blind source assessment between neutral mapping and investigation. */
 export async function runSourcePostureStage(input: {
@@ -115,13 +116,18 @@ export async function runSourcePostureStage(input: {
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
         retryGuidance,
       }),
-    projectOutput: (output) => {
-      const verified = verifySourcePosture(input.request.vector, output, input.request.evidenceMap);
-      if (verified.rejectedAssessmentCount > 0) {
-        invalidModelOutput(['assessments']);
-      }
-      return verified.sourcePosture;
-    },
+    projectOutput: (output) =>
+      projectScopedModelOutput(() => {
+        const verified = verifySourcePosture(
+          input.request.vector,
+          output,
+          input.request.evidenceMap,
+        );
+        if (verified.rejectedAssessmentCount > 0) {
+          invalidModelOutput(['assessments']);
+        }
+        return verified.sourcePosture;
+      }),
     reduceRecoveredOutputs: (leaves) =>
       SourcePostureSchema.parse({
         assessments: input.request.vector.reviewObligations.flatMap((obligation) => {
@@ -134,9 +140,9 @@ export async function runSourcePostureStage(input: {
           const conclusions = new Set(assessments.map((assessment) => assessment.conclusion));
           return [
             {
-              assessmentId: createStableId(
-                'posture',
-                `${input.request.vector.vectorId}\0${obligation.obligationId}`,
+              assessmentId: sourcePostureAssessmentId(
+                input.request.vector.vectorId,
+                obligation.obligationId,
               ),
               obligationId: obligation.obligationId,
               conclusion:

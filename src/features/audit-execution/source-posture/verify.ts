@@ -6,6 +6,7 @@ import {
   SourcePostureSchema,
   type UnverifiedSourcePosture,
 } from './contract.js';
+import { sourcePostureAssessmentId } from './identity.js';
 
 export type SourcePostureVerificationResult = Readonly<{
   sourcePosture: SourcePosture;
@@ -42,7 +43,7 @@ export function verifySourcePostureFragment(
   return Object.freeze({
     sourcePosture: SourcePostureSchema.parse({
       assessments: assessments.map((assessment) => ({
-        assessmentId: assessment.assessmentId,
+        assessmentId: sourcePostureAssessmentId(vector.vectorId, assessment.obligationId),
         obligationId: assessment.obligationId,
         conclusion: assessment.conclusion,
         summary: assessment.summary,

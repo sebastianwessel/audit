@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import type { JsonValue, ObjectResponse, ToolCallSpec } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createPlan } from '../../src/features/attack-planning/index.js';
+import { materializePlannerVector } from '../../src/features/attack-planning/planner/materialize.js';
 import {
   observeModelStage,
   summarizeModelStages,
@@ -1072,20 +1073,20 @@ async function enqueuePlanningGeneratedPublicationResponses(
   const pack = await loadCorpusPack('evaluation/data/corpora');
   const loaded = pack.cases.find((entry) => entry.case.caseId === caseId);
   if (loaded === undefined) throw new Error('Missing planning-generated publication fixture case.');
-  const draft = {
+  const rawDraft = {
     title: 'Evaluate bounded reviewed security evidence',
     rationale: 'Deterministic evaluation fixture covers an adjudicated source-bound risk.',
     enabled: true,
     scopeGlobs: ['**/*'],
     reviewObligations: [
       {
-        obligationId: 'deterministic-obligation-01',
         riskStatement: 'A source-backed security risk may be present in the approved scope.',
         evidenceRequirement: 'The review must identify bounded source evidence for the risk.',
       },
     ],
     limitations: ['Deterministic fixture output; not a model-quality result.'],
   };
+  const draft = materializePlannerVector(rawDraft);
   const variants =
     loaded.case.sourceDirectories.patched === undefined
       ? (['vulnerable'] as const)
@@ -1110,7 +1111,15 @@ async function enqueuePlanningGeneratedPublicationResponses(
     if (vector === undefined) throw new Error('Planning-generated fixture needs one vector.');
 
     provider.enqueueObject(toolInspectionResponse());
-    provider.enqueueObject(response({ vectors: [draft] }));
+    provider.enqueueObject(
+      response({
+        vectors: [
+          {
+            ...rawDraft,
+          },
+        ],
+      }),
+    );
     provider.enqueueObject(
       response({
         scenarios: scenarioIds.map((scenarioId) => ({

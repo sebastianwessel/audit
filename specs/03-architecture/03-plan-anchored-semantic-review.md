@@ -9,7 +9,7 @@ security rule, benchmark condition, or answer-key dependency.
 A plan category alone is too broad to keep a model's analysis tied to the
 sealed-plan concern. Every enabled vector therefore contains one or more
 explicit, risk-positive review obligations. Each obligation has a stable
-`obligationId`, a `riskStatement`, and an `evidenceRequirement`. It is the
+`obligationId`, a `riskStatement`, and an `evidenceRequirement`. The live planner returns only the two semantic texts; attack planning derives the stable identifier once after strict model-output validation. It is the
 only review-unit identity used after plan execution starts.
 
 `riskStatement` names both the source condition under review and its protected
@@ -81,7 +81,7 @@ They appear in the sealed JSON plan and its Markdown projection under a
 separate human-review section. An editable draft may promote a selected base
 observation exactly once; resealing converts it to an enabled executable vector
 and removes it from the observation list. An audit never executes, scores,
-reports, or infers a security conclusion from an unpromoted observation.
+reports, or infers a security conclusion from an unpromoted observation. The planner returns observation semantics without an `observationId`; attack planning derives that durable identity once, while sealed plans and human-editable drafts retain it.
 
 Retired indexed obligation fields and old posture tokens fail closed; there is
 no compatibility reader, alias, or inferred replacement.

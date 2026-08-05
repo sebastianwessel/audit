@@ -90,7 +90,7 @@ function sourceEvidenceFor(
 test('projects candidate locations from selected evidence-map facts', () => {
   const selected = selectSeedBoundGroundings(
     [seed],
-    { groundings: [{ seedId: seed.seedId, candidate, nullReason: null }] },
+    { groundings: [{ candidate, nullReason: null }] },
     evidenceMap,
   );
   expect(selected).toMatchObject({ submittedCount: 1, nullCount: 0, rejectedCount: 0 });
@@ -113,7 +113,6 @@ test('derives discovery references and rejects model selections outside the appr
       {
         groundings: [
           {
-            seedId: seed.seedId,
             candidate: {
               ...candidate,
               claimEvidenceBundles: [
@@ -159,7 +158,6 @@ test('allows grounding to add a validated same-obligation map fact to complete a
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -194,7 +192,6 @@ test('lets grounding independently select either valid role evidence location fr
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -221,7 +218,6 @@ test('allows one grounding selection to establish both independently selected ro
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -267,7 +263,6 @@ test('allows grounding to add missing role evidence from the seed-owned map basi
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -301,7 +296,6 @@ test('derives a duplicate-free fact basis from model evidence selections', () =>
     CandidateGroundingOutputSchema.parse({
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -331,7 +325,6 @@ test('rejects retired singleton evidence fields instead of silently treating the
     CandidateGroundingOutputSchema.parse({
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             statement: candidate.statement,
             operationEvidence: { factId: 'fact-operation-01', evidenceIndex: 0 },
@@ -350,7 +343,6 @@ test('rejects a source-location selection outside the candidate map basis', () =
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -377,7 +369,6 @@ test('rejects an out-of-range map evidence selection', () => {
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -420,7 +411,6 @@ test('projects an evidence location beyond the retired fixed selection ceiling',
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: {
             ...candidate,
             claimEvidenceBundles: [
@@ -447,7 +437,6 @@ test('records an explicit null outcome for a seed without a complete candidate',
     {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: null,
           nullReason: 'no-source-backed-candidate',
         },
@@ -480,7 +469,6 @@ test('creates a recovery-safe canonical null outcome without retaining the disco
     output: {
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: null,
           nullReason: 'no-source-backed-candidate',
         },
@@ -520,7 +508,7 @@ test('preserves the closed map-insufficient disposition across the durable bound
     },
     seeds: [seed],
     output: {
-      groundings: [{ seedId: seed.seedId, candidate: null, nullReason: 'map-insufficient' }],
+      groundings: [{ candidate: null, nullReason: 'map-insufficient' }],
       mapInsufficiencies: [
         {
           obligationIds: ['grounding-obligation-01'],
@@ -538,19 +526,18 @@ test('preserves the closed map-insufficient disposition across the durable bound
 test('requires every raw null to explain whether map repair is required', () => {
   expect(() =>
     CandidateGroundingOutputSchema.parse({
-      groundings: [{ seedId: seed.seedId, candidate: null }],
+      groundings: [{ candidate: null }],
     }),
   ).toThrow();
   expect(() =>
     CandidateGroundingOutputSchema.parse({
-      groundings: [{ seedId: seed.seedId, candidate: null, nullReason: null }],
+      groundings: [{ candidate: null, nullReason: null }],
     }),
   ).toThrow();
   expect(() =>
     CandidateGroundingOutputSchema.parse({
       groundings: [
         {
-          seedId: seed.seedId,
           candidate,
           nullReason: 'no-source-backed-candidate',
         },
@@ -559,13 +546,13 @@ test('requires every raw null to explain whether map repair is required', () => 
   ).toThrow();
   expect(() =>
     CandidateGroundingOutputSchema.parse({
-      groundings: [{ seedId: seed.seedId, candidate: null, nullReason: 'map-insufficient' }],
+      groundings: [{ candidate: null, nullReason: 'map-insufficient' }],
       mapInsufficiencies: [],
     }),
   ).toThrow('must declare at least one generic map insufficiency');
   expect(
     CandidateGroundingOutputSchema.parse({
-      groundings: [{ seedId: seed.seedId, candidate: null, nullReason: 'map-insufficient' }],
+      groundings: [{ candidate: null, nullReason: 'map-insufficient' }],
       mapInsufficiencies: [
         {
           obligationIds: [seed.planObligations[0]?.obligationId ?? 'grounding-obligation-01'],
@@ -578,7 +565,6 @@ test('requires every raw null to explain whether map repair is required', () => 
     CandidateGroundingOutputSchema.parse({
       groundings: [
         {
-          seedId: seed.seedId,
           candidate: null,
           nullReason: 'no-source-backed-candidate',
         },
@@ -593,7 +579,7 @@ test('requires every raw null to explain whether map repair is required', () => 
   ).toThrow('Only a map-insufficient grounding may request candidate-blind map repair');
 });
 
-test('rejects model-authored posture identifiers and carries the seed projection instead', () => {
+test('rejects model-authored seed and posture identifiers and carries the seed projection instead', () => {
   expect(() =>
     CandidateGroundingOutputSchema.parse({
       groundings: [
@@ -605,9 +591,14 @@ test('rejects model-authored posture identifiers and carries the seed projection
       ],
     }),
   ).toThrow();
+  expect(() =>
+    CandidateGroundingOutputSchema.parse({
+      groundings: [{ seedId: seed.seedId, candidate, nullReason: null }],
+    }),
+  ).toThrow();
   const selected = selectSeedBoundGroundings(
     [seed],
-    { groundings: [{ seedId: seed.seedId, candidate, nullReason: null }] },
+    { groundings: [{ candidate, nullReason: null }] },
     evidenceMap,
   );
   expect(selected.candidates[0]?.sourcePostureAssessmentIds).toEqual(
@@ -635,7 +626,7 @@ test('retains only the validated redacted candidate narrative in the canonical g
     },
     seeds: [seed],
     output: {
-      groundings: [{ seedId: seed.seedId, candidate, nullReason: null }],
+      groundings: [{ candidate, nullReason: null }],
     },
     evidenceMap,
     sourcePosture: {

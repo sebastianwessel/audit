@@ -87,7 +87,6 @@ test('uses the deterministic Purista provider to create a strict draft plan', as
           scopeGlobs: ['src/**'],
           reviewObligations: [
             {
-              obligationId: 'test-obligation-01',
               riskStatement: 'Data could change query semantics.',
               evidenceRequirement: 'Inspect source evidence for query construction.',
             },
@@ -149,7 +148,6 @@ test('uses an effectively unbounded iteration setting rather than a hidden Harne
           scopeGlobs: ['src/**'],
           reviewObligations: [
             {
-              obligationId: 'test-obligation-01',
               riskStatement: 'Data could change query semantics.',
               evidenceRequirement: 'Inspect source evidence for query construction.',
             },

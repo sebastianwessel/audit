@@ -6,9 +6,10 @@ import type { JsonValue } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createPlan as createDraftPlan } from '../attack-planning/index.js';
 import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
+import { sourcePostureAssessmentId } from '../audit-execution/source-posture/identity.js';
 import { createReviewService } from './service.js';
 
-function enqueueEvidenceMap(provider: FakeModelProvider, path: string): void {
+function enqueueEvidenceMap(provider: FakeModelProvider, path: string, obligationId: string): void {
   enqueueScopedInspection(provider);
   provider.enqueueObject({
     object: {
@@ -18,17 +19,17 @@ function enqueueEvidenceMap(provider: FakeModelProvider, path: string): void {
           role: 'input',
           statement: 'The approved source receives the reviewed input.',
           evidence: [{ path, startLine: 1 }],
-          planObligations: [{ obligationId: 'test-obligation-01' }],
+          planObligations: [{ obligationId }],
         },
         {
           factId: 'fact-source-01',
           role: 'operation',
           statement: 'The approved source contains the reviewed operation.',
           evidence: [{ path, startLine: 1 }],
-          planObligations: [{ obligationId: 'test-obligation-01' }],
+          planObligations: [{ obligationId }],
         },
       ],
-      controlCoverage: [{ obligationId: 'test-obligation-01', controlFactIds: [] }],
+      controlCoverage: [{ obligationId, controlFactIds: [] }],
       unansweredPlanObligations: [],
       limitations: [],
     },
@@ -37,14 +38,13 @@ function enqueueEvidenceMap(provider: FakeModelProvider, path: string): void {
   });
 }
 
-function enqueueSourcePosture(provider: FakeModelProvider): void {
+function enqueueSourcePosture(provider: FakeModelProvider, obligationId: string): void {
   enqueueScopedInspection(provider);
   provider.enqueueObject({
     object: {
       assessments: [
         {
-          assessmentId: 'posture-test-obligation-01',
-          obligationId: 'test-obligation-01',
+          obligationId,
           conclusion: 'risk-supported',
           summary: 'The scoped source supports later investigation of this obligation.',
           evidenceMapFactIds: ['fact-input-01', 'fact-source-01'],
@@ -77,10 +77,13 @@ function enqueueScopedInspection(provider: FakeModelProvider): void {
   });
 }
 
-function investigationClosures(disposition: 'candidate-raised' | 'no-source-backed-candidate') {
+function investigationClosures(
+  obligationId: string,
+  disposition: 'candidate-raised' | 'no-source-backed-candidate',
+) {
   return [
     {
-      planObligation: { obligationId: 'test-obligation-01' },
+      planObligation: { obligationId },
       disposition,
       evidenceMapFactIds: ['fact-input-01', 'fact-source-01'],
       limitations: [],
@@ -88,12 +91,12 @@ function investigationClosures(disposition: 'candidate-raised' | 'no-source-back
   ];
 }
 
-function discoverySeed(vectorId: string) {
+function discoverySeed(vectorId: string, obligationId: string) {
   return {
     seedId: 'seed-review-01',
     vectorId,
     hypothesis: 'The reviewed source may require security follow-up.',
-    planObligations: [{ obligationId: 'test-obligation-01' }],
+    planObligations: [{ obligationId }],
     evidenceMapFactIds: ['fact-input-01', 'fact-source-01'],
     limitations: [],
   };
@@ -123,7 +126,6 @@ test('review service creates an executable plan and audits it directly', async (
           scopeGlobs: ['**/*.ts'],
           reviewObligations: [
             {
-              obligationId: 'test-obligation-01',
               riskStatement: 'Input could change query semantics.',
               evidenceRequirement: 'Inspect source evidence for input and query construction.',
             },
@@ -133,13 +135,11 @@ test('review service creates an executable plan and audits it directly', async (
       ],
       additionalObservations: [
         {
-          observationId: 'review-unrelated-boundary',
           title: 'Review an unrelated boundary',
           rationale: 'This suggestion needs a human decision before audit execution.',
           scopeGlobs: ['not-present/**'],
           reviewObligations: [
             {
-              obligationId: 'unrelated-boundary-01',
               riskStatement: 'An unrelated boundary may require a later security review.',
               evidenceRequirement: 'Inspect that boundary only after human promotion.',
             },
@@ -148,14 +148,6 @@ test('review service creates an executable plan and audits it directly', async (
         },
       ],
     },
-    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
-    finishReason: 'stop',
-  });
-  enqueueEvidenceMap(provider, 'query.ts');
-  enqueueSourcePosture(provider);
-  enqueueScopedInspection(provider);
-  provider.enqueueObject({
-    object: { seeds: [], closures: investigationClosures('no-source-backed-candidate') },
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     finishReason: 'stop',
   });
@@ -173,6 +165,21 @@ test('review service creates an executable plan and audits it directly', async (
     { stage: 'planning', status: 'completed', usage: { modelCallCount: 2 } },
   ]);
   const executablePlan = created.plan;
+  const vector = executablePlan.vectors[0];
+  if (vector === undefined) throw new Error('Expected one executable fixture vector.');
+  const obligationId = vector.reviewObligations[0]?.obligationId;
+  if (obligationId === undefined) throw new Error('Expected one executable fixture obligation.');
+  enqueueEvidenceMap(provider, 'query.ts', obligationId);
+  enqueueSourcePosture(provider, obligationId);
+  enqueueScopedInspection(provider);
+  provider.enqueueObject({
+    object: {
+      seeds: [],
+      closures: investigationClosures(obligationId, 'no-source-backed-candidate'),
+    },
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    finishReason: 'stop',
+  });
   const audited = await service.audit({
     targetRoot: target,
     targetDisplayName: 'fixture',
@@ -227,7 +234,6 @@ test('retries one failed agent invocation without expanding the approved audit s
           scopeGlobs: ['reviewed.unknown'],
           reviewObligations: [
             {
-              obligationId: 'test-obligation-01',
               riskStatement: 'The bounded source could require security follow-up.',
               evidenceRequirement: 'Inspect source evidence only inside the approved file.',
             },
@@ -246,16 +252,21 @@ test('retries one failed agent invocation without expanding the approved audit s
     createdAt: '2026-07-29T12:00:00.000Z',
     sessionId: 'retry-plan-01',
   });
-  enqueueEvidenceMap(provider, 'reviewed.unknown');
-  enqueueSourcePosture(provider);
+  const obligationId = created.plan.vectors[0]?.reviewObligations[0]?.obligationId;
+  if (obligationId === undefined) throw new Error('Expected one retry fixture obligation.');
+  enqueueEvidenceMap(provider, 'reviewed.unknown', obligationId);
+  enqueueSourcePosture(provider, obligationId);
   provider.enqueueObject({
-    object: { seeds: [{}], closures: investigationClosures('candidate-raised') },
+    object: { seeds: [{}], closures: investigationClosures(obligationId, 'candidate-raised') },
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     finishReason: 'stop',
   });
   enqueueScopedInspection(provider);
   provider.enqueueObject({
-    object: { seeds: [], closures: investigationClosures('no-source-backed-candidate') },
+    object: {
+      seeds: [],
+      closures: investigationClosures(obligationId, 'no-source-backed-candidate'),
+    },
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     finishReason: 'stop',
   });
@@ -420,7 +431,6 @@ test('does not persist a model claim outside the approved vector scope', async (
           scopeGlobs: ['allowed.ts'],
           reviewObligations: [
             {
-              obligationId: 'test-obligation-01',
               riskStatement: 'The approved file could contain a secret literal.',
               evidenceRequirement: 'Inspect source evidence only inside the approved scope.',
             },
@@ -441,13 +451,15 @@ test('does not persist a model claim outside the approved vector scope', async (
   });
   const vector = created.plan.vectors[0];
   if (vector === undefined) throw new Error('Missing scoped vector.');
-  enqueueEvidenceMap(provider, 'allowed.ts');
-  enqueueSourcePosture(provider);
+  const obligationId = vector.reviewObligations[0]?.obligationId;
+  if (obligationId === undefined) throw new Error('Missing scoped fixture obligation.');
+  enqueueEvidenceMap(provider, 'allowed.ts', obligationId);
+  enqueueSourcePosture(provider, obligationId);
   enqueueScopedInspection(provider);
   provider.enqueueObject({
     object: {
-      seeds: [discoverySeed(vector.vectorId)],
-      closures: investigationClosures('candidate-raised'),
+      seeds: [discoverySeed(vector.vectorId, obligationId)],
+      closures: investigationClosures(obligationId, 'candidate-raised'),
     },
     usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
     finishReason: 'stop',
@@ -457,7 +469,6 @@ test('does not persist a model claim outside the approved vector scope', async (
     object: {
       groundings: [
         {
-          seedId: 'seed-review-01',
           candidate: {
             vectorId: vector.vectorId,
             statement: 'Private secret',
@@ -517,7 +528,6 @@ test('routes a map-bound candidate through scoped inspection to an independent v
           scopeGlobs: ['query.ts'],
           reviewObligations: [
             {
-              obligationId: 'test-obligation-01',
               riskStatement: 'Request input could change query semantics.',
               evidenceRequirement: 'Inspect scoped source evidence before independent review.',
             },
@@ -548,13 +558,15 @@ test('routes a map-bound candidate through scoped inspection to an independent v
   });
   const vector = created.plan.vectors[0];
   if (vector === undefined) throw new Error('Missing verifier vector.');
-  enqueueEvidenceMap(provider, 'query.ts');
-  enqueueSourcePosture(provider);
+  const obligationId = vector.reviewObligations[0]?.obligationId;
+  if (obligationId === undefined) throw new Error('Missing verifier fixture obligation.');
+  enqueueEvidenceMap(provider, 'query.ts', obligationId);
+  enqueueSourcePosture(provider, obligationId);
   enqueueScopedInspection(provider);
   provider.enqueueObject({
     object: {
-      seeds: [discoverySeed(vector.vectorId)],
-      closures: investigationClosures('candidate-raised'),
+      seeds: [discoverySeed(vector.vectorId, obligationId)],
+      closures: investigationClosures(obligationId, 'candidate-raised'),
     },
     usage: { inputTokens: 2, outputTokens: 1, totalTokens: 3 },
     finishReason: 'stop',
@@ -564,7 +576,6 @@ test('routes a map-bound candidate through scoped inspection to an independent v
     object: {
       groundings: [
         {
-          seedId: 'seed-review-01',
           candidate: {
             statement: 'Query includes a request-controlled value',
             claimEvidenceBundles: [
@@ -612,7 +623,7 @@ test('routes a map-bound candidate through scoped inspection to an independent v
       },
       obligationReconciliations: [
         {
-          planObligation: { obligationId: 'test-obligation-01' },
+          planObligation: { obligationId },
           disposition: 'supports-claim',
           explanation: 'The scoped source supports this approved obligation.',
           evidenceSelections: [{ factId: 'fact-source-01', evidenceIndex: 0 }],
@@ -620,7 +631,7 @@ test('routes a map-bound candidate through scoped inspection to an independent v
       ],
       postureReconciliations: [
         {
-          assessmentId: 'posture-test-obligation-01',
+          assessmentId: sourcePostureAssessmentId(vector.vectorId, obligationId),
           disposition: 'supports-claim',
           explanation: 'The posture aligns with the scoped source inspection.',
           evidenceSelections: [{ factId: 'fact-source-01', evidenceIndex: 0 }],

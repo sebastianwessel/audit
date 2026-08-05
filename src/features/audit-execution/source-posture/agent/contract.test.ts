@@ -6,7 +6,6 @@ test('requires a semantic summary from every live posture assessment', () => {
   const output = {
     assessments: [
       {
-        assessmentId: 'posture-obligation-01',
         obligationId: 'obligation-01',
         conclusion: 'inconclusive',
         evidenceMapFactIds: ['fact-operation-01'],

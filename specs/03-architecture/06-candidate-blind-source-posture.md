@@ -30,7 +30,9 @@ flowchart LR
 
 - `SourcePostureAssessmentSchema`: `assessmentId`; one canonical `obligationId`; canonical conclusion `risk-supported`, `risk-contradicted`, `inconclusive`, or `not-applicable`; one or more included evidence-map fact identifiers; bounded limitations; and a required crisp `notApplicableReason` exactly when the conclusion is `not-applicable`.
 - `SourcePostureSchema`: bounded assessments and vector-level limitations. Assessment identifiers and obligation ids are unique.
-- `UnverifiedSourcePostureSchema`: derives from the persisted schema and weakens only model identifier/cardinality constraints necessary to retain visible model-output failures for deterministic filtering.
+- `UnverifiedSourcePostureSchema`: contains only model-owned semantic fields. It has `obligationId`, conclusion, summary, map-fact selections, the closed applicability reason, and bounded limitation prose; it never accepts `assessmentId`.
+
+The posture feature derives each canonical `assessmentId` exactly once from the sealed vector identity and approved obligation identity after strict model-shape validation. This removes opaque model-generated identifiers from the live output contract without changing the required one-assessment-per-obligation closure or any semantic decision.
 
 `not-applicable` is a source-backed neutral closure for a business-level plan obligation that does not apply to this repository. It requires a crisp reason. It is neither a finding nor a passed check, and it is not an incomplete result when the scoped source inspection completed.
 

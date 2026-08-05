@@ -5,7 +5,7 @@ import type {
   ObjectResponse,
   ToolCallSpec,
 } from '@purista/harness';
-
+import { materializePlannerVector } from '../../src/features/attack-planning/planner/materialize.js';
 import type { DeterministicCorpusFixturePack } from './corpus.js';
 import type { CorpusSplit, PlanEvaluationProfile } from './corpus.schema.js';
 
@@ -36,7 +36,7 @@ export async function enqueueDeterministicCorpusResponses(
       if (planProfile === 'audit-reviewed-plan' && reviewedVector === undefined) {
         throw new Error(`Missing deterministic vector fixture for ${loaded.case.caseId}.`);
       }
-      const draft =
+      const plannerVector =
         planProfile === 'audit-reviewed-plan'
           ? reviewedVector
           : {
@@ -56,8 +56,12 @@ export async function enqueueDeterministicCorpusResponses(
               ],
               limitations: ['Deterministic fixture output; not a model-quality result.'],
             };
-      if (draft === undefined)
+      if (plannerVector === undefined)
         throw new Error(`Missing deterministic vector for ${loaded.case.caseId}.`);
+      const draft =
+        planProfile === 'audit-reviewed-plan'
+          ? plannerVector
+          : materializePlannerVector(plannerVector);
       for (let repetition = 0; repetition < repetitions; repetition += 1) {
         if (planProfile !== 'audit-reviewed-plan') {
           sink.enqueue(toolInspectionResponse());
@@ -69,7 +73,12 @@ export async function enqueueDeterministicCorpusResponses(
                   rationale: draft.rationale,
                   enabled: draft.enabled,
                   scopeGlobs: draft.scopeGlobs,
-                  reviewObligations: draft.reviewObligations,
+                  reviewObligations: plannerVector.reviewObligations.map(
+                    ({ riskStatement, evidenceRequirement }) => ({
+                      riskStatement,
+                      evidenceRequirement,
+                    }),
+                  ),
                   limitations: draft.limitations,
                 },
               ],
