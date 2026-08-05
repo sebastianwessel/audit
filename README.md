@@ -27,6 +27,14 @@ cp .env.example .env
 bun run check
 ```
 
+To use a published release instead of a repository checkout:
+
+```bash
+bunx @sebastianwessel/audit --help
+```
+
+Audit is released under the [Apache-2.0 license](./LICENSE).
+
 After completing `.env`, create a plan, review its Markdown projection, optionally create/reseal an editable draft, then audit the sealed JSON:
 
 ```bash

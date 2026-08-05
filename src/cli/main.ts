@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { basename } from 'node:path';
 import type { ModelProvider } from '@purista/harness';
 import type { z } from 'zod';

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Bun 1.3.14 or newer.
+- Bun 1.3.14 or newer. You can run a published release with `bunx @sebastianwessel/audit --help`, or clone the repository for development.
 - Authorization to inspect the target repository.
 - A provider credential only for a model-backed plan, audit, or provider evaluation.
 
