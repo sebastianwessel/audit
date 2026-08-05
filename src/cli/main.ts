@@ -16,6 +16,7 @@ import { isProductCliCommand, parseHelpRequest, renderCliHelp } from './command-
 import { assertValidCommandOptions, type ProductCliCommand } from './command-options.js';
 import { runAudit, runDiscard } from './commands/audit/index.js';
 import { runGuidance } from './commands/guidance/index.js';
+import { runLock } from './commands/lock/index.js';
 import {
   runPlan,
   runPlanDraft,
@@ -44,7 +45,7 @@ export function parseCliArguments(argv: readonly string[]): CliCommand {
   const command = argv[0];
   if (command === undefined || !isProductCliCommand(command)) {
     throw usage(
-      'Expected one of: plan, plan-draft, plan-reseal, audit, guidance, discard, report, lineage.',
+      'Expected one of: plan, plan-draft, plan-reseal, audit, guidance, discard, lock, report, lineage.',
     );
   }
   const options: Record<string, string> = {};
@@ -77,6 +78,8 @@ export async function runCli(
   const parsed = parseCliArguments(argv);
   assertValidCommandOptions(parsed.command, parsed.options);
   const runtime = await (dependencies.loadRuntimeConfiguration ?? loadRuntimeConfiguration)();
+  if (parsed.command === 'lock')
+    return runLock(parsed.options, await prepareConfiguredPrivateWorkRoot(runtime.configuration));
   if (parsed.command === 'discard')
     return runDiscard(
       parsed.options,

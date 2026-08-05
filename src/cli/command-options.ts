@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { AuditRuntimeError } from '../shared/errors/audit-runtime-error.js';
+import { ProductLeaseOperationSchema } from './product-lease.js';
 
 const OptionValueSchema = z.string();
 const ResultFormatOptionSchema = z.literal('json').optional();
@@ -121,6 +122,27 @@ const DiscardCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
   'run-id': OptionValueSchema,
 });
 
+const LockCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
+  'run-id': OptionValueSchema,
+  operation: ProductLeaseOperationSchema.optional(),
+  release: z.literal('true').optional(),
+}).superRefine((options, context) => {
+  if (options.release === 'true' && options.operation === undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['operation'],
+      message: 'Lock release requires --operation.',
+    });
+  }
+  if (options.release === undefined && options.operation !== undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['release'],
+      message: 'Lock operation confirmation requires --release true.',
+    });
+  }
+});
+
 const CommandOptionsSchemas = {
   plan: PlanCommandOptionsSchema,
   audit: AuditCommandOptionsSchema,
@@ -130,6 +152,7 @@ const CommandOptionsSchemas = {
   'plan-draft': PlanDraftCommandOptionsSchema,
   'plan-reseal': PlanResealCommandOptionsSchema,
   discard: DiscardCommandOptionsSchema,
+  lock: LockCommandOptionsSchema,
 } as const;
 
 export type ProductCliCommand = keyof typeof CommandOptionsSchemas;

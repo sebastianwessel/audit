@@ -47,6 +47,10 @@ import { canonicalJson, IdentifierSchema, sha256 } from '../../../shared/contrac
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import { commandExitMeaning, writeCliCommandResult } from '../../command-result.js';
 import { assertResumableRunOptions, booleanOption, requiredOption, usage } from '../../input.js';
+import {
+  createSimpleProductLeaseMetadata,
+  ProductLeaseMetadataSchema,
+} from '../../product-lease.js';
 import { writeRunManifest } from '../../run-manifest.js';
 
 export type AuditCommandDependencies = Readonly<{
@@ -70,13 +74,14 @@ export async function runDiscard(
   );
   assertPlanIsSealed(plan);
   const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
-    metadata: {
+    metadata: ProductLeaseMetadataSchema.parse({
+      schemaVersion: 1,
       operation: 'audit-private-work-discard',
       runId,
       planId: plan.planId,
       planDigest: plan.planDigest,
       targetFingerprint: plan.targetFingerprint,
-    },
+    }),
   });
   try {
     const attempt = await readOptionalAuditRunAttempt(privateWork, runId);
@@ -135,7 +140,9 @@ export async function runAudit(
     requiredOption(options, 'plan'),
     AttackPlanSchema,
   );
-  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: createSimpleProductLeaseMetadata({ operation: 'audit', runId }),
+  });
   const attemptStartedAt = startedAt;
   let terminalAttemptCommitted = false;
   let attemptLifecyclePersisted = false;

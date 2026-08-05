@@ -12,6 +12,7 @@ const descriptions = {
   audit: 'Execute a matching sealed plan and publish its report artifacts.',
   guidance: 'Create non-gating developer guidance for accepted report findings.',
   discard: 'Discard one exact stopped audit run from private work only.',
+  lock: 'Inspect or explicitly release one known-abandoned product private-work lease.',
   report: 'Render one validated report as Markdown.',
   lineage: 'Compare two validated reports using exact finding identity.',
 } satisfies Record<ProductCliCommand, string>;
@@ -24,6 +25,7 @@ const examples = {
   guidance:
     'audit guidance --target ./repository --plan plans/<plan-id>.json --report reports/<report-id>.json',
   discard: 'audit discard --plan plans/<plan-id>.json --run-id audit-<run-id>',
+  lock: 'audit lock --run-id audit-<run-id>',
   report: 'audit report --report reports/<report-id>.json',
   lineage: 'audit lineage --previous reports/<previous>.json --current reports/<current>.json',
 } satisfies Record<ProductCliCommand, string>;

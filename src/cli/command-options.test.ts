@@ -88,6 +88,14 @@ test('accepts only the declared option set for each CLI command', () => {
       'run-id': 'audit-run-01',
     }),
   ).not.toThrow();
+  expect(() => assertValidCommandOptions('lock', { 'run-id': 'audit-run-01' })).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('lock', {
+      'run-id': 'audit-run-01',
+      operation: 'audit',
+      release: 'true',
+    }),
+  ).not.toThrow();
 });
 
 test('rejects unknown and command-incompatible CLI options before I/O', () => {
@@ -158,4 +166,14 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
       'run-id': 'audit-run-01',
     }),
   ).toThrow('Unknown option --target');
+  expect(() => assertValidCommandOptions('lock', {})).toThrow('Missing required option --run-id');
+  expect(() =>
+    assertValidCommandOptions('lock', { 'run-id': 'audit-run-01', release: 'true' }),
+  ).toThrow('Invalid value for --operation');
+  expect(() =>
+    assertValidCommandOptions('lock', { 'run-id': 'audit-run-01', operation: 'audit' }),
+  ).toThrow('Invalid value for --release');
+  expect(() =>
+    assertValidCommandOptions('lock', { 'run-id': 'audit-run-01', 'private-work': 'elsewhere' }),
+  ).toThrow('Unknown option --private-work');
 });

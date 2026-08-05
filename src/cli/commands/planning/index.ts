@@ -25,6 +25,7 @@ import { IdentifierSchema } from '../../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import { commandExitMeaning, writeCliCommandResult } from '../../command-result.js';
 import { booleanOption, requiredOption, usage } from '../../input.js';
+import { createSimpleProductLeaseMetadata } from '../../product-lease.js';
 
 export type PlanningCommandDependencies = Readonly<{
   runtime: RuntimeConfiguration;
@@ -48,7 +49,9 @@ export async function runPlan(
   }
   const targetRoot = dependencies.roots.targetRoot;
   const privateWork = dependencies.roots.privateWorkRoot;
-  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: createSimpleProductLeaseMetadata({ operation: 'plan', runId }),
+  });
   try {
     await assertNoPlanPublicationIntent(privateWork, runId);
     const selectedModel = dependencies.model;
@@ -129,7 +132,9 @@ export async function runPlanPublicationRecovery(
     throw usage('Plan publication recovery requires --resume true.');
   }
   const runId = IdentifierSchema.parse(requiredOption(options, 'run-id'));
-  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: createSimpleProductLeaseMetadata({ operation: 'plan', runId }),
+  });
   try {
     const intent = await resumePlanPublication({ privateWork, command: 'plan', runId });
     writeCliCommandResult(
@@ -196,7 +201,9 @@ export async function runPlanReseal(
     throw usage('Resuming plan publication requires an explicit --run-id.');
   }
   const runId = IdentifierSchema.parse(options['run-id'] ?? `plan-reseal-${crypto.randomUUID()}`);
-  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: createSimpleProductLeaseMetadata({ operation: 'plan-reseal', runId }),
+  });
   try {
     if (resume) {
       const intent = await resumePlanPublication({ privateWork, command: 'plan-reseal', runId });

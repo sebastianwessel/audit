@@ -8,6 +8,7 @@ import {
   createPlan,
   createPlanPublicationIntent,
 } from '../features/attack-planning/index.js';
+import { acquireArtifactLease } from '../platform/artifact-store/json-artifact-store.js';
 import { loadRuntimeConfiguration } from '../platform/configuration/environment.js';
 import { AuditRuntimeError } from '../shared/errors/audit-runtime-error.js';
 import { parseHelpRequest, renderCliHelp } from './command-catalog.js';
@@ -47,6 +48,34 @@ test('CLI rejects unknown options before configuration or root access', async ()
   await expect(
     runCli(['plan', '--target', 'does-not-matter', '--targett', 'typo']),
   ).rejects.toThrow('Unknown option --targett');
+});
+
+test('lock loads configured private work without target access or a provider', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-lock-cli-'));
+  const privateWork = join(root, 'private-work');
+  const runId = 'audit-lock-cli-01';
+  await mkdir(privateWork);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: { schemaVersion: 1, operation: 'audit', runId },
+  });
+  let configurationLoaded = false;
+  try {
+    await expect(
+      runCli(['lock', '--run-id', runId], {
+        loadRuntimeConfiguration: async () => {
+          configurationLoaded = true;
+          return loadRuntimeConfiguration({
+            environment: { AUDIT_PRIVATE_WORK_DIR: privateWork },
+            loadDotEnv: false,
+          });
+        },
+      }),
+    ).resolves.toBe(0);
+    expect(configurationLoaded).toBe(true);
+  } finally {
+    await lease.release();
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test('plan publication resume dispatches without target access or provider credentials', async () => {

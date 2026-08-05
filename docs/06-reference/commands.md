@@ -10,6 +10,7 @@
 | report | Render an existing valid report. | No. |
 | lineage | Compare two existing reports with coverage-aware exact finding tracking. | No. |
 | discard | Remove only the exact stopped audit run's private work after its binding is confirmed. It never touches target code or published reports. | No. |
+| lock | Inspect a source-free product lease, or explicitly release one known-abandoned lease after matching operation/run confirmation. It reads the configured private-work root only. | No. |
 | `bun run eval:corpus:integration -- [--corpus path]` | Deterministic integration check: verify corpus isolation, artifact writing, and the normal tool-guided workflow with a deliberately non-scoring provider. It never measures detection quality. An explicitly selected path is never replaced by the configured default. | No. |
 | `bun run eval:stage-isolated:prepare --write` | Contributor-only reseal of the four local, source-pinned diagnostic packs after an audit protocol change. It preserves each rubric and makes no model call. | No. |
 | `bun run eval:corpus:readiness [--corpus <local-root>] [--output <run-root>]` | Report whether a selected locally reviewed corpus can support a pilot or reliability claim. | No. |
@@ -35,6 +36,7 @@
 | run-id | Optional stable audit identifier; required together with `resume=true`. |
 | resume | `true` reuses matching checkpoints and the retained immutable source/context snapshot for the supplied run id. It does not re-read the current repository contents. |
 | retry-unfinished | `true` with `resume=true` resumes incomplete, failed, or cancelled work from its smallest exact incomplete boundary while preserving every valid completed predecessor. A matching grounding draft is a boundary even before a verifier checkpoint exists. |
+| operation/release | `lock` release confirmation only: supply the retained operation and `release=true` together. |
 | previous/current | Relative report JSON paths used by `lineage`; both must be under the selected public artifact root. |
 
 Options are command-specific. Unknown flags, including removed `--work` and `--public-output` flags, are rejected before the reviewer loads configuration or opens a repository. Runtime configuration, including provider, model, credential-variable name, private-work root, public-artifact root, verifier route, and concurrency, comes only from the resolved environment configuration and is never a command option.
@@ -49,6 +51,15 @@ bun run start plan --target ./repository --result-format json
 ```
 
 Use the returned `artifacts` paths directly in the next command. For example, capture the plan JSON path, pass it to `plan-draft`, then use the returned resealed plan JSON path for `audit`; do not discover private files or parse prose.
+
+To resolve a known-abandoned product lease, first inspect its source-free metadata using the configured `AUDIT_PRIVATE_WORK_DIR`. This command never accepts a root, target, context, provider, or model argument; it loads normal runtime configuration but does not construct a provider or open target input.
+
+```bash
+bun run start lock --run-id audit-<run-id>
+bun run start lock --run-id audit-<run-id> --operation audit --release true
+```
+
+Release succeeds only when the lease still has the inspected run id and operation with recognized strict metadata. It removes only that lease directory; checkpoints, plans, snapshots, and published artifacts remain untouched.
 
 If plan-pair publication stops after the planner has completed, resume its exact private publication without another model call or another target read:
 

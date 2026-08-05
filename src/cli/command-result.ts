@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { IdentifierSchema, RelativePathSchema } from '../shared/contracts/core.js';
 import type { ProductCliCommand } from './command-options.js';
+import { ProductLeaseInspectionSchema } from './product-lease.js';
 
 export const CliResultFormatSchema = z.literal('json');
 
@@ -29,6 +30,8 @@ const CommandExitMeaningSchema = z.enum([
   'completed-with-accepted-findings',
   'incomplete-coverage',
   'discarded-private-work',
+  'lease-inspected',
+  'lease-released',
 ]);
 
 /** The sole machine-readable stdout contract for product CLI commands. */
@@ -42,6 +45,7 @@ export const CliCommandResultSchema = z
       'audit',
       'guidance',
       'discard',
+      'lock',
       'report',
       'lineage',
     ]),
@@ -56,15 +60,24 @@ export const CliCommandResultSchema = z
       lineageId: IdentifierSchema.optional(),
     }),
     artifacts: z.array(CommandArtifactReferenceSchema),
+    lease: ProductLeaseInspectionSchema.optional(),
   })
   .superRefine((value, context) => {
     const paths = value.artifacts.map((artifact) => artifact.path);
-    if (new Set(paths).size === paths.length) return;
-    context.addIssue({
-      code: 'custom',
-      path: ['artifacts'],
-      message: 'CLI result artifact paths must be unique.',
-    });
+    if (new Set(paths).size !== paths.length) {
+      context.addIssue({
+        code: 'custom',
+        path: ['artifacts'],
+        message: 'CLI result artifact paths must be unique.',
+      });
+    }
+    if (value.command === 'lock' && value.lease === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lease'],
+        message: 'Lock command results must include the source-free lease inspection.',
+      });
+    }
   });
 
 export type CliCommandResult = z.infer<typeof CliCommandResultSchema>;
