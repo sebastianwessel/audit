@@ -2,7 +2,7 @@
 
 ## Gates
 
-Default checks are `bun run spec:check`, `bun run typecheck`, `bun run lint`, and `bun test`. The single `bun run release:check` gate adds schema validation, coverage enforcement, deterministic acquisition/corpus integration, and packaged CLI build/help validation. The repository does not claim a dependency-vulnerability, license-policy, or SBOM gate until it has a pinned, verified supply-chain tool and an explicit policy; a package install alone is not evidence of either.
+Default checks are `bun run spec:check`, `bun run typecheck`, `bun run lint`, and `bun test`. Type checking uses strict TypeScript plus unused-local and unused-parameter detection. The single `bun run release:check` gate adds schema validation, coverage enforcement, deterministic acquisition/corpus integration, and packaged CLI build/help validation. The repository does not claim a dependency-vulnerability, license-policy, or SBOM gate until it has a pinned, verified supply-chain tool and an explicit policy; a package install alone is not evidence of either.
 
 ## Test layers
 
