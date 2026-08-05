@@ -19,7 +19,7 @@ export const CanonicalPersistedArtifactVersions = [
   },
   {
     artifact: 'Candidate-grounding draft',
-    version: 10,
+    version: 11,
     sourcePath: 'src/features/audit-execution/audit.schema.ts',
     schemaName: 'AuditCandidateGroundingDraftSchema',
   },

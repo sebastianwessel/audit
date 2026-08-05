@@ -6,7 +6,8 @@ import {
   runScopedModelStage,
   scopedInspectionRequirement,
 } from '../review-workflow/stage-lifecycle/index.js';
-import type { ContextDocument, SourceRepository } from '../target-inventory/index.js';
+import type { ContextDocument } from '../target-inventory/inventory.schema.js';
+import type { SourceRepository } from '../target-inventory/source-snapshot.js';
 import type {
   DeveloperGuidanceModelInput,
   DeveloperGuidanceModelOutput,

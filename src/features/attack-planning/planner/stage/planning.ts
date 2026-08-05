@@ -8,7 +8,7 @@ import {
   runScopedModelStage,
   scopedInspectionRequirement,
 } from '../../../review-workflow/stage-lifecycle/index.js';
-import type { SourceRepository } from '../../../target-inventory/index.js';
+import type { SourceRepository } from '../../../target-inventory/source-snapshot.js';
 import { createPlan, type DraftVectorInput } from '../../plan/plan.js';
 import type { AdditionalObservation, AttackPlan } from '../../plan/plan.schema.js';
 import {

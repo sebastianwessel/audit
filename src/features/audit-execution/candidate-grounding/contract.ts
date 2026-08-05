@@ -102,10 +102,6 @@ export const CanonicalCandidateGroundingOutcomeSchema = z.discriminatedUnion('di
     seedId: IdentifierSchema,
     disposition: z.literal('map-insufficient'),
   }),
-  z.strictObject({
-    seedId: IdentifierSchema,
-    disposition: z.literal('binding-rejected'),
-  }),
 ]);
 
 export const CanonicalCandidateGroundingOutputSchema = z

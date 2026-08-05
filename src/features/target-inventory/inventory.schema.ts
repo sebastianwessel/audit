@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { IdentifierSchema, RelativePathSchema, Sha256Schema } from '../../shared/contracts/core.js';
-import { InventorySummarySchema } from '../attack-planning/index.js';
 
 export const ContextKindSchema = z.enum([
   'architecture',
@@ -18,6 +17,13 @@ export const ContextSensitivitySchema = z.enum([
   'confidential',
   'restricted',
 ]);
+
+/** Content-free summary of the admitted source inventory. */
+export const InventorySummarySchema = z.strictObject({
+  fileCount: z.number().int().nonnegative(),
+  totalBytes: z.number().int().nonnegative(),
+  languageHints: z.array(z.string().trim().min(1)),
+});
 
 /** Explicit source-admission policy; it never carries a size or result limit. */
 export const SourceAdmissionExclusionReasonSchema = z.enum([
@@ -150,6 +156,7 @@ export const TargetInventorySchema = z
   });
 
 export type ContextDocument = z.infer<typeof ContextDocumentSchema>;
+export type InventorySummary = z.infer<typeof InventorySummarySchema>;
 export type SourceAdmissionExclusionReason = z.infer<typeof SourceAdmissionExclusionReasonSchema>;
 export type SourceAdmissionPolicy = z.infer<typeof SourceAdmissionPolicySchema>;
 export type SourceSnapshotManifest = z.infer<typeof SourceSnapshotManifestSchema>;

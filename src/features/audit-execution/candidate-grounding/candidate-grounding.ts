@@ -8,7 +8,10 @@ import type {
   CandidateGroundingStageOutput,
   CanonicalCandidateGroundingOutput,
 } from '../../audit-execution/candidate-grounding/contract.js';
-import { canonicalizeCandidateGroundingOutput } from '../../audit-execution/candidate-grounding/identity.js';
+import {
+  CandidateGroundingProjectionError,
+  canonicalizeCandidateGroundingOutput,
+} from '../../audit-execution/candidate-grounding/identity.js';
 import type { EvidenceMap } from '../../audit-execution/evidence-map/contract.js';
 import type { HypothesisSeed } from '../../audit-execution/investigation/contract.js';
 import type { SourceDocument } from '../../audit-execution/phase-input/contract.js';
@@ -24,6 +27,7 @@ import type {
 import {
   type EvaluatorFailureDiagnosticSink,
   evidenceMapFactIsWithinRecoveryScope,
+  invalidModelOutput,
   projectScopedModelOutput,
   runScopedModelStage,
   type ScopedModelStageOverflowTopologyBase,
@@ -154,17 +158,24 @@ export async function runCandidateGroundingStage(input: {
       projectScopedModelOutput(() => {
         const scoped = candidateGroundingScopeProjection(input.request, input.sources, scope);
         const normalizedOutput = CandidateGroundingModelOutputSchema.parse(output);
-        return {
-          groundings: canonicalizeCandidateGroundingOutput({
-            vector: input.request.vector,
-            seeds: scoped.request.seeds,
-            output: normalizedOutput,
-            evidenceMap: scoped.request.evidenceMap,
-            sourcePosture: scoped.request.sourcePosture,
-            sources: scoped.sources,
-          }).groundings,
-          mapInsufficiencies: normalizedOutput.mapInsufficiencies ?? [],
-        };
+        try {
+          return {
+            groundings: canonicalizeCandidateGroundingOutput({
+              vector: input.request.vector,
+              seeds: scoped.request.seeds,
+              output: normalizedOutput,
+              evidenceMap: scoped.request.evidenceMap,
+              sourcePosture: scoped.request.sourcePosture,
+              sources: scoped.sources,
+            }).groundings,
+            mapInsufficiencies: normalizedOutput.mapInsufficiencies ?? [],
+          };
+        } catch (error) {
+          if (error instanceof CandidateGroundingProjectionError) {
+            invalidModelOutput(error.schemaPathLabels);
+          }
+          throw error;
+        }
       }),
     reduceRecoveredOutputs: (leaves) => ({
       groundings: input.request.seeds.map((seed) => {

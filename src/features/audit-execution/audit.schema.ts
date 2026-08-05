@@ -107,7 +107,6 @@ export const FindingAdmissionFunnelSchema = z
       lanes.accepted !== value.verifierAcceptedCount ||
       lanes.rejected !== value.verifierRejectedCount ||
       lanes.modelIncomplete +
-        lanes.evidenceProjectionInvalid +
         lanes.stageFailed +
         lanes.inspectionMissing +
         lanes.wrapperContractInvalid !==
@@ -366,7 +365,6 @@ export const AuditErrorCodeSchema = z.union([
     'tool-evidence-required',
     'validation-output-shape',
     'verifier-evidence-rejected',
-    'verifier-evidence-projection-invalid',
     'verifier-inspection-missing',
     'verifier-stage-failed',
     'verifier-wrapper-contract-invalid',
@@ -687,7 +685,7 @@ export const AuditSourcePostureRecoveryLeafSchema = AuditCheckpointBindingSchema
 
 /** Canonical grounding outcomes for one exact recovered scope; raw outputs never persist. */
 export const AuditCandidateGroundingRecoveryLeafSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(3),
+  schemaVersion: z.literal(4),
   phase: z.literal('candidate-grounding'),
   parentStageId: ModelStageIdSchema,
   phaseInputFingerprint: Sha256Schema,
@@ -730,7 +728,7 @@ export const AuditVectorCheckpointSchema = AuditCheckpointBindingSchema.extend({
 
 /** Complete canonical per-seed outcomes reusable without persisting discovery seeds. */
 export const AuditCandidateGroundingDraftSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(10),
+  schemaVersion: z.literal(11),
   phase: z.literal('candidate-grounding'),
   candidateGroundingProtocolFingerprint: Sha256Schema,
   evidenceMapFingerprint: Sha256Schema,

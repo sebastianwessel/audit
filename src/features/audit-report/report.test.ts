@@ -270,7 +270,6 @@ test('renders independent stage token, cost, and tool aggregates without model c
             accepted: 1,
             rejected: 0,
             modelIncomplete: 0,
-            evidenceProjectionInvalid: 0,
             stageFailed: 0,
             inspectionMissing: 0,
             wrapperContractInvalid: 0,

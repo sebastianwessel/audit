@@ -80,6 +80,69 @@ test('fails explicitly when a seed crosses recovered source children', async () 
   expect(result).toMatchObject({ status: 'failed', errorCode: 'provider-context-overflow' });
 });
 
+test('retries an unbindable candidate output in the same scoped source basis', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-grounding-validation-retry-'));
+  await writeFile(join(targetRoot, 'a.unknown'), 'value = request.a;\n', 'utf8');
+  await writeFile(join(targetRoot, 'b.unknown'), 'value = request.b;\n', 'utf8');
+  const provider = new FakeModelProvider();
+  enqueueScopedSearch(provider, 'invalid-grounding-inspection');
+  provider.enqueueObject({
+    object: {
+      groundings: [
+        {
+          seedId: 'seed-a',
+          candidate: {
+            statement: 'The selected map evidence supports a candidate.',
+            claimEvidenceBundles: [
+              {
+                role: 'operation',
+                explanation: 'The operation is selected from the map.',
+                selections: [{ factId: 'fact-a', evidenceIndex: 9 }],
+              },
+              {
+                role: 'unsafe-condition',
+                explanation: 'The condition is selected from the map.',
+                selections: [{ factId: 'fact-a', evidenceIndex: 0 }],
+              },
+            ],
+          },
+          nullReason: null,
+        },
+      ],
+    },
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop',
+  });
+  enqueueScopedSearch(provider, 'repaired-grounding-inspection');
+  provider.enqueueObject(nullGroundingOutput('seed-a'));
+
+  const result = await runCandidateGroundingStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: request(['seed-a']),
+    sources: [{ path: 'a.unknown', content: 'value = request.a;\n', languageHint: null }],
+    context: [],
+    sessionId: 'candidate-grounding-validation-retry-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'default' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({
+    status: 'completed',
+    output: {
+      groundings: [{ seedId: 'seed-a', disposition: 'no-source-backed-candidate' }],
+    },
+    modelObservation: {
+      recoveredErrorCodes: ['provider-response-invalid'],
+      toolUsage: { grepFilesCallCount: 2 },
+    },
+  });
+  expect(provider.requests).toHaveLength(4);
+});
+
 class OverflowFirstObjectProvider extends FakeModelProvider {
   private firstObjectCall = true;
 

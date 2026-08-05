@@ -400,7 +400,6 @@ test('finding admission funnel is closed and balances every model candidate', ()
       accepted: 1,
       rejected: 1,
       modelIncomplete: 0,
-      evidenceProjectionInvalid: 0,
       stageFailed: 0,
       inspectionMissing: 0,
       wrapperContractInvalid: 0,
@@ -516,7 +515,7 @@ test('rejects contradictory persisted coverage counters before a checkpoint can 
 
 test('candidate-grounding drafts bind canonical candidates without retaining raw model content', () => {
   const draft = {
-    schemaVersion: 10,
+    schemaVersion: 11,
     phase: 'candidate-grounding',
     candidateGroundingProtocolFingerprint: 'e'.repeat(64),
     evidenceMapFingerprint: '1'.repeat(64),

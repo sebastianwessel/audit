@@ -414,7 +414,7 @@ export function createAuditCandidateGroundingRecoveryLeaf(input: {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditCandidateGroundingRecoveryLeafSchema.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     phase: 'candidate-grounding',
     ...binding,
     parentStageId: input.parentStageId,
@@ -469,7 +469,7 @@ export function createAuditCandidateGroundingDraft(input: {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditCandidateGroundingDraftSchema.parse({
-    schemaVersion: 10,
+    schemaVersion: 11,
     phase: 'candidate-grounding',
     candidateGroundingProtocolFingerprint: input.candidateGroundingProtocolFingerprint,
     evidenceMapFingerprint: input.evidenceMapFingerprint,

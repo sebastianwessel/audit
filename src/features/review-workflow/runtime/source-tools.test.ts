@@ -52,6 +52,39 @@ test('forwards optional grep context to the jailed source tool without a cap', a
   });
 });
 
+test('clips grep context to the exact recovered source range', async () => {
+  const tools = createReviewSourceTools(
+    createSourceSnapshot([
+      {
+        path: 'src/recovery.unknown',
+        content: 'outside-before\ninside-first\nneedle\ninside-last\noutside-after\n',
+        languageHint: null,
+      },
+    ]),
+    new Set(['src/recovery.unknown']),
+    new Map([['src/recovery.unknown', { path: 'src/recovery.unknown', startLine: 2, endLine: 4 }]]),
+  );
+
+  await expect(
+    tools.grepFiles(
+      RepoGrepToolInputSchema.parse({
+        pattern: 'needle',
+        mode: 'literal',
+        caseSensitive: true,
+        contextLines: 99,
+      }),
+    ),
+  ).resolves.toEqual({
+    matches: [
+      {
+        path: 'src/recovery.unknown',
+        line: 3,
+        context: 'inside-first\nneedle\ninside-last',
+      },
+    ],
+  });
+});
+
 test('returns exact physical line records without asking a model to count source text', async () => {
   const tools = createReviewSourceTools(
     createSourceSnapshot([

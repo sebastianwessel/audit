@@ -41,7 +41,6 @@ export const VerificationTerminalLaneSchema = z.enum([
   'accepted',
   'rejected',
   'model-incomplete',
-  'evidence-projection-invalid',
   'stage-failed',
   'inspection-missing',
   'wrapper-contract-invalid',
@@ -51,7 +50,6 @@ export const VerificationTerminalLaneCountsSchema = z.strictObject({
   accepted: z.number().int().nonnegative(),
   rejected: z.number().int().nonnegative(),
   modelIncomplete: z.number().int().nonnegative(),
-  evidenceProjectionInvalid: z.number().int().nonnegative(),
   stageFailed: z.number().int().nonnegative(),
   inspectionMissing: z.number().int().nonnegative(),
   wrapperContractInvalid: z.number().int().nonnegative(),
@@ -74,7 +72,6 @@ export function emptyVerificationTerminalLaneCounts(): VerificationTerminalLaneC
     accepted: 0,
     rejected: 0,
     modelIncomplete: 0,
-    evidenceProjectionInvalid: 0,
     stageFailed: 0,
     inspectionMissing: 0,
     wrapperContractInvalid: 0,
@@ -90,7 +87,6 @@ export function countVerificationTerminalLanes(
     if (lane === 'accepted') counts.accepted += 1;
     else if (lane === 'rejected') counts.rejected += 1;
     else if (lane === 'model-incomplete') counts.modelIncomplete += 1;
-    else if (lane === 'evidence-projection-invalid') counts.evidenceProjectionInvalid += 1;
     else if (lane === 'stage-failed') counts.stageFailed += 1;
     else if (lane === 'inspection-missing') counts.inspectionMissing += 1;
     else counts.wrapperContractInvalid += 1;
@@ -107,8 +103,6 @@ export function aggregateVerificationTerminalLaneCounts(
         accepted: aggregate.accepted + next.accepted,
         rejected: aggregate.rejected + next.rejected,
         modelIncomplete: aggregate.modelIncomplete + next.modelIncomplete,
-        evidenceProjectionInvalid:
-          aggregate.evidenceProjectionInvalid + next.evidenceProjectionInvalid,
         stageFailed: aggregate.stageFailed + next.stageFailed,
         inspectionMissing: aggregate.inspectionMissing + next.inspectionMissing,
         wrapperContractInvalid: aggregate.wrapperContractInvalid + next.wrapperContractInvalid,

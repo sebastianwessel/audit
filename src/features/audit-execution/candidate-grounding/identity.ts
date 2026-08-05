@@ -11,6 +11,21 @@ import type {
   CanonicalCandidateGroundingOutput,
 } from './contract.js';
 
+/**
+ * A model response that passes its transport shape but cannot be bound to the
+ * supplied seed/map basis. The stage lifecycle owns conversion to generic
+ * retry guidance; this value never crosses a durable boundary.
+ */
+export class CandidateGroundingProjectionError extends Error {
+  readonly schemaPathLabels: readonly string[];
+
+  constructor(schemaPathLabels: readonly string[]) {
+    super('Candidate grounding cannot be bound to the supplied evidence basis.');
+    this.name = 'CandidateGroundingProjectionError';
+    this.schemaPathLabels = schemaPathLabels;
+  }
+}
+
 /** Selects one complete, identity-bound grounding per discovery seed. */
 export function selectSeedBoundGroundings(
   seeds: readonly HypothesisSeed[],
@@ -84,29 +99,30 @@ export function canonicalizeCandidateGroundingOutput(input: {
   sourcePosture: SourcePosture;
   sources: readonly SourceDocument[];
 }): CanonicalCandidateGroundingOutput {
-  const selected = selectSeedBoundGroundings(input.seeds, input.output, input.evidenceMap);
-  const candidateBySeedId = new Map(
-    selected.seedBoundCandidates.map(({ seed, candidate }) => [seed.seedId, candidate] as const),
-  );
   const rawBySeedId = new Map(
     input.output.groundings.map((grounding) => [grounding.seedId, grounding]),
   );
-  const malformedOutput =
-    rawBySeedId.size !== input.output.groundings.length || rawBySeedId.size !== input.seeds.length;
+  const expectedSeedIds = new Set(input.seeds.map((seed) => seed.seedId));
+  if (
+    rawBySeedId.size !== input.output.groundings.length ||
+    rawBySeedId.size !== expectedSeedIds.size ||
+    [...rawBySeedId.keys()].some((seedId) => !expectedSeedIds.has(seedId))
+  ) {
+    throw new CandidateGroundingProjectionError(['groundings']);
+  }
   return {
     groundings: input.seeds.map((seed) => {
-      if (malformedOutput) return { seedId: seed.seedId, disposition: 'binding-rejected' as const };
       const raw = rawBySeedId.get(seed.seedId);
+      if (raw === undefined) throw new CandidateGroundingProjectionError(['groundings']);
       if (raw?.candidate === null) {
         return {
           seedId: seed.seedId,
           disposition: raw.nullReason,
         };
       }
-      const candidate = candidateBySeedId.get(seed.seedId);
-      if (candidate === undefined) {
-        return { seedId: seed.seedId, disposition: 'binding-rejected' as const };
-      }
+      const candidate = materializeCandidate(seed, raw.candidate, input.evidenceMap);
+      if (candidate === undefined)
+        throw new CandidateGroundingProjectionError(['groundings', 'claimEvidenceBundles']);
       const verified = verifyModelFindings(
         input.vector,
         [candidate],
@@ -114,9 +130,9 @@ export function canonicalizeCandidateGroundingOutput(input: {
         input.evidenceMap,
         input.sourcePosture,
       ).verified[0];
-      return verified === undefined
-        ? { seedId: seed.seedId, disposition: 'binding-rejected' as const }
-        : { seedId: seed.seedId, disposition: 'grounded' as const, hypothesis: verified };
+      if (verified === undefined)
+        throw new CandidateGroundingProjectionError(['groundings', 'claimEvidenceBundles']);
+      return { seedId: seed.seedId, disposition: 'grounded' as const, hypothesis: verified };
     }),
   };
 }
@@ -140,7 +156,7 @@ export function selectCanonicalSeedBoundGroundings(
   let rejectedCount = 0;
   for (const seed of seeds) {
     const outcome = bySeed.get(seed.seedId);
-    if (outcome === undefined || outcome.disposition === 'binding-rejected') {
+    if (outcome === undefined) {
       rejectedCount += 1;
     } else if (
       outcome.disposition === 'no-source-backed-candidate' ||

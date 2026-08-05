@@ -151,8 +151,8 @@ export function renderRealWorldEvaluationReport(
     '',
     'These count-only lanes distinguish model-declared incompleteness from operational or projection failures. They contain no source, prompt, model explanation, or finding content.',
     '',
-    '| Accepted | Rejected | Model incomplete | Evidence projection invalid | Stage failed | Inspection missing | Wrapper contract invalid |',
-    '| ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Accepted | Rejected | Model incomplete | Stage failed | Inspection missing | Wrapper contract invalid |',
+    '| ---: | ---: | ---: | ---: | ---: | ---: |',
     formatVerificationTerminalLanes(run, 'completed'),
     '',
     '### Completed-trial hypothesis grounding funnel',
@@ -189,8 +189,8 @@ export function renderRealWorldEvaluationReport(
     '',
     '### Incomplete-trial candidate-aware terminal lanes',
     '',
-    '| Accepted | Rejected | Model incomplete | Evidence projection invalid | Stage failed | Inspection missing | Wrapper contract invalid |',
-    '| ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Accepted | Rejected | Model incomplete | Stage failed | Inspection missing | Wrapper contract invalid |',
+    '| ---: | ---: | ---: | ---: | ---: | ---: |',
     formatVerificationTerminalLanes(run, 'incomplete'),
     '',
     '### Incomplete-trial hypothesis grounding funnel',
@@ -568,9 +568,9 @@ function formatVerificationTerminalLanes(
     trial.admissionFunnel === undefined ? [] : [trial.admissionFunnel],
   );
   if (funnels.length === 0)
-    return '| unavailable | unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |';
+    return '| unavailable | unavailable | unavailable | unavailable | unavailable | unavailable |';
   const lanes = aggregateFindingAdmissionFunnels(funnels).verificationTerminalLanes;
-  return `| ${lanes.accepted} | ${lanes.rejected} | ${lanes.modelIncomplete} | ${lanes.evidenceProjectionInvalid} | ${lanes.stageFailed} | ${lanes.inspectionMissing} | ${lanes.wrapperContractInvalid} |`;
+  return `| ${lanes.accepted} | ${lanes.rejected} | ${lanes.modelIncomplete} | ${lanes.stageFailed} | ${lanes.inspectionMissing} | ${lanes.wrapperContractInvalid} |`;
 }
 
 function formatOperationalHotspots(run: RealWorldEvaluationRun): string[] {

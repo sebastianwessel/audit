@@ -10,6 +10,12 @@ import {
   RelativePathSchema,
   Sha256Schema,
 } from '../../../shared/contracts/core.js';
+import {
+  type InventorySummary,
+  InventorySummarySchema,
+} from '../../target-inventory/inventory.schema.js';
+
+export { InventorySummarySchema } from '../../target-inventory/inventory.schema.js';
 
 /** One normalized text boundary for every plan field that may be persisted or rendered. */
 export const PersistedPlanTextSchema = ArtifactTextSchema.pipe(NonEmptyTextSchema);
@@ -150,12 +156,6 @@ export const PlanObligationReferencesSchema = z
     }
   });
 
-export const InventorySummarySchema = z.strictObject({
-  fileCount: z.number().int().nonnegative(),
-  totalBytes: z.number().int().nonnegative(),
-  languageHints: z.array(z.string().trim().min(1)),
-});
-
 export const AttackPlanSchema = z
   .strictObject({
     schemaVersion: z.literal(4),
@@ -256,7 +256,7 @@ export type AttackPlan = z.infer<typeof AttackPlanSchema>;
 export type AttackVector = z.infer<typeof AttackVectorSchema>;
 export type DraftAttackVector = z.infer<typeof DraftAttackVectorSchema>;
 export type AdditionalObservation = z.infer<typeof AdditionalObservationSchema>;
-export type InventorySummary = z.infer<typeof InventorySummarySchema>;
+export type { InventorySummary };
 export type SourceEvidence = z.infer<typeof SourceEvidenceSchema>;
 export type ClaimEvidenceBundle = z.infer<typeof ClaimEvidenceBundleSchema>;
 export type ProposedFinding = z.infer<typeof ProposedFindingSchema>;

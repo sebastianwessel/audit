@@ -175,7 +175,7 @@ export type AuditCandidateGrounder = (
   }>
 >;
 
-/** A grounded seed is durable work; null and binding-rejected outcomes are unfinished. */
+/** A grounded seed is durable work; source-backed null outcomes are unfinished. */
 function retryGroundingSeeds(input: {
   seeds: readonly HypothesisSeed[];
   priorDraft: AuditCandidateGroundingDraft | undefined;
@@ -203,7 +203,7 @@ type GroundingResumeBoundary =
  * Selects the smallest unfinished boundary from a grounding draft that the
  * checkpoint loader and the current map/posture fingerprints already proved
  * exact. A draft deliberately does not retain discovery seeds. Consequently a
- * requested retry of a null or binding-rejected outcome has to recreate that
+ * requested retry of a null outcome has to recreate that
  * seed through discovery; it may not invent one from a durable outcome.
  *
  * Grounded hypotheses, their closure, and both upstream observations are
@@ -248,12 +248,10 @@ function canonicalGroundingOutput(input: {
   sources: readonly SourceDocument[];
 }): CanonicalCandidateGroundingOutput {
   if (input.grounding === undefined) {
-    return {
-      groundings: input.seeds.map((seed) => ({
-        seedId: seed.seedId,
-        disposition: 'binding-rejected' as const,
-      })),
-    };
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'Candidate grounding ended without a canonical per-seed outcome.',
+    );
   }
   return isCanonicalGroundingOutput(input.grounding.groundings)
     ? { groundings: input.grounding.groundings.groundings }
@@ -283,12 +281,14 @@ function mergeRetryGroundingOutcomes(input: {
     groundings: input.seeds.map((seed) => {
       const priorOutcome = prior.get(seed.seedId);
       if (priorOutcome?.disposition === 'grounded') return priorOutcome;
-      return (
-        recovered.get(seed.seedId) ?? {
-          seedId: seed.seedId,
-          disposition: 'binding-rejected' as const,
-        }
-      );
+      const recoveredOutcome = recovered.get(seed.seedId);
+      if (recoveredOutcome === undefined) {
+        throw new AuditRuntimeError(
+          'artifact-invalid',
+          'Candidate grounding recovery omitted one requested seed outcome.',
+        );
+      }
+      return recoveredOutcome;
     }),
   };
 }

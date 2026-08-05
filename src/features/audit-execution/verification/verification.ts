@@ -16,6 +16,7 @@ import type { ModelRoute } from '../../model-operations/model-operations.schema.
 import type { ContextRecoveryScope } from '../../review-workflow/stage-lifecycle/index.js';
 import {
   type EvaluatorFailureDiagnosticSink,
+  invalidModelOutput,
   runScopedModelStage,
   type ScopedModelStageOverflowTopologyBase,
   scopedInspectionRequirement,
@@ -26,9 +27,7 @@ import type { VerificationModelOutput } from './agent/contract.js';
 
 type CanonicalVerificationStageOutput = Readonly<{
   result: AuditVerificationResult;
-  terminalLane:
-    | 'evidence-projection-invalid'
-    | ReturnType<typeof terminalLaneForVerificationDecision>;
+  terminalLane: ReturnType<typeof terminalLaneForVerificationDecision>;
 }>;
 
 /** Executes only the verifier's scoped challenge and fails closed when it did not inspect source. */
@@ -86,12 +85,8 @@ export async function runVerificationStage(input: {
         input.request.evidenceMap,
         input.request.sourcePosture,
       );
-      return result === undefined
-        ? {
-            result: incompleteVerificationResult(),
-            terminalLane: 'evidence-projection-invalid',
-          }
-        : { result, terminalLane: terminalLaneForVerificationDecision(result.decision) };
+      if (result === undefined) invalidModelOutput(['result']);
+      return { result, terminalLane: terminalLaneForVerificationDecision(result.decision) };
     },
   });
   if (stageResult.status === 'completed') {

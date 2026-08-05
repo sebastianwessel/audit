@@ -1,3 +1,4 @@
+import { matchesFilesystemGlob } from '../../../platform/filesystem/jailed-read-only-filesystem.js';
 import type { AttackVector } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 
@@ -12,28 +13,5 @@ export function selectScopedSources(
 }
 
 export function matchesGlob(path: string, glob: string): boolean {
-  let expression = '^';
-  for (let index = 0; index < glob.length; index += 1) {
-    const character = glob[index];
-    if (character === '*') {
-      if (glob[index + 1] === '*') {
-        if (glob[index + 2] === '/') {
-          expression += '(?:.*/)?';
-          index += 2;
-        } else {
-          expression += '.*';
-          index += 1;
-        }
-      } else {
-        expression += '[^/]*';
-      }
-      continue;
-    }
-    if (character === '?') {
-      expression += '[^/]';
-      continue;
-    }
-    expression += (character ?? '').replace(/[|\\{}()[\]^$+?.]/gu, '\\$&');
-  }
-  return new RegExp(`${expression}$`, 'u').test(path);
+  return matchesFilesystemGlob(path, glob);
 }

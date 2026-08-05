@@ -4,7 +4,7 @@ import {
   ModelRetryGuidanceSchema,
   ScopedInspectionRequirementSchema,
 } from '../../../review-workflow/model-contracts/index.js';
-import { ContextDocumentSchema } from '../../../target-inventory/index.js';
+import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
 import {
   AdditionalObservationSchema,
   DraftAttackVectorBaseSchema,

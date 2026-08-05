@@ -1,6 +1,12 @@
-import { textLinesWithoutEndings } from '../../../platform/filesystem/text-lines.js';
+import {
+  createSafeGrepMatcher,
+  matchesFilesystemGlob,
+} from '../../../platform/filesystem/jailed-read-only-filesystem.js';
+import {
+  selectTextLineRange,
+  textLinesWithoutEndings,
+} from '../../../platform/filesystem/text-lines.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
-import { matchesGlob } from '../../audit-execution/investigation/scope.js';
 import { inferLanguageHint } from '../../target-inventory/inventory.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
@@ -60,36 +66,99 @@ export function createReviewSourceTools(
       if (requestedPaths !== undefined) {
         for (const path of requestedPaths) assertAllowedPath(path, allowedPaths);
       }
-      const matched = await filesystem.grepFiles({
-        root: 'target',
+      const matched = await grepWithinAllowedRanges({
+        filesystem,
+        paths: requestedPaths,
         pattern: input.pattern,
         mode: input.mode,
         caseSensitive: input.caseSensitive,
-        relativePaths: requestedPaths,
-        contextLines: input.contextLines,
+        contextLines: input.contextLines ?? 0,
+        allowedLineRanges,
       });
       return {
-        matches: matched.matches
-          .filter((match) =>
-            isWithinAllowedLineRange(match.relativePath, match.line, allowedLineRanges),
-          )
-          .map((match) => ({
-            path: match.relativePath,
-            line: match.line,
-            context: match.context,
-          })),
+        matches: matched.map((match) => ({
+          path: match.path,
+          line: match.line,
+          context: match.context,
+        })),
       };
     },
   };
 }
 
-function isWithinAllowedLineRange(
-  path: string,
-  line: number,
-  allowedLineRanges: ReadonlyMap<string, SourceLineRange>,
-): boolean {
-  const range = allowedLineRanges.get(path);
-  return range === undefined || (line >= range.startLine && line <= range.endLine);
+async function grepWithinAllowedRanges(input: {
+  filesystem: SourceRepository;
+  paths: readonly string[] | undefined;
+  pattern: string;
+  mode: 'literal' | 'identifier' | 'regex';
+  caseSensitive: boolean;
+  contextLines: number;
+  allowedLineRanges: ReadonlyMap<string, SourceLineRange>;
+}): Promise<readonly Readonly<{ path: string; line: number; context: string }>[]> {
+  if (input.allowedLineRanges.size === 0) {
+    const matched = await input.filesystem.grepFiles({
+      root: 'target',
+      pattern: input.pattern,
+      mode: input.mode,
+      caseSensitive: input.caseSensitive,
+      relativePaths: input.paths === undefined ? undefined : [...input.paths],
+      contextLines: input.contextLines,
+    });
+    return matched.matches.map((match) => ({
+      path: match.relativePath,
+      line: match.line,
+      context: match.context,
+    }));
+  }
+  const paths =
+    input.paths ??
+    (await input.filesystem.listFiles({ root: 'target' })).entries.map(
+      (entry) => entry.relativePath,
+    );
+  const matcher = createSafeGrepMatcher(input.pattern, input.mode, input.caseSensitive);
+  const matches: Array<Readonly<{ path: string; line: number; context: string }>> = [];
+  for (const path of [...new Set(paths)].sort((left, right) => left.localeCompare(right))) {
+    const range = input.allowedLineRanges.get(path);
+    if (range === undefined) {
+      const matched = await input.filesystem.grepFiles({
+        root: 'target',
+        pattern: input.pattern,
+        mode: input.mode,
+        caseSensitive: input.caseSensitive,
+        relativePaths: [path],
+        contextLines: input.contextLines,
+      });
+      matches.push(
+        ...matched.matches.map((match) => ({
+          path: match.relativePath,
+          line: match.line,
+          context: match.context,
+        })),
+      );
+      continue;
+    }
+    const read = await input.filesystem.readFile({
+      root: 'target',
+      relativePath: path,
+      startLine: range.startLine,
+      endLine: range.endLine,
+    });
+    const lines = textLinesWithoutEndings(read.text);
+    for (const [index, line] of lines.entries()) {
+      if (!matcher.test(line)) continue;
+      const start = Math.max(0, index - input.contextLines);
+      const end = Math.min(lines.length, index + input.contextLines + 1);
+      const context = selectTextLineRange(read.text, start + 1, end);
+      if (context === undefined) {
+        throw new AuditRuntimeError(
+          'artifact-invalid',
+          'A matched recovery-range source line could not be reassembled.',
+        );
+      }
+      matches.push({ path, line: read.startLine + index, context: context.text });
+    }
+  }
+  return matches;
 }
 
 /** Returns only advisory context whose explicit glob applies to a scoped source path. */
@@ -99,7 +168,7 @@ export function selectApplicableContext(
 ): readonly ContextDocument[] {
   return context.filter((document) =>
     sourcePaths.some((sourcePath) =>
-      document.appliesTo.some((glob) => matchesGlob(sourcePath, glob)),
+      document.appliesTo.some((glob) => matchesFilesystemGlob(sourcePath, glob)),
     ),
   );
 }

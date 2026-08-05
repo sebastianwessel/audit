@@ -41,7 +41,6 @@ test('builds and aggregates a balanced content-free finding admission funnel', (
       accepted: 2,
       rejected: 2,
       modelIncomplete: 0,
-      evidenceProjectionInvalid: 0,
       stageFailed: 0,
       inspectionMissing: 0,
       wrapperContractInvalid: 0,
@@ -51,12 +50,11 @@ test('builds and aggregates a balanced content-free finding admission funnel', (
 
 test('keeps each source-free incomplete verifier lane distinct', () => {
   const funnel = createFindingAdmissionFunnel({
-    modelCandidateCount: 5,
+    modelCandidateCount: 4,
     integrityRejectedCount: 0,
     toolEvidenceRejectedCount: 0,
     verificationResults: [
       { decision: 'incomplete', terminalLane: 'model-incomplete' },
-      { decision: 'incomplete', terminalLane: 'evidence-projection-invalid' },
       { decision: 'incomplete', terminalLane: 'stage-failed' },
       { decision: 'incomplete', terminalLane: 'inspection-missing' },
       { decision: 'incomplete', terminalLane: 'wrapper-contract-invalid' },
@@ -67,10 +65,9 @@ test('keeps each source-free incomplete verifier lane distinct', () => {
     admittedFindingCount: 0,
   });
   expect(funnel).toMatchObject({
-    verifierIncompleteCount: 5,
+    verifierIncompleteCount: 4,
     verificationTerminalLanes: {
       modelIncomplete: 1,
-      evidenceProjectionInvalid: 1,
       stageFailed: 1,
       inspectionMissing: 1,
       wrapperContractInvalid: 1,

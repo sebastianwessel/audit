@@ -189,7 +189,7 @@ function verificationTerminalLaneRows(report: PublicAuditReport): string[] {
     const lanes = coverage.admissionFunnel?.verificationTerminalLanes;
     if (lanes === undefined) return [];
     return [
-      `| \`${coverage.vectorId}\` | ${lanes.accepted} | ${lanes.rejected} | ${lanes.modelIncomplete} | ${lanes.evidenceProjectionInvalid} | ${lanes.stageFailed} | ${lanes.inspectionMissing} | ${lanes.wrapperContractInvalid} |`,
+      `| \`${coverage.vectorId}\` | ${lanes.accepted} | ${lanes.rejected} | ${lanes.modelIncomplete} | ${lanes.stageFailed} | ${lanes.inspectionMissing} | ${lanes.wrapperContractInvalid} |`,
     ];
   });
 }
@@ -456,8 +456,8 @@ export function renderAuditReportMarkdown(report: PublicAuditReport): string {
       '',
       'These source-free operational counts distinguish a model-declared incomplete verdict from projection, stage, inspection, or wrapper failures.',
       '',
-      '| Vector | Accepted | Rejected | Model incomplete | Evidence projection invalid | Stage failed | Inspection missing | Wrapper contract invalid |',
-      '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+      '| Vector | Accepted | Rejected | Model incomplete | Stage failed | Inspection missing | Wrapper contract invalid |',
+      '| --- | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...verificationTerminalLaneRows(report),
       '',
     );

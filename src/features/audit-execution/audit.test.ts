@@ -1275,7 +1275,6 @@ test('persists a source-grounded hypothesis only after independent verifier acce
       accepted: 1,
       rejected: 0,
       modelIncomplete: 0,
-      evidenceProjectionInvalid: 0,
       stageFailed: 0,
       inspectionMissing: 0,
       wrapperContractInvalid: 0,
@@ -2457,7 +2456,7 @@ test('resumes from a durable grounding draft after a crash before its first cand
       ],
       candidateGroundingDrafts: [
         {
-          schemaVersion: 10,
+          schemaVersion: 11,
           phase: 'candidate-grounding',
           runId: 'run-draft-crash-boundary-01',
           planId: plan.planId,
@@ -2560,7 +2559,7 @@ test('reschedules an interrupted running verifier from its canonical grounding d
     resumeState: createAuditResumeState({
       candidateGroundingDrafts: [
         {
-          schemaVersion: 10,
+          schemaVersion: 11,
           phase: 'candidate-grounding',
           ...dependencies,
           candidateGroundingProtocolFingerprint: 'e'.repeat(64),
@@ -2681,7 +2680,7 @@ test('explicit unfinished recovery does not treat a null grounding draft as term
     resumeState: createAuditResumeState({
       candidateGroundingDrafts: [
         {
-          schemaVersion: 10,
+          schemaVersion: 11,
           phase: 'candidate-grounding',
           ...dependencies,
           candidateGroundingProtocolFingerprint: 'e'.repeat(64),
@@ -2775,7 +2774,7 @@ test('unfinished recovery reuses grounded seeds and dispatches only unresolved s
     resumeState: createAuditResumeState({
       candidateGroundingDrafts: [
         {
-          schemaVersion: 10,
+          schemaVersion: 11,
           phase: 'candidate-grounding',
           ...dependencies,
           candidateGroundingProtocolFingerprint: 'e'.repeat(64),
