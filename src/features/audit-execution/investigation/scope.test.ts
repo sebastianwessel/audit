@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { AttackVectorSchema } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 
-import { matchesGlob, selectScopedSources } from './scope.js';
+import { matchesGlob, selectScopedSourcePaths, selectScopedSources } from './scope.js';
 
 const vector = AttackVectorSchema.parse({
   vectorId: 'vector-injection-01',
@@ -36,4 +36,12 @@ test('selects only approved glob scope without using language hints as a filter'
     'config/review.yaml',
   ]);
   expect(matchesGlob('private/secret.txt', 'src/**')).toBeFalse();
+});
+
+test('selects the approved manifest without materializing source documents', () => {
+  expect(selectScopedSourcePaths(vector, sources.map((source) => source.path))).toEqual([
+    'src/deep/input.txt',
+    'src/root.txt',
+    'config/review.yaml',
+  ]);
 });

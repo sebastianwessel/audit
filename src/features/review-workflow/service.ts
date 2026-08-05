@@ -46,7 +46,7 @@ import {
   runEvidenceMapRepairStage,
   runEvidenceMapStage,
 } from '../audit-execution/evidence-map/stage/index.js';
-import { selectScopedSources } from '../audit-execution/investigation/scope.js';
+import { selectScopedSourcePaths } from '../audit-execution/investigation/scope.js';
 import { runInvestigationStage } from '../audit-execution/investigation/stage/index.js';
 import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
 import { runSourcePostureStage } from '../audit-execution/source-posture/stage/index.js';
@@ -328,7 +328,10 @@ export function createReviewService(
             'A report finding has no matching plan vector.',
           );
         }
-        const sources = selectScopedSources(vector, snapshot.documents());
+        const sourcePaths = selectScopedSourcePaths(
+          vector,
+          admittedSourcePaths(inventory.sourceSnapshot),
+        );
         const stage = await runDeveloperGuidanceStage({
           modelProvider,
           filesystem: snapshot,
@@ -336,18 +339,10 @@ export function createReviewService(
             guidanceId: createDeveloperGuidanceId(input.report.reportId, finding.findingId),
             finding,
             vector,
-            availableSourcePaths: sources.map((source) => source.path),
-            context: [
-              ...selectApplicableContext(
-                inventory.context,
-                sources.map((source) => source.path),
-              ),
-            ],
+            availableSourcePaths: sourcePaths,
+            context: [...selectApplicableContext(inventory.context, sourcePaths)],
           },
-          context: selectApplicableContext(
-            inventory.context,
-            sources.map((source) => source.path),
-          ),
+          context: selectApplicableContext(inventory.context, sourcePaths),
           sessionId: input.sessionId,
           modelName,
           harnessExecution,
