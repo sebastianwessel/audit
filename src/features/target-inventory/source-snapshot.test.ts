@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 import { createJailedReadOnlyFilesystem } from '../../platform/filesystem/index.ts';
 import { captureTargetInventory } from './inventory.ts';
-import { createSourceSnapshot } from './source-snapshot.ts';
+import { createSourceSnapshot, SourceSnapshot } from './source-snapshot.ts';
 
 const roots: string[] = [];
 
@@ -111,5 +111,26 @@ describe('source snapshot', () => {
     await expect(snapshot.documents(['second.custom'])).resolves.toEqual([
       { path: 'second.custom', content: 'second\n', languageHint: null },
     ]);
+  });
+
+  test('reads an approved manifest sequence without concurrent source transactions', async () => {
+    let activeReads = 0;
+    let maximumActiveReads = 0;
+    const snapshot = new SourceSnapshot({
+      entries: [
+        { relativePath: 'first.custom', sizeBytes: 1 },
+        { relativePath: 'second.custom', sizeBytes: 1 },
+      ],
+      readDocument: async (path) => {
+        activeReads += 1;
+        maximumActiveReads = Math.max(maximumActiveReads, activeReads);
+        await new Promise<void>((resolve) => setTimeout(resolve, 1));
+        activeReads -= 1;
+        return { path, content: 'x', languageHint: null };
+      },
+    });
+
+    await expect(snapshot.documents(['first.custom', 'second.custom'])).resolves.toHaveLength(2);
+    expect(maximumActiveReads).toBe(1);
   });
 });
