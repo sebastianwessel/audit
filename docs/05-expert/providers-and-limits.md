@@ -1,6 +1,6 @@
 # Providers and limits
 
-Purista provides one application-facing harness shape while provider adapters remain optional. This means domain and filesystem tests do not need credentials, and a team can choose a supported provider at runtime.
+Purista provides one application-facing harness shape while provider adapters remain optional. This means domain and filesystem tests do not need credentials, and a team can select the configured OpenAI or Anthropic route at runtime.
 
 ## Important limits
 

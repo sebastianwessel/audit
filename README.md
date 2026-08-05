@@ -18,7 +18,7 @@ The reviewer is implemented with TypeScript and Bun, but its target scope is lan
 
 ## Quick setup
 
-Requirements: Bun >=1.3.14 and an optional Purista-supported model provider.
+Requirements: Bun >=1.3.14. A provider credential is needed only for model-backed work; Audit currently supports OpenAI (the default) and Anthropic through Purista adapters.
 
 ```bash
 bun install
@@ -93,7 +93,7 @@ Run the offline mixed-language corpus without credentials or target execution:
 bun run eval:corpus:integration
 ```
 
-It validates pinned JavaScript, Java, and C source cases; keeps answer keys and evaluator-authored audit plans outside the agent jail; runs the normal plan/audit flow with a deterministic provider; and writes integration artifacts under `evaluation/runs/`. It proves evaluator wiring and safety, not detection quality. Set `OPENAI_API_KEY` in `.env`, then use `bun run eval:provider` for one diagnostic provider run. The default route is OpenAI / gpt-5.6-terra; uncomment the optional route settings only to use another provider or model. Choose and record the repeat count that fits the question; the product imposes no repeat threshold. Add `--plan-profile audit-reviewed-plan` to measure audit quality against an evaluator-authored plan without a provider planning call. Use `--plan-profile planning-generated` to measure planning alone, or retain the default `end-to-end-generated` to measure both steps. Use `bun run eval:corpus:readiness` to see whether the local corpus can support a quality claim.
+It validates pinned JavaScript, Java, and C source cases; keeps answer keys and evaluator-authored audit plans outside the agent jail; runs the normal plan/audit flow with a deterministic provider; and writes integration artifacts under `evaluation/runs/`. It proves evaluator wiring and safety, not detection quality. Set `OPENAI_API_KEY` in `.env`, then use `bun run eval:provider` for one diagnostic provider run. The default route is OpenAI / gpt-5.6-terra; uncomment the optional route settings only to use Anthropic or a different model. Choose and record the repeat count that fits the question; the product imposes no repeat threshold. Add `--plan-profile audit-reviewed-plan` to measure audit quality against an evaluator-authored plan without a provider planning call. Use `--plan-profile planning-generated` to measure planning alone, or retain the default `end-to-end-generated` to measure both steps. Use `bun run eval:corpus:readiness` to see whether the local corpus can support a quality claim.
 
 ## Repository map
 
