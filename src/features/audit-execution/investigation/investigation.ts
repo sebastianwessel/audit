@@ -1,5 +1,6 @@
 import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { uniqueSorted } from '../../../shared/contracts/collections.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { AuditInvestigationRequest } from '../../audit-execution/audit.schema.js';
 import {
@@ -186,8 +187,4 @@ function mergeClosures(
         limitations: uniqueSorted(grouped.flatMap((closure) => closure.limitations)),
       };
     });
-}
-
-function uniqueSorted<T extends string>(values: readonly T[]): T[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

@@ -1,3 +1,4 @@
+import { uniqueSorted } from '../../../shared/contracts/collections.js';
 import type { PlanObligationReference } from '../../attack-planning/index.js';
 import type { SourcePosture } from './contract.js';
 
@@ -30,8 +31,4 @@ export function deriveSourcePostureProvenance(
 
 export function mergeUniqueIdentifiers(...values: readonly (readonly string[])[]): string[] {
   return uniqueSorted(values.flat());
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

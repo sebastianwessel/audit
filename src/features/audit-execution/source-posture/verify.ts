@@ -1,3 +1,4 @@
+import { uniqueSorted } from '../../../shared/contracts/collections.js';
 import type { AttackVector } from '../../attack-planning/index.js';
 import { type EvidenceMap, mappedControlFactIdsForObligation } from '../evidence-map/contract.js';
 import {
@@ -103,8 +104,4 @@ export function downgradeUninspectedSourcePosture(sourcePosture: SourcePosture):
     })),
     limitations: uniqueSorted([...sourcePosture.limitations, 'source-inspection-missing']),
   });
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

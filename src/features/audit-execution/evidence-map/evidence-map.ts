@@ -1,5 +1,6 @@
 import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { uniqueSorted } from '../../../shared/contracts/collections.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import {
@@ -187,8 +188,4 @@ function mergeRecoveredFacts<T extends { factId: string }>(facts: readonly T[]):
     byId.set(fact.factId, fact);
   }
   return [...byId.values()].sort((left, right) => left.factId.localeCompare(right.factId));
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

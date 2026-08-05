@@ -1,3 +1,4 @@
+import { uniqueSorted } from '../../../shared/contracts/collections.js';
 import {
   type AttackVector,
   type ClaimEvidenceRole,
@@ -227,8 +228,4 @@ function hasValidSourcePostureReferences(
         assessment.evidenceMapFactIds.every((factId) => facts.has(factId)),
     ),
   );
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

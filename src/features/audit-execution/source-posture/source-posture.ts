@@ -1,6 +1,7 @@
 import type { ModelProvider } from '@purista/harness';
 
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { uniqueSorted } from '../../../shared/contracts/collections.js';
 import { createStableId } from '../../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
@@ -184,8 +185,4 @@ function assertSourcePostureWithinScope(
       }
     }
   }
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

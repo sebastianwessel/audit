@@ -7,6 +7,7 @@ import {
   type ObjectResponse,
 } from '@purista/harness';
 
+import { uniqueSorted } from '../../shared/contracts/collections.js';
 import { createStableId } from '../../shared/contracts/core.js';
 import type { OutputValidationRetryGuidance } from '../../shared/contracts/model-retry-guidance.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
@@ -499,10 +500,6 @@ function mergeStageTraces(
       return { ...event, ordinal };
     }),
   );
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
 export function combineToolUsage(usages: readonly ToolUsage[]): ToolUsage {
