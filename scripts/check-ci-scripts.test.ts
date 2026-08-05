@@ -19,3 +19,13 @@ test('rejects dynamic CI Bun script invocation instead of guessing it', () => {
     'contains a non-literal bun run command',
   );
 });
+
+test('identifies the workflow that contains an invalid script reference', () => {
+  expect(() =>
+    assertWorkflowBunScripts(
+      'steps:\n  - run: bun run release:check\n',
+      {},
+      '.github/workflows/release.yml',
+    ),
+  ).toThrow('.github/workflows/release.yml references missing package script: release:check');
+});

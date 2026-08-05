@@ -28,11 +28,14 @@ export function assertWorkflowBunScripts(
 }
 
 if (import.meta.main) {
-  const [workflow, packageJson] = await Promise.all([
+  const [ciWorkflow, releaseWorkflow, packageJson] = await Promise.all([
     readFile('.github/workflows/ci.yml', 'utf8'),
+    readFile('.github/workflows/release.yml', 'utf8'),
     readFile('package.json', 'utf8'),
   ]);
   const parsedPackage = JSON.parse(packageJson) as { scripts?: PackageScripts };
-  assertWorkflowBunScripts(workflow, parsedPackage.scripts ?? {});
-  process.stdout.write('CI Bun script references are valid.\n');
+  const scripts = parsedPackage.scripts ?? {};
+  assertWorkflowBunScripts(ciWorkflow, scripts, '.github/workflows/ci.yml');
+  assertWorkflowBunScripts(releaseWorkflow, scripts, '.github/workflows/release.yml');
+  process.stdout.write('Workflow Bun script references are valid.\n');
 }
