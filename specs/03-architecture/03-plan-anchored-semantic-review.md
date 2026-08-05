@@ -66,10 +66,17 @@ for a human to consider when maintaining the audit plan. They have a stable
 observation identity, suggested scope, and risk-positive review obligations,
 but are not executable vectors, findings, priorities, fixes, or CI inputs.
 The planner reserves executable vectors for target-specific materially
-security-relevant review work. An adjacent or speculative concern without
-source/context evidence of a security-relevant boundary or consequence belongs
-in `additionalObservations`; it may become executable only through explicit
-human promotion and resealing.
+security-relevant review work that can reach a truthful source-backed terminal
+outcome inside their own scope. It must not split one source behavior into
+parallel restatements or create an enabled obligation only because an external
+deployment, reachability, or business consequence might matter. An adjacent,
+speculative, or context-dependent concern without source/context evidence of a
+security-relevant boundary or consequence belongs in `additionalObservations`;
+it may become executable only through explicit human promotion and resealing.
+This planning discipline does not weaken audit closure: a promoted or
+human-authored obligation whose required evidence remains unavailable is still
+incomplete, while any independently accepted finding remains in the partial
+audit report.
 They appear in the sealed JSON plan and its Markdown projection under a
 separate human-review section. An editable draft may promote a selected base
 observation exactly once; resealing converts it to an enabled executable vector

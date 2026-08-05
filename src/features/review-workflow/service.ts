@@ -1,5 +1,4 @@
 import type { ModelProvider } from '@purista/harness';
-import { MaxParallelVectorsSchema } from '../../platform/configuration/environment.js';
 import {
   createJailedReadOnlyFilesystem,
   type JailedReadOnlyFilesystem,
@@ -8,6 +7,10 @@ import {
   type HarnessExecutionConfiguration,
   HarnessExecutionConfigurationSchema,
 } from '../../platform/harness/audit-harness.js';
+import {
+  DefaultMaxParallelVectors,
+  MaxParallelVectorsSchema,
+} from '../../shared/contracts/concurrency.js';
 import {
   AuditRuntimeError,
   AuditRuntimeErrorCodeSchema,
@@ -237,7 +240,9 @@ export function createReviewService(
   modelName?: string,
   options: ReviewServiceOptions = {},
 ): ReviewService {
-  const maxParallelVectors = MaxParallelVectorsSchema.parse(options.maxParallelVectors ?? 1);
+  const maxParallelVectors = MaxParallelVectorsSchema.parse(
+    options.maxParallelVectors ?? DefaultMaxParallelVectors,
+  );
   const harnessExecution = HarnessExecutionConfigurationSchema.parse(
     options.harnessExecution ?? {},
   );

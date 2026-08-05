@@ -3,7 +3,26 @@ import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { loadRuntimeConfiguration, parseDotEnv } from './environment.js';
+import {
+  loadRuntimeConfiguration,
+  parseDotEnv,
+  RuntimeConfigurationDefaults,
+} from './environment.js';
+
+test('uses the central defaults when no optional AUDIT_ override is configured', async () => {
+  const loaded = await loadRuntimeConfiguration({ environment: {}, loadDotEnv: false });
+  expect(loaded.configuration).toMatchObject({
+    provider: RuntimeConfigurationDefaults.provider,
+    model: RuntimeConfigurationDefaults.model,
+    publicArtifactDirectory: RuntimeConfigurationDefaults.publicArtifactDirectory,
+    privateWorkDirectory: RuntimeConfigurationDefaults.privateWorkDirectory,
+    evaluationCorpusRoot: RuntimeConfigurationDefaults.evaluationCorpusRoot,
+    evaluationOutputRoot: RuntimeConfigurationDefaults.evaluationOutputRoot,
+    maxParallelVectors: RuntimeConfigurationDefaults.maxParallelVectors,
+    verificationMode: RuntimeConfigurationDefaults.verificationMode,
+  });
+  expect(loaded.configuration.modelPricing.source).toBe('catalogue');
+});
 
 test('loads project-local .env values over the inherited environment without exposing secrets', async () => {
   const root = await mkdtemp(join(tmpdir(), 'audit-env-'));

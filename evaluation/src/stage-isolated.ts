@@ -59,6 +59,7 @@ import {
   auditWorkflowStructuredOutputRegistry,
   type HarnessExecutionConfiguration,
 } from '../../src/platform/harness/audit-harness.js';
+import { DefaultMaxParallelVectors } from '../../src/shared/contracts/concurrency.js';
 import { canonicalJson, sha256 } from '../../src/shared/contracts/core.js';
 import {
   type StageIsolatedEvaluationStage,
@@ -658,7 +659,7 @@ async function runFullReviewedPlanAudit(
   const canonical = StageIsolatedFullReviewedPlanAuditCanonicalInputSchema.parse(canonicalInput);
   const configuredCostCeiling = input.modelCostCeiling?.state().configuredUsd;
   const service = createReviewService(input.modelProvider, input.modelName, {
-    maxParallelVectors: 1,
+    maxParallelVectors: DefaultMaxParallelVectors,
     harnessExecution: input.harnessExecution,
     modelPricing: input.modelPricing,
     ...(input.modelCacheRoutingKey === undefined

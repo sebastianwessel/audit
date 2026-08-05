@@ -80,7 +80,7 @@ For the current multilingual source lanes and their strict separation from evalu
 
 ## Measure a real provider
 
-Provider measurement is explicit. Set `AUDIT_PROVIDER` and `AUDIT_MODEL` in `.env`; the command defaults to one bounded diagnostic repetition:
+Provider measurement is explicit. Set `OPENAI_API_KEY` in `.env`; the default OpenAI / gpt-5.6-terra route then runs one diagnostic repetition. Uncomment `AUDIT_PROVIDER` and `AUDIT_MODEL` only when choosing another route:
 
 ```bash
 bun run eval:provider

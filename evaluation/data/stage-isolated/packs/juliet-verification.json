@@ -14,7 +14,7 @@
     "corpusSourceDigest": "5de40d05f1db6eb1963fbe5069b6c3623b8ecedc6c99d6e7dd9cb5ce7afd09f8",
     "targetFingerprint": "eb2441299310cfda32d0365147bb09dcf3f00458df413493a1c07b1c73b339a2",
     "contextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "workflowProtocolFingerprint": "2e283fdd1cd2ba66110fb843715a19510de38b335d3ed54313670a0f5f59f260",
+    "workflowProtocolFingerprint": "74e27579f9da83a581de6dd0ff94a60ba869c82f24742938e21f9d1401017f45",
     "stageProtocolFingerprint": "a8ace3cfc9891b7a741125565260e2004a3b4b3ff29eb592b201d34a928f4ab7",
     "evaluatorProtocolFingerprint": "3259ad968b1621af18b2718c93ef577dd988b072af04ebb9a40a874e1d8aac6a",
     "provider": "openai",

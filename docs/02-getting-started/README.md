@@ -13,7 +13,7 @@ bun install
 cp .env.example .env
 ```
 
-Open `.env`, set `AUDIT_MODEL`, and set the selected provider’s API key. The file is ignored by Git. Values use this precedence: built-in defaults, inherited environment, then `.env`. Command arguments select an operation but never override runtime configuration.
+Open `.env` and set `OPENAI_API_KEY`. The default route is OpenAI / gpt-5.6-terra, so no other setting is needed for normal use. The file is ignored by Git. Values use this precedence: built-in defaults, inherited environment, then `.env`. Command arguments select an operation but never override runtime configuration. Uncomment `AUDIT_PROVIDER`, `AUDIT_MODEL`, and the matching credential setting only when selecting another route.
 
 ```bash
 bun run check

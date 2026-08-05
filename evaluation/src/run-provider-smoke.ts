@@ -16,6 +16,7 @@ import {
   loadRuntimeConfiguration,
   ProviderNameSchema,
   type RuntimeConfiguration,
+  RuntimeConfigurationDefaults,
 } from '../../src/platform/configuration/environment.js';
 import {
   assertAuditWorkflowStructuredOutputCompatibility,
@@ -26,6 +27,7 @@ import {
   createConfiguredModelRoute,
   providerCacheRoutingKey,
 } from '../../src/platform/harness/provider.js';
+import { DefaultMaxParallelVectors } from '../../src/shared/contracts/concurrency.js';
 import {
   canonicalJson,
   createStableId,
@@ -108,8 +110,13 @@ export function parseProviderSmokeArguments(
     provider: runtime?.provider,
     model: runtime?.model,
     corpus:
-      parsedArguments.data.corpus ?? runtime?.evaluationCorpusRoot ?? 'evaluation/data/corpora',
-    output: parsedArguments.data.output ?? runtime?.evaluationOutputRoot ?? 'evaluation/runs',
+      parsedArguments.data.corpus ??
+      runtime?.evaluationCorpusRoot ??
+      RuntimeConfigurationDefaults.evaluationCorpusRoot,
+    output:
+      parsedArguments.data.output ??
+      runtime?.evaluationOutputRoot ??
+      RuntimeConfigurationDefaults.evaluationOutputRoot,
     'max-estimated-cost-usd': runtime?.maxEstimatedCostUsd,
     executionBudget: {
       modelTimeoutMs: parsedArguments.data['model-timeout-ms'],
@@ -172,7 +179,7 @@ export async function runProviderSmoke(input: {
         })
       : undefined;
     const service = createReviewService(modelProvider, input.options.model, {
-      maxParallelVectors: 1,
+      maxParallelVectors: DefaultMaxParallelVectors,
       harnessExecution: input.options.executionBudget,
       ...(input.options['max-estimated-cost-usd'] === undefined
         ? {}

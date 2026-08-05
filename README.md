@@ -23,7 +23,7 @@ Requirements: Bun >=1.3.14 and an optional Purista-supported model provider.
 ```bash
 bun install
 cp .env.example .env
-# Edit .env: set AUDIT_MODEL and the matching provider key.
+# Edit .env: set OPENAI_API_KEY. OpenAI / gpt-5.6-terra is the default route.
 bun run check
 ```
 
@@ -41,7 +41,7 @@ bun run start audit --target ./target --work .audit-work --public-output .audit-
 
 Add `--context ./security-context` to `plan` and `audit` when optional Markdown context is available. Plans, snapshots, checkpoints, and developer guidance remain under private work. Each audit writes source-minimal JSON and Markdown reports below the public artifact root’s `reports/` directory; upload only that public root in CI. The `report` command re-renders a stored public JSON report without calling a model.
 
-The local `.env` supplies provider, model, credential name, runtime limits, separate private-work/public-artifact directories, and evaluation paths. CLI arguments select the audit or evaluation run but never override those runtime settings. Never commit `.env` or upload private work.
+The local `.env` needs only `OPENAI_API_KEY` for the default OpenAI / `gpt-5.6-terra` route. It can optionally override the provider/model, credential name, runtime limits, separate private-work/public-artifact directories, and evaluation paths. CLI arguments select the audit or evaluation run but never override those runtime settings. Never commit `.env` or upload private work.
 
 After an audit, optionally create developer guidance for the accepted findings:
 
@@ -85,7 +85,7 @@ Run the offline mixed-language corpus without credentials or target execution:
 bun run eval:corpus:integration
 ```
 
-It validates pinned JavaScript, Java, and C source cases; keeps answer keys and evaluator-authored audit plans outside the agent jail; runs the normal plan/audit flow with a deterministic provider; and writes integration artifacts under `evaluation/runs/`. It proves evaluator wiring and safety, not detection quality. Configure `AUDIT_PROVIDER` and `AUDIT_MODEL` in `.env`, then use `bun run eval:provider` for one diagnostic provider run. Choose and record the repeat count that fits the question; the product imposes no repeat threshold. Add `--plan-profile audit-reviewed-plan` to measure audit quality against an evaluator-authored plan without a provider planning call. Use `--plan-profile planning-generated` to measure planning alone, or retain the default `end-to-end-generated` to measure both steps. Use `bun run eval:corpus:readiness` to see whether the local corpus can support a quality claim.
+It validates pinned JavaScript, Java, and C source cases; keeps answer keys and evaluator-authored audit plans outside the agent jail; runs the normal plan/audit flow with a deterministic provider; and writes integration artifacts under `evaluation/runs/`. It proves evaluator wiring and safety, not detection quality. Set `OPENAI_API_KEY` in `.env`, then use `bun run eval:provider` for one diagnostic provider run. The default route is OpenAI / gpt-5.6-terra; uncomment the optional route settings only to use another provider or model. Choose and record the repeat count that fits the question; the product imposes no repeat threshold. Add `--plan-profile audit-reviewed-plan` to measure audit quality against an evaluator-authored plan without a provider planning call. Use `--plan-profile planning-generated` to measure planning alone, or retain the default `end-to-end-generated` to measure both steps. Use `bun run eval:corpus:readiness` to see whether the local corpus can support a quality claim.
 
 ## Repository map
 

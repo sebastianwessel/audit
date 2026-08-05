@@ -7,7 +7,10 @@ import {
   ModelPricingSchema,
 } from '../../features/model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../../features/model-operations/model-pricing-catalogue.js';
-import { MaxParallelVectorsSchema } from '../../shared/contracts/concurrency.js';
+import {
+  DefaultMaxParallelVectors,
+  MaxParallelVectorsSchema,
+} from '../../shared/contracts/concurrency.js';
 import { ModelIdentifierSchema } from '../../shared/contracts/model-identity.js';
 
 export type EnvironmentSource = Readonly<Record<string, string | undefined>>;
@@ -17,6 +20,21 @@ export type ProviderName = z.infer<typeof ProviderNameSchema>;
 export { MaxParallelVectorsSchema } from '../../shared/contracts/concurrency.js';
 export const VerificationModeSchema = z.enum(['same-route', 'independent-route']);
 export type VerificationMode = z.infer<typeof VerificationModeSchema>;
+
+/**
+ * The sole owner of local runtime defaults. Environment variables are optional
+ * overrides; normal setup needs only the credential for this default route.
+ */
+export const RuntimeConfigurationDefaults = Object.freeze({
+  provider: ProviderNameSchema.parse('openai'),
+  model: ModelIdentifierSchema.parse('gpt-5.6-terra'),
+  publicArtifactDirectory: '.audit-artifacts',
+  privateWorkDirectory: '.audit-work',
+  evaluationCorpusRoot: 'evaluation/data/corpora',
+  evaluationOutputRoot: 'evaluation/runs',
+  maxParallelVectors: DefaultMaxParallelVectors,
+  verificationMode: VerificationModeSchema.parse('same-route'),
+});
 
 const EnvironmentVariableNameSchema = z
   .string()
@@ -35,28 +53,43 @@ export type IndependentVerifierRoute = z.infer<typeof IndependentVerifierRouteSc
 
 export const RuntimeConfigurationSchema = z
   .strictObject({
-    provider: ProviderNameSchema.optional(),
-    model: ModelIdentifierSchema.optional(),
+    provider: ProviderNameSchema.default(RuntimeConfigurationDefaults.provider),
+    model: ModelIdentifierSchema.default(RuntimeConfigurationDefaults.model),
     apiKeyEnvironmentVariable: z.string().trim().min(1).max(160).optional(),
-    publicArtifactDirectory: z.string().trim().min(1).max(1_024),
-    privateWorkDirectory: z.string().trim().min(1).max(1_024),
-    evaluationCorpusRoot: z.string().trim().min(1).max(1_024),
-    evaluationOutputRoot: z.string().trim().min(1).max(1_024),
-    maxParallelVectors: MaxParallelVectorsSchema,
+    publicArtifactDirectory: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1_024)
+      .default(RuntimeConfigurationDefaults.publicArtifactDirectory),
+    privateWorkDirectory: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1_024)
+      .default(RuntimeConfigurationDefaults.privateWorkDirectory),
+    evaluationCorpusRoot: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1_024)
+      .default(RuntimeConfigurationDefaults.evaluationCorpusRoot),
+    evaluationOutputRoot: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1_024)
+      .default(RuntimeConfigurationDefaults.evaluationOutputRoot),
+    maxParallelVectors: MaxParallelVectorsSchema.default(
+      RuntimeConfigurationDefaults.maxParallelVectors,
+    ),
     maxEstimatedCostUsd: ModelCostCeilingUsdSchema.optional(),
     modelPricing: ModelPricingSchema,
-    verificationMode: VerificationModeSchema,
+    verificationMode: VerificationModeSchema.default(RuntimeConfigurationDefaults.verificationMode),
     independentVerifierRoute: IndependentVerifierRouteSchema.optional(),
   })
   .superRefine((value, context) => {
     if (value.verificationMode !== 'independent-route') return;
-    if (value.provider === undefined || value.model === undefined) {
-      context.addIssue({
-        code: 'custom',
-        path: ['verificationMode'],
-        message: 'independent-route requires a configured primary provider and model.',
-      });
-    }
     if (value.independentVerifierRoute === undefined) {
       context.addIssue({
         code: 'custom',
@@ -108,24 +141,26 @@ export async function loadRuntimeConfiguration(
       : await readOptionalDotEnv(join(options.cwd ?? process.cwd(), '.env'));
   const environment = Object.freeze({ ...processEnvironment, ...dotEnv });
   assertNoRetiredEnvironmentVariables(environment);
-  const provider = optionalValue(environment, 'AUDIT_PROVIDER');
-  const model = optionalValue(environment, 'AUDIT_MODEL');
+  const provider = ProviderNameSchema.parse(
+    optionalValue(environment, 'AUDIT_PROVIDER') ?? RuntimeConfigurationDefaults.provider,
+  );
+  const model = ModelIdentifierSchema.parse(
+    optionalValue(environment, 'AUDIT_MODEL') ?? RuntimeConfigurationDefaults.model,
+  );
   const verificationMode = VerificationModeSchema.parse(
-    optionalValue(environment, 'AUDIT_VERIFICATION_MODE') ?? 'same-route',
+    optionalValue(environment, 'AUDIT_VERIFICATION_MODE') ??
+      RuntimeConfigurationDefaults.verificationMode,
   );
   return Object.freeze({
     configuration: RuntimeConfigurationSchema.parse({
       provider,
       model,
       apiKeyEnvironmentVariable: optionalValue(environment, 'AUDIT_API_KEY_ENV'),
-      publicArtifactDirectory:
-        optionalValue(environment, 'AUDIT_PUBLIC_ARTIFACT_DIR') ?? '.audit-artifacts',
-      privateWorkDirectory: optionalValue(environment, 'AUDIT_PRIVATE_WORK_DIR') ?? '.audit-work',
-      evaluationCorpusRoot:
-        optionalValue(environment, 'AUDIT_EVALUATION_CORPUS_ROOT') ?? 'evaluation/data/corpora',
-      evaluationOutputRoot:
-        optionalValue(environment, 'AUDIT_EVALUATION_OUTPUT_ROOT') ?? 'evaluation/runs',
-      maxParallelVectors: optionalInteger(environment, 'AUDIT_MAX_PARALLEL_VECTORS') ?? 1,
+      publicArtifactDirectory: optionalValue(environment, 'AUDIT_PUBLIC_ARTIFACT_DIR'),
+      privateWorkDirectory: optionalValue(environment, 'AUDIT_PRIVATE_WORK_DIR'),
+      evaluationCorpusRoot: optionalValue(environment, 'AUDIT_EVALUATION_CORPUS_ROOT'),
+      evaluationOutputRoot: optionalValue(environment, 'AUDIT_EVALUATION_OUTPUT_ROOT'),
+      maxParallelVectors: optionalInteger(environment, 'AUDIT_MAX_PARALLEL_VECTORS'),
       maxEstimatedCostUsd: optionalDecimal(environment, 'AUDIT_MAX_ESTIMATED_COST_USD'),
       modelPricing: catalogueModelPricing({ provider, model }),
       verificationMode,

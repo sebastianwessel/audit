@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import { reviewWorkflowPromptProtocolFingerprint } from '../../src/features/review-workflow/prompt-protocol.js';
-import { loadRuntimeConfiguration } from '../../src/platform/configuration/environment.js';
+import {
+  loadRuntimeConfiguration,
+  RuntimeConfigurationDefaults,
+} from '../../src/platform/configuration/environment.js';
 import { HarnessExecutionConfigurationSchema } from '../../src/platform/harness/audit-harness.js';
 import { AuditRuntimeError } from '../../src/shared/errors/audit-runtime-error.js';
 import { parseEvaluationOptionPairs } from './command-arguments.js';
@@ -25,7 +28,9 @@ export function parseDeterministicCorpusArguments(
   if (!parsed.success) {
     throw deterministicUsage('Invalid deterministic corpus integration options.');
   }
-  return parsed.data.corpus ?? configuredCorpusRoot ?? 'evaluation/data/corpora';
+  return (
+    parsed.data.corpus ?? configuredCorpusRoot ?? RuntimeConfigurationDefaults.evaluationCorpusRoot
+  );
 }
 
 export async function runDeterministicCorpusIntegration(argv: readonly string[]): Promise<number> {

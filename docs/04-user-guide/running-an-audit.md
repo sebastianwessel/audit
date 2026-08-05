@@ -12,7 +12,7 @@ If the use case has context documents, confirm they describe the intended surrou
 
 The audit reads repository source and selected context, then produces a new report. It does not change the target, contact a running instance, execute code, or perform a real attack.
 
-`AUDIT_MAX_PARALLEL_VECTORS=1` is the safe default in `.env`. Raise it only when your provider quota and CI resources support parallel independent investigations. The setting bounds all in-flight verifier and evaluation-only countercheck requests across the whole run, so a vector with many candidates cannot create a provider-call burst. It never limits how many candidates or files the reviewer processes; queued work keeps its reviewed-plan order.
+`AUDIT_MAX_PARALLEL_VECTORS` defaults to `1`; it is intentionally commented out in `.env.example` because most users do not need to configure it. Raise it only when your provider quota and CI resources support parallel independent investigations. The setting bounds all in-flight verifier and evaluation-only countercheck requests across the whole run, so a vector with many candidates cannot create a provider-call burst. It never limits how many candidates or files the reviewer processes; queued work keeps its reviewed-plan order.
 
 ## When a run is partial
 

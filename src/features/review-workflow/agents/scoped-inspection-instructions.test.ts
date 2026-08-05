@@ -62,9 +62,15 @@ test('keeps speculative planning suggestions outside executable audit vectors', 
   expect(planningAgentInstructions).toContain('put it in additionalObservations instead');
 });
 
-test('keeps planning obligations atomic and preserves context gaps as incomplete', () => {
-  expect(planningAgentInstructions).toContain('Keep obligations atomic');
-  expect(planningAgentInstructions).toContain('context-dependent consequence/reachability');
+test('keeps generated executable obligations closable without weakening context-gap safety', () => {
+  expect(planningAgentInstructions).toContain(
+    'truthful source-backed terminal outcome inside its scope',
+  );
+  expect(planningAgentInstructions).toContain('do not split one source behavior');
+  expect(planningAgentInstructions).toContain('depends on unavailable surrounding context');
+  expect(planningAgentInstructions).not.toContain(
+    'Make source-local behavior and context-dependent consequence/reachability separate obligations',
+  );
   expect(verificationAgentInstructions).toContain('context-required');
   expect(verificationAgentInstructions).toContain(
     'source-visible behavior without that consequence',

@@ -118,12 +118,12 @@ During an audit, the reviewer records a private immutable snapshot before asking
 
 ## Project configuration
 
-Copy `.env.example` to the project-root `.env`. The effective value order is built-in defaults, inherited environment, `.env`, then the matching CLI flag. The file is local configuration: never commit it.
+Copy `.env.example` to the project-root `.env`, then set `OPENAI_API_KEY`. The effective value order is built-in defaults, inherited environment, then `.env`; command arguments select an operation and never override runtime configuration. The file is local configuration: never commit it.
 
 | Key | Default | Use |
 | --- | --- | --- |
-| `AUDIT_PROVIDER` | none | `openai` or `anthropic` for a model-backed command. |
-| `AUDIT_MODEL` | none | Exact model name for the selected provider. |
+| `AUDIT_PROVIDER` | `openai` | Optional route override: `openai` or `anthropic`. |
+| `AUDIT_MODEL` | `gpt-5.6-terra` | Optional exact-model override for the selected provider. |
 | `AUDIT_API_KEY_ENV` | provider default | Optional name of the environment variable holding the primary provider key. |
 | `AUDIT_PRIVATE_WORK_DIR` | `.audit-work` | Local-only root for plans, snapshots, checkpoints, locks, and guidance. Never upload it. |
 | `AUDIT_PUBLIC_ARTIFACT_DIR` | `.audit-artifacts` | CI-uploadable root for source-minimal reports, lineage, and run manifests. |

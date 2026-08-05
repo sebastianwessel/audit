@@ -15,6 +15,7 @@ import {
   loadRuntimeConfiguration,
   ProviderNameSchema,
   type RuntimeConfiguration,
+  RuntimeConfigurationDefaults,
   VerificationModeSchema,
 } from '../../src/platform/configuration/environment.js';
 import {
@@ -209,8 +210,13 @@ export function parseProviderEvaluationArguments(
     provider: runtime?.provider,
     model: runtime?.model,
     corpus:
-      parsedArguments.data.corpus ?? runtime?.evaluationCorpusRoot ?? 'evaluation/data/corpora',
-    output: parsedArguments.data.output ?? runtime?.evaluationOutputRoot ?? 'evaluation/runs',
+      parsedArguments.data.corpus ??
+      runtime?.evaluationCorpusRoot ??
+      RuntimeConfigurationDefaults.evaluationCorpusRoot,
+    output:
+      parsedArguments.data.output ??
+      runtime?.evaluationOutputRoot ??
+      RuntimeConfigurationDefaults.evaluationOutputRoot,
     baseline: parsedArguments.data.baseline,
     'max-estimated-cost-usd': runtime?.maxEstimatedCostUsd,
     executionBudget: {

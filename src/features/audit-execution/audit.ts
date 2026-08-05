@@ -1,3 +1,4 @@
+import { DefaultMaxParallelVectors } from '../../shared/contracts/concurrency.js';
 import { createStableId, sha256 } from '../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import type { AttackPlan } from '../attack-planning/index.js';
@@ -507,7 +508,9 @@ type VectorMapRepairState = Readonly<{
 /** Executes a matching strict plan without invoking model code directly. */
 export async function runAudit(input: AuditInput): Promise<AuditReport> {
   assertPlanMatchesTarget(input.plan, input.targetFingerprint, input.contextDigest);
-  const maxParallelVectors = MaxParallelVectorsSchema.parse(input.maxParallelVectors ?? 1);
+  const maxParallelVectors = MaxParallelVectorsSchema.parse(
+    input.maxParallelVectors ?? DefaultMaxParallelVectors,
+  );
   const candidateAwareDispatchPool = createCandidateAwareDispatchPool(maxParallelVectors);
   const vectorResults = await mapWithConcurrency(
     input.plan.vectors,

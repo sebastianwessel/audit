@@ -608,6 +608,96 @@ const apiKey = '12345678';`,
   );
 });
 
+test('retains an accepted finding when a separate enabled obligation remains incomplete', async () => {
+  const initialPlan = approvedPlan();
+  const initialVector = initialPlan.vectors[0];
+  if (initialVector === undefined) throw new Error('Missing vector.');
+  const plan = resealPlan({
+    ...initialPlan,
+    vectors: [
+      {
+        ...initialVector,
+        reviewObligations: [
+          ...initialVector.reviewObligations,
+          {
+            obligationId: 'audit-obligation-context-02',
+            riskStatement: 'A surrounding deployment boundary could change the query consequence.',
+            evidenceRequirement:
+              'Inspect applicable source and context for that separate boundary.',
+          },
+        ],
+      },
+    ],
+  });
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing resealed vector.');
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const requestValue = request.query.userId;\nexecute(requestValue);',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-partial-accepted-finding-01',
+    generatedAt: '2026-08-05T12:00:00.000Z',
+    mapEvidence: async (request) => {
+      const mapped = await mapEvidence(request);
+      return {
+        evidenceMap: {
+          ...mapped.evidenceMap,
+          facts: mapped.evidenceMap.facts.map((fact) => ({
+            ...fact,
+            planObligations: request.vector.reviewObligations.map(({ obligationId }) => ({
+              obligationId,
+            })),
+          })),
+          controlCoverage: request.vector.reviewObligations.map(({ obligationId }) => ({
+            obligationId,
+            controlFactIds: [],
+          })),
+        },
+      };
+    },
+    assessSourcePosture: async (request) => ({
+      sourcePosture: {
+        assessments: request.vector.reviewObligations.map((obligation, index) => ({
+          assessmentId: `posture-${obligation.obligationId}`,
+          obligationId: obligation.obligationId,
+          conclusion: index === 0 ? ('risk-supported' as const) : ('inconclusive' as const),
+          evidenceMapFactIds: request.evidenceMap.facts.map((fact) => fact.factId),
+          limitations: index === 0 ? [] : ['The required surrounding context is unavailable.'],
+        })),
+        limitations: [],
+      },
+    }),
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(vector.vectorId)],
+      closures: request.vector.reviewObligations.map((obligation, index) => ({
+        planObligation: { obligationId: obligation.obligationId },
+        disposition:
+          index === 0 ? ('candidate-raised' as const) : ('no-source-backed-candidate' as const),
+        evidenceMapFactIds: request.evidenceMap.facts.map((fact) => fact.factId),
+        sourcePostureAssessmentIds: [`posture-${obligation.obligationId}`],
+        limitations: [],
+      })),
+    }),
+    groundCandidates: groundSeeds,
+    verify: acceptVerifier,
+  });
+
+  expect(report.findings).toHaveLength(1);
+  expect(report.coverage[0]).toMatchObject({
+    completed: false,
+    outcome: 'incomplete',
+    errorCode: 'obligation-closure-incomplete',
+    findingCount: 1,
+  });
+});
+
 test('preserves the true phase when evidence-map checkpoint persistence fails', async () => {
   const plan = approvedPlan();
   const report = await runApprovedAudit({
