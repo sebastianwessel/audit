@@ -8,7 +8,7 @@ Keep feature ownership explicit and imports flowing inward:
 
 ```text
 src/
-  shared/          true cross-feature Zod primitives, errors, observability
+  shared/          true cross-feature Zod primitives and errors
   features/        target-inventory, attack-planning/{plan,planner/{agent,stage},index.ts}, review-workflow/{runtime,tools,instructions,model-contracts,stage-lifecycle,stages/{scoped-model-stage,scoped-evidence},index.ts}, audit-execution/{admission,evidence-map/{agent,stage},source-posture/{agent,stage},investigation/{agent,stage},candidate-grounding/{agent,stage},verification/{agent,stage},coverage-closure,synthesis,index.ts}, audit-report, model-operations
   platform/        filesystem, harness, configuration, artifact-store adapters
   cli/             command parsing and process-boundary mapping

@@ -4,7 +4,7 @@ Use capability-owned vertical slices. A feature owns its schema, pure logic, app
 
 ```text
 src/
-  shared/      cross-feature contracts, errors, and observability only
+  shared/      cross-feature contracts and errors only
   features/    target-inventory, attack-planning, audit-execution, audit-report, evaluation
   platform/    configuration, filesystem, harness, artifact-store adapters
   cli/         command parsing and process exit mapping

@@ -78,6 +78,13 @@ export const CliCommandResultSchema = z
         message: 'Lock command results must include the source-free lease inspection.',
       });
     }
+    if (value.command !== 'lock' && value.lease !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['lease'],
+        message: 'Only lock command results may include a lease inspection.',
+      });
+    }
   });
 
 export type CliCommandResult = z.infer<typeof CliCommandResultSchema>;

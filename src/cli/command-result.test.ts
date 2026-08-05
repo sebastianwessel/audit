@@ -55,3 +55,29 @@ test('accepts a source-free partial guidance recovery result', () => {
     }),
   ).not.toThrow();
 });
+
+test('reserves lease inspection data for the lock command', () => {
+  expect(
+    CliCommandResultSchema.safeParse({
+      schemaVersion: 1,
+      command: 'plan',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: 'completed-no-accepted-findings',
+      identifiers: {},
+      artifacts: [],
+      lease: { lease: null },
+    }).success,
+  ).toBe(false);
+  expect(
+    CliCommandResultSchema.safeParse({
+      schemaVersion: 1,
+      command: 'lock',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: 'lease-inspected',
+      identifiers: { runId: 'audit-lock-01' },
+      artifacts: [],
+    }).success,
+  ).toBe(false);
+});
