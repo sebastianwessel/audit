@@ -1146,7 +1146,6 @@ async function executeVector(
       if (
         claimEvidenceBundles === null ||
         result.controlAssessment === null ||
-        !hasValidSourceEvidence(result.controlAssessment.evidence, scopedSources) ||
         !hasCompleteMappedControlConsideration(
           result.controlAssessment.consideredEvidenceMapFactIds ?? [],
           result.controlAssessment.evidence,
@@ -1602,20 +1601,6 @@ export async function runStaticAudit(
       postureReconciliations: [],
     }),
   });
-}
-
-function hasValidSourceEvidence(
-  evidence: readonly { path: string; startLine: number }[],
-  sources: readonly SourceDocument[],
-): boolean {
-  const byPath = new Map(sources.map((source) => [source.path, source] as const));
-  return (
-    evidence.length > 0 &&
-    evidence.every((item) => {
-      const source = byPath.get(item.path);
-      return source?.content.split(/\r?\n/u)[item.startLine - 1] !== undefined;
-    })
-  );
 }
 
 /**
