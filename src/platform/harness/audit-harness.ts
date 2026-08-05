@@ -1,12 +1,11 @@
 import { defineHarness, inMemorySandbox, type ModelProvider } from '@purista/harness';
+import { AttackPlanSchema, createPlan } from '../../features/attack-planning/plan/index.js';
 import {
-  AttackPlanSchema,
-  createPlan,
   PlanModelInputSchema,
   PlanModelOutputSchema,
   PlanModelRequestSchema,
   planningAgentInstructions,
-} from '../../features/attack-planning/index.js';
+} from '../../features/attack-planning/planner/agent/index.js';
 import {
   CandidateGroundingModelInputSchema,
   CandidateGroundingModelOutputSchema,
