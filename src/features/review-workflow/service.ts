@@ -204,11 +204,18 @@ function assertDeveloperGuidanceBindings(
   input: DeveloperGuidanceTargetInput,
   inventory: TargetInventory,
 ): void {
-  assertPlanIsSealed(input.plan);
+  assertDeveloperGuidancePlanReportBinding(input);
   assertPlanMatchesTarget(input.plan, inventory.targetFingerprint, inventory.contextDigest);
+}
+
+/** Validates source-free plan/report identity before mutable guidance lifecycle work. */
+export function assertDeveloperGuidancePlanReportBinding(
+  input: DeveloperGuidanceTargetInput,
+): void {
+  assertPlanIsSealed(input.plan);
   if (
     input.report.planId !== input.plan.planId ||
-    input.report.targetFingerprint !== inventory.targetFingerprint
+    input.report.targetFingerprint !== input.plan.targetFingerprint
   ) {
     throw new AuditRuntimeError(
       'invalid-input',

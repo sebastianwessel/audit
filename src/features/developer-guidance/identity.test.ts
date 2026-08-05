@@ -4,6 +4,7 @@ import { DeveloperGuidanceCheckpointBindingSchema } from './guidance.schema.js';
 import {
   createDeveloperGuidanceId,
   hasExactDeveloperGuidanceCheckpointBinding,
+  hasExactDeveloperGuidanceReportBinding,
 } from './identity.js';
 
 test('binds one guidance run to its exact report identity without a random identifier', () => {
@@ -31,5 +32,34 @@ test('rejects checkpoint reuse when any identity binding changes', () => {
   expect(hasExactDeveloperGuidanceCheckpointBinding(binding, binding)).toBe(true);
   expect(
     hasExactDeveloperGuidanceCheckpointBinding(binding, { ...binding, model: 'other-model' }),
+  ).toBe(false);
+});
+
+test('matches a completed guidance artifact only to its exact checkpoint binding', () => {
+  const binding = DeveloperGuidanceCheckpointBindingSchema.parse({
+    runId: 'guidance-run-002',
+    reportId: 'report-002',
+    reportDigest: 'a'.repeat(64),
+    planId: 'plan-002',
+    planDigest: 'b'.repeat(64),
+    targetFingerprint: 'c'.repeat(64),
+    contextDigest: 'd'.repeat(64),
+    provider: 'openai',
+    model: 'gpt-5.6-terra',
+    protocolFingerprint: 'e'.repeat(64),
+  });
+  const report = {
+    runId: binding.runId,
+    reportId: binding.reportId,
+    reportDigest: binding.reportDigest,
+    planId: binding.planId,
+    planDigest: binding.planDigest,
+    targetFingerprint: binding.targetFingerprint,
+    contextDigest: binding.contextDigest,
+  };
+
+  expect(hasExactDeveloperGuidanceReportBinding(report, binding)).toBe(true);
+  expect(
+    hasExactDeveloperGuidanceReportBinding({ ...report, contextDigest: 'f'.repeat(64) }, binding),
   ).toBe(false);
 });

@@ -24,6 +24,12 @@ import {
   readJsonArtifact,
   writeJsonArtifact,
 } from '../platform/artifact-store/json-artifact-store.js';
+import { createJailedReadOnlyFilesystem } from '../platform/filesystem/index.js';
+import {
+  captureTargetInventory,
+  createPrivateSourceCapture,
+  retainTargetSnapshot,
+} from '../features/target-inventory/index.js';
 import { createStableId, sha256 } from '../shared/contracts/core.js';
 import { AuditRuntimeError } from '../shared/errors/audit-runtime-error.js';
 import { parseHelpRequest, renderCliHelp } from './command-catalog.js';
@@ -34,6 +40,7 @@ import {
   cliFailureExitCode,
   parseCliArguments,
   prepareProductRoots,
+  recoverAuditResumeSourceCapture,
   runCli,
 } from './main.js';
 
@@ -477,6 +484,125 @@ test('run reuse rejects stale or mismatched recovery identity before dispatch', 
     assertAuditRunReuse({ resume: true, plan, priorAttempt: { ...prior, status: 'completed' } }),
   ).toThrow('cannot be resumed');
   expect(() => assertAuditRunReuse({ resume: true, plan, priorAttempt: prior })).not.toThrow();
+});
+
+test('audit resume promotes a sealed snapshot that survived before attempt-state promotion', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-resume-sealed-capture-'));
+  try {
+    const privateWork = join(root, 'private-work');
+    const targetRoot = join(root, 'target');
+    await Promise.all([mkdir(privateWork), mkdir(targetRoot)]);
+    await writeFile(join(targetRoot, 'source.unknown'), 'sealed before crash\n', 'utf8');
+    const runId = 'audit-resume-sealed-01';
+    const sourceCapture = await createPrivateSourceCapture({ outputRoot: privateWork, captureId: runId });
+    const captured = await captureTargetInventory(
+      await createJailedReadOnlyFilesystem({ targetRoot }),
+      { sourceCapture },
+    );
+    const plan = createPlan({
+      targetFingerprint: captured.inventory.targetFingerprint,
+      contextDigest: captured.inventory.contextDigest,
+      targetDisplayName: 'resume fixture',
+      createdAt: '2026-08-05T12:00:00.000Z',
+      inventorySummary: captured.inventory.summary,
+      vectors: [
+        {
+          title: 'Review sealed recovery',
+          rationale: 'The exact pre-crash snapshot must remain resumable.',
+          enabled: true,
+          scopeGlobs: ['source.unknown'],
+          reviewObligations: [
+            {
+              obligationId: 'sealed-recovery-obligation-01',
+              riskStatement: 'A recovery run must not reopen mutable target bytes.',
+              evidenceRequirement: 'Load the retained source capture bound to the sealed plan.',
+            },
+          ],
+          limitations: [],
+        },
+      ],
+    });
+    await retainTargetSnapshot({ outputRoot: privateWork, runId, capture: captured });
+    await writeFile(join(targetRoot, 'source.unknown'), 'changed after crash\n', 'utf8');
+    const priorAttempt = AuditRunAttemptSchema.parse({
+      schemaVersion: 3,
+      runId,
+      planId: plan.planId,
+      planDigest: plan.planDigest,
+      targetFingerprint: plan.targetFingerprint,
+      startedAt: '2026-08-05T12:00:00.000Z',
+      finishedAt: null,
+      status: 'starting',
+      publicReport: null,
+      publicationState: 'not-prepared',
+      snapshotState: 'not-retained',
+    });
+    await writeJsonArtifact(
+      privateWork,
+      `runs/${runId}.attempt.json`,
+      AuditRunAttemptSchema,
+      priorAttempt,
+    );
+    const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
+    try {
+      const recovered = await recoverAuditResumeSourceCapture({
+        privateWork,
+        runId,
+        plan,
+        priorAttempt,
+      });
+      if (recovered?.retainedSnapshot === undefined) {
+        throw new Error('Expected a recovered retained source snapshot.');
+      }
+      expect(recovered.attempt.snapshotState).toBe('retained');
+      expect(await recovered.retainedSnapshot.snapshot.documents(['source.unknown'])).toEqual([
+        { path: 'source.unknown', content: 'sealed before crash\n', languageHint: null },
+      ]);
+      await expect(
+        readJsonArtifact(privateWork, `runs/${runId}.attempt.json`, AuditRunAttemptSchema),
+      ).resolves.toMatchObject({ snapshotState: 'retained' });
+    } finally {
+      await lease.release();
+    }
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+});
+
+test('guidance refuses concurrent same-run ownership before opening a source capture', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-guidance-lease-'));
+  try {
+    const privateWork = join(root, 'private-work');
+    const publicArtifacts = join(root, 'public-artifacts');
+    const targetRoot = join(root, 'target');
+    await Promise.all([mkdir(privateWork), mkdir(publicArtifacts), mkdir(targetRoot)]);
+    const runId = 'guidance-lease-01';
+    const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
+    try {
+      await expect(
+        runCli([
+          'guidance',
+          '--target',
+          targetRoot,
+          '--work',
+          privateWork,
+          '--public-output',
+          publicArtifacts,
+          '--plan',
+          'plans/missing.json',
+          '--report',
+          'reports/missing.json',
+          '--run-id',
+          runId,
+        ]),
+      ).rejects.toMatchObject({ code: 'artifact-lease-unavailable' });
+      expect(await Bun.file(join(privateWork, 'work', 'snapshots', runId)).exists()).toBe(false);
+    } finally {
+      await lease.release();
+    }
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
 });
 
 test('discard binding requires the exact retained attempt identity', () => {

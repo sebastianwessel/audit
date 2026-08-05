@@ -36,12 +36,14 @@ import {
 import { renderAuditReportMarkdown } from '../features/audit-report/report.js';
 import {
   DeveloperGuidanceCheckpointSchema,
+  DeveloperGuidanceLeaseMetadataSchema,
   DeveloperGuidanceReportSchema,
 } from '../features/developer-guidance/guidance.schema.js';
 import {
   createDeveloperGuidanceCheckpointBinding,
   createDeveloperGuidanceId,
   hasExactDeveloperGuidanceCheckpointBinding,
+  hasExactDeveloperGuidanceReportBinding,
 } from '../features/developer-guidance/identity.js';
 import { developerGuidanceProtocolFingerprint } from '../features/developer-guidance/index.js';
 import { renderDeveloperGuidanceMarkdown } from '../features/developer-guidance/report.js';
@@ -51,13 +53,16 @@ import {
 } from '../features/review-workflow/prompt-protocol.js';
 import { createVerificationRouteFingerprint } from '../features/review-workflow/runtime/verification-route.js';
 import {
+  assertDeveloperGuidancePlanReportBinding,
   createReviewService,
   prepareDeveloperGuidanceTarget,
 } from '../features/review-workflow/service.js';
 import {
   createPrivateSourceCapture,
   discardRetainedTargetSnapshot,
+  discardUnsealedPrivateSourceCapture,
   loadRetainedTargetSnapshot,
+  privateSourceCaptureState,
   releaseTargetSnapshot,
   retainTargetSnapshot,
 } from '../features/target-inventory/index.js';
@@ -247,30 +252,37 @@ async function runGuidance(
   }
   const privateWork = roots.privateWorkRoot;
   const publicArtifacts = roots.publicArtifactRoot;
-  const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
-  const report = await readJsonArtifact(
-    publicArtifacts,
-    required(options, 'report'),
-    PublicAuditReportSchema,
-  );
   const targetDisplayName = options['target-name'] ?? basename(roots.targetRoot);
   const runId = options['run-id'] ?? `guidance-${crypto.randomUUID()}`;
-  const retainedTarget = await prepareDeveloperGuidanceTarget({
-    targetRoot: roots.targetRoot,
-    contextRoot: roots.contextRoot,
-    targetDisplayName,
-    plan,
-    report,
-    sourceCapture: await createPrivateSourceCapture({ outputRoot: privateWork, captureId: runId }),
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: DeveloperGuidanceLeaseMetadataSchema.parse({
+      schemaVersion: 1,
+      operation: 'developer-guidance',
+      runId,
+    }),
   });
+  let retainedTarget: Awaited<ReturnType<typeof prepareDeveloperGuidanceTarget>> | undefined;
   try {
+    const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
+    const report = await readJsonArtifact(
+      publicArtifacts,
+      required(options, 'report'),
+      PublicAuditReportSchema,
+    );
+    assertDeveloperGuidancePlanReportBinding({
+      targetRoot: roots.targetRoot,
+      contextRoot: roots.contextRoot,
+      targetDisplayName,
+      plan,
+      report,
+    });
     const selectedModel = model(runtime.configuration);
     const selectedProvider = providerName(runtime.configuration);
     const checkpointBinding = createDeveloperGuidanceCheckpointBinding({
       runId,
       plan,
       report,
-      contextDigest: retainedTarget.inventory.contextDigest,
+      contextDigest: plan.contextDigest,
       provider: selectedProvider,
       model: selectedModel,
       protocolFingerprint: developerGuidanceProtocolFingerprint,
@@ -302,6 +314,21 @@ async function runGuidance(
         'The developer-guidance checkpoint does not match the requested run identity.',
       );
     }
+    if (resume || options['run-id'] !== undefined) {
+      const captureState = await privateSourceCaptureState({
+        outputRoot: privateWork,
+        captureId: runId,
+      });
+      if (captureState === 'retained') {
+        throw new AuditRuntimeError(
+          'artifact-invalid',
+          'Developer guidance cannot reuse a retained source snapshot for its transient capture.',
+        );
+      }
+      if (captureState === 'unsealed') {
+        await discardUnsealedPrivateSourceCapture({ outputRoot: privateWork, captureId: runId });
+      }
+    }
     const guidanceArtifactPath = `guidance/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
     const existingGuidance = await readOptionalJsonArtifact(
       privateWork,
@@ -311,13 +338,7 @@ async function runGuidance(
     if (existingGuidance !== undefined) {
       if (
         !resume ||
-        existingGuidance.runId !== runId ||
-        existingGuidance.reportId !== report.reportId ||
-        existingGuidance.reportDigest !== checkpointBinding.reportDigest ||
-        existingGuidance.planId !== plan.planId ||
-        existingGuidance.planDigest !== plan.planDigest ||
-        existingGuidance.targetFingerprint !== retainedTarget.inventory.targetFingerprint ||
-        existingGuidance.contextDigest !== retainedTarget.inventory.contextDigest ||
+        !hasExactDeveloperGuidanceReportBinding(existingGuidance, checkpointBinding) ||
         existingGuidance.items.some((item) => item.status !== 'completed')
       ) {
         throw new AuditRuntimeError(
@@ -348,6 +369,18 @@ async function runGuidance(
       );
       return 0;
     }
+    const capturedTarget = await prepareDeveloperGuidanceTarget({
+      targetRoot: roots.targetRoot,
+      contextRoot: roots.contextRoot,
+      targetDisplayName,
+      plan,
+      report,
+      sourceCapture: await createPrivateSourceCapture({
+        outputRoot: privateWork,
+        captureId: runId,
+      }),
+    });
+    retainedTarget = capturedTarget;
     const provider = createProvider(runtime.configuration, runtime.environment);
     const service = createReviewService(provider, selectedModel, {
       modelPricing: selectedModelPricing(runtime.configuration),
@@ -362,7 +395,7 @@ async function runGuidance(
       targetDisplayName,
       plan,
       report,
-      retainedTarget,
+      retainedTarget: capturedTarget,
       recoveredCheckpoint,
       retryUnfinished,
       onCheckpoint: async (state) =>
@@ -416,7 +449,8 @@ async function runGuidance(
     );
     return 0;
   } finally {
-    await retainedTarget.release?.();
+    await retainedTarget?.release?.();
+    await lease.release();
   }
 }
 
@@ -575,11 +609,24 @@ export async function runAudit(
   const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
   const attemptStartedAt = startedAt;
   let terminalAttemptCommitted = false;
+  let attemptLifecyclePersisted = false;
   let publicationIntentCommitted = false;
   let snapshotRetained = false;
   let preparedPublication: AuditRunAttempt['publicReport'] = null;
+  let priorAttempt: AuditRunAttempt | undefined;
   try {
-    const priorAttempt = await readOptionalAuditRunAttempt(privateWork, runId);
+    priorAttempt = await readOptionalAuditRunAttempt(privateWork, runId);
+    if (priorAttempt !== undefined) assertAuditRunAttemptBinding({ plan, attempt: priorAttempt });
+    snapshotRetained =
+      priorAttempt !== undefined &&
+      auditAttemptRequiresRetainedSnapshot(priorAttempt.snapshotState);
+    const resumedCapture = resume
+      ? await recoverAuditResumeSourceCapture({ privateWork, runId, plan, priorAttempt })
+      : undefined;
+    if (resumedCapture !== undefined) {
+      priorAttempt = resumedCapture.attempt;
+      snapshotRetained = priorAttempt.snapshotState === 'retained';
+    }
     if (resume && priorAttempt?.status === 'completed') {
       return resumeCompletedAuditAttempt({
         privateWork,
@@ -612,6 +659,7 @@ export async function runAudit(
       publicationState: 'not-prepared',
       snapshotState: priorAttempt?.snapshotState === 'retained' ? 'retained' : 'not-retained',
     });
+    attemptLifecyclePersisted = true;
     snapshotRetained = priorAttempt?.snapshotState === 'retained';
     const selectedModel = model(runtime);
     const selectedProvider = providerName(runtime);
@@ -630,14 +678,16 @@ export async function runAudit(
       evidenceMapProtocolFingerprint,
       reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
     });
-    const retainedSnapshot = resume
-      ? await loadRetainedTargetSnapshot({
-          outputRoot: privateWork,
-          runId,
-          targetFingerprint: plan.targetFingerprint,
-          contextDigest: plan.contextDigest,
-        })
-      : undefined;
+    const retainedSnapshot =
+      resumedCapture?.retainedSnapshot ??
+      (resume
+        ? await loadRetainedTargetSnapshot({
+            outputRoot: privateWork,
+            runId,
+            targetFingerprint: plan.targetFingerprint,
+            contextDigest: plan.contextDigest,
+          })
+        : undefined);
     const persistenceSession = await persistence.loadSession({ resume, retryUnfinished });
     const service = createReviewService(provider, selectedModel, {
       maxParallelVectors: maxParallelVectors(runtime),
@@ -784,7 +834,15 @@ export async function runAudit(
     );
     return terminal.exitCode;
   } catch (error) {
-    if (!terminalAttemptCommitted) {
+    if (
+      !terminalAttemptCommitted &&
+      (attemptLifecyclePersisted ||
+        !(
+          resume &&
+          priorAttempt !== undefined &&
+          auditAttemptRequiresRetainedSnapshot(priorAttempt.snapshotState)
+        ))
+    ) {
       await writeAuditRunAttempt(privateWork, {
         schemaVersion: 3,
         runId,
@@ -1069,6 +1127,21 @@ export function assertAuditRunReuse(input: {
   }
   const prior = input.priorAttempt;
   if (prior === undefined) return;
+  assertAuditRunAttemptBinding({ plan: input.plan, attempt: prior });
+  if (input.resume && prior.status === 'completed') {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'A completed audit cannot be resumed; start a new run instead.',
+    );
+  }
+}
+
+/** Validates the immutable attempt binding before any exact-run lifecycle action. */
+export function assertAuditRunAttemptBinding(input: {
+  plan: z.infer<typeof AttackPlanSchema>;
+  attempt: AuditRunAttempt;
+}): void {
+  const prior = input.attempt;
   if (
     prior.planId !== input.plan.planId ||
     prior.planDigest !== input.plan.planDigest ||
@@ -1079,12 +1152,93 @@ export function assertAuditRunReuse(input: {
       'The retained audit attempt does not match the executable plan.',
     );
   }
-  if (input.resume && prior.status === 'completed') {
+}
+
+/**
+ * Resolves only crash-left unsealed source bytes after the audit lease and
+ * immutable attempt binding are both established. A missing required seal is
+ * terminal: the audit never reopens a mutable target under the same run id.
+ */
+export async function recoverAuditResumeSourceCapture(input: {
+  privateWork: string;
+  runId: string;
+  plan: z.infer<typeof AttackPlanSchema>;
+  priorAttempt: AuditRunAttempt | undefined;
+}): Promise<
+  | Readonly<{
+      attempt: AuditRunAttempt;
+      retainedSnapshot: Awaited<ReturnType<typeof loadRetainedTargetSnapshot>> | undefined;
+    }>
+  | undefined
+> {
+  if (input.priorAttempt === undefined) return;
+  const state = await privateSourceCaptureState({
+    outputRoot: input.privateWork,
+    captureId: input.runId,
+  });
+  const requiresRetainedSnapshot = auditAttemptRequiresRetainedSnapshot(
+    input.priorAttempt.snapshotState,
+  );
+  if (requiresRetainedSnapshot) {
+    if (state === 'retained') {
+      return {
+        attempt: input.priorAttempt,
+        retainedSnapshot: await loadRetainedTargetSnapshot({
+          outputRoot: input.privateWork,
+          runId: input.runId,
+          targetFingerprint: input.plan.targetFingerprint,
+          contextDigest: input.plan.contextDigest,
+        }),
+      };
+    }
     throw new AuditRuntimeError(
       'artifact-invalid',
-      'A completed audit cannot be resumed; start a new run instead.',
+      'The retained audit attempt is missing its required immutable source snapshot.',
     );
   }
+  if (state === 'retained' && input.priorAttempt.snapshotState === 'not-retained') {
+    const retainedSnapshot = await loadRetainedTargetSnapshot({
+      outputRoot: input.privateWork,
+      runId: input.runId,
+      targetFingerprint: input.plan.targetFingerprint,
+      contextDigest: input.plan.contextDigest,
+    });
+    const attempt = AuditRunAttemptSchema.parse({
+      ...input.priorAttempt,
+      snapshotState: 'retained',
+    });
+    await writeAuditRunAttempt(input.privateWork, attempt);
+    return { attempt, retainedSnapshot };
+  }
+  if (state === 'retained') {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'The audit attempt has an unexpected retained source snapshot state.',
+    );
+  }
+  if (state === 'unsealed') {
+    await discardUnsealedPrivateSourceCapture({
+      outputRoot: input.privateWork,
+      captureId: input.runId,
+    });
+  }
+  if (input.priorAttempt.snapshotState === 'not-retained') {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'The audit run has no retained immutable source snapshot and cannot be resumed.',
+    );
+  }
+  return { attempt: input.priorAttempt, retainedSnapshot: undefined };
+}
+
+function auditAttemptRequiresRetainedSnapshot(
+  snapshotState: AuditRunAttempt['snapshotState'],
+): boolean {
+  return (
+    snapshotState === 'retained' ||
+    snapshotState === 'release-pending' ||
+    snapshotState === 'release-failed'
+  );
 }
 
 /** Rejects every incomplete or plan-mismatched identity before private deletion. */

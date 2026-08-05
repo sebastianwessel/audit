@@ -6,6 +6,7 @@ import type {
   DeveloperGuidanceAttempt,
   DeveloperGuidanceCheckpoint,
   DeveloperGuidanceCheckpointBinding,
+  DeveloperGuidanceReport,
 } from './guidance.schema.js';
 
 /** Content-derived identity for advice bound to one immutable report artifact. */
@@ -55,6 +56,31 @@ export function hasExactDeveloperGuidanceCheckpointBinding(
   expected: DeveloperGuidanceCheckpointBinding,
 ): boolean {
   return canonicalJson(actual) === canonicalJson(expected);
+}
+
+/** The final advisory artifact and its checkpoint share one exact run binding. */
+export function hasExactDeveloperGuidanceReportBinding(
+  actual: Pick<
+    DeveloperGuidanceReport,
+    | 'runId'
+    | 'reportId'
+    | 'reportDigest'
+    | 'planId'
+    | 'planDigest'
+    | 'targetFingerprint'
+    | 'contextDigest'
+  >,
+  expected: DeveloperGuidanceCheckpointBinding,
+): boolean {
+  return (
+    actual.runId === expected.runId &&
+    actual.reportId === expected.reportId &&
+    actual.reportDigest === expected.reportDigest &&
+    actual.planId === expected.planId &&
+    actual.planDigest === expected.planDigest &&
+    actual.targetFingerprint === expected.targetFingerprint &&
+    actual.contextDigest === expected.contextDigest
+  );
 }
 
 /** The latest terminal attempt is the only state eligible for guidance reuse. */

@@ -31,6 +31,13 @@ export const DeveloperGuidanceCheckpointBindingSchema = z.strictObject({
   protocolFingerprint: Sha256Schema,
 });
 
+/** Source-free ownership record for one mutable developer-guidance run. */
+export const DeveloperGuidanceLeaseMetadataSchema = z.strictObject({
+  schemaVersion: z.literal(1),
+  operation: z.literal('developer-guidance'),
+  runId: IdentifierSchema,
+});
+
 export const DeveloperGuidanceItemSchema = z.discriminatedUnion('status', [
   GuidanceBindingSchema.extend({
     status: z.literal('completed'),
@@ -160,3 +167,4 @@ export type DeveloperGuidanceCheckpoint = z.infer<typeof DeveloperGuidanceCheckp
 export type DeveloperGuidanceCheckpointBinding = z.infer<
   typeof DeveloperGuidanceCheckpointBindingSchema
 >;
+export type DeveloperGuidanceLeaseMetadata = z.infer<typeof DeveloperGuidanceLeaseMetadataSchema>;

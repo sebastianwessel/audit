@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import {
   ArtifactStoreError,
+  readOptionalJsonArtifact,
   readPrivateUtf8Artifact,
   removeArtifactDirectory,
   writeNewJsonArtifact,
@@ -10,12 +11,17 @@ import {
 import { IdentifierSchema, sha256 } from '../../shared/contracts/core.js';
 import type { SourceDocument } from '../audit-execution/audit.schema.js';
 
+import { SourceSnapshotManifestSchema } from './inventory.schema.js';
 import { SourceSnapshot, type SourceSnapshotCapture } from './source-snapshot.js';
 
 const SourceCaptureReservationSchema = z.strictObject({
   schemaVersion: z.literal(1),
   captureId: IdentifierSchema,
 });
+
+/** Source-free recovery state for one exact private source-capture directory. */
+export const PrivateSourceCaptureStateSchema = z.enum(['absent', 'unsealed', 'retained']);
+export type PrivateSourceCaptureState = z.infer<typeof PrivateSourceCaptureStateSchema>;
 
 type CapturedSource = Readonly<{
   path: string;
@@ -116,6 +122,50 @@ export async function createPrivateSourceCapture(input: {
       }
     },
   });
+}
+
+/**
+ * Inspects only the run-owned capture lifecycle records. A manifest is the
+ * durable seal: this function never treats it as disposable, including when a
+ * later retained-context write did not finish.
+ */
+export async function privateSourceCaptureState(input: {
+  outputRoot: string;
+  captureId: string;
+}): Promise<PrivateSourceCaptureState> {
+  const captureId = IdentifierSchema.parse(input.captureId);
+  const reservation = await readOptionalJsonArtifact(
+    input.outputRoot,
+    `${sourceCaptureDirectory(captureId)}/reservation.json`,
+    SourceCaptureReservationSchema,
+  );
+  if (reservation === undefined) return PrivateSourceCaptureStateSchema.parse('absent');
+  if (reservation.captureId !== captureId) {
+    throw new Error('The private source capture reservation does not match its run identity.');
+  }
+  const retainedManifest = await readOptionalJsonArtifact(
+    input.outputRoot,
+    sourceCaptureManifestPath(captureId),
+    SourceSnapshotManifestSchema,
+  );
+  return PrivateSourceCaptureStateSchema.parse(
+    retainedManifest === undefined ? 'unsealed' : 'retained',
+  );
+}
+
+/**
+ * Releases only crash-left source bytes that never reached a durable manifest.
+ * The caller must first own the exact run lease; this helper intentionally has
+ * no target, plan, or resume authority.
+ */
+export async function discardUnsealedPrivateSourceCapture(input: {
+  outputRoot: string;
+  captureId: string;
+}): Promise<boolean> {
+  const captureId = IdentifierSchema.parse(input.captureId);
+  if ((await privateSourceCaptureState(input)) !== 'unsealed') return false;
+  await removeArtifactDirectory(input.outputRoot, sourceCaptureDirectory(captureId));
+  return true;
 }
 
 export function sourceCaptureDirectory(captureId: string): string {
