@@ -12,8 +12,12 @@ import {
   AuditRuntimeError,
   AuditRuntimeErrorCodeSchema,
 } from '../../shared/errors/audit-runtime-error.js';
-import { assertPlanIsSealed, assertPlanMatchesTarget } from '../attack-planning/plan.js';
-import type { AttackPlan } from '../attack-planning/plan.schema.js';
+import {
+  type AttackPlan,
+  assertPlanIsSealed,
+  assertPlanMatchesTarget,
+} from '../attack-planning/index.js';
+import { runPlanningStage } from '../attack-planning/planner/stage/index.js';
 import {
   type AuditCandidateGroundingRecoveryLeafUpdate,
   type AuditContextOverflowTransition,
@@ -33,9 +37,17 @@ import type {
   AuditSourcePostureDraft,
   AuditVectorResult,
 } from '../audit-execution/audit.schema.js';
+import { runCandidateGroundingStage } from '../audit-execution/candidate-grounding/stage/index.js';
 import type { AuditResumeState } from '../audit-execution/checkpoints.js';
+import {
+  runEvidenceMapRepairStage,
+  runEvidenceMapStage,
+} from '../audit-execution/evidence-map/stage/index.js';
 import { selectScopedSources } from '../audit-execution/investigation/scope.js';
+import { runInvestigationStage } from '../audit-execution/investigation/stage/index.js';
 import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
+import { runSourcePostureStage } from '../audit-execution/source-posture/stage/index.js';
+import { runVerificationStage } from '../audit-execution/verification/stage/index.js';
 import type { PublicAuditReport } from '../audit-report/public-contract.js';
 import {
   type DeveloperGuidanceAttempt,
@@ -50,6 +62,7 @@ import {
   createDeveloperGuidanceReportDigest,
   latestDeveloperGuidanceAttempts,
 } from '../developer-guidance/identity.js';
+import { runDeveloperGuidanceStage } from '../developer-guidance/stage/index.js';
 import {
   createModelCostCeiling,
   type ModelCostCeiling,
@@ -73,15 +86,7 @@ import {
 } from './runtime/context-overflow.js';
 import { selectApplicableContext } from './runtime/source-tools.js';
 import type { ResolvedVerificationRoute } from './runtime/verification-route.js';
-import { runCandidateGroundingStage } from './stages/candidate-grounding.js';
-import { runDeveloperGuidanceStage } from './stages/developer-guidance.js';
-import { runEvidenceMapStage } from './stages/evidence-map.js';
-import { runEvidenceMapRepairStage } from './stages/evidence-map-repair.js';
-import { runInvestigationStage } from './stages/investigation.js';
-import { runPlanningStage } from './stages/planning.js';
 import type { EvaluatorFailureDiagnosticSink } from './stages/scoped-model-stage.js';
-import { runSourcePostureStage } from './stages/source-posture.js';
-import { runVerificationStage } from './stages/verification.js';
 
 export type ReviewService = Readonly<{
   inspectTarget: (input: ReviewTargetInput) => Promise<TargetInventory>;

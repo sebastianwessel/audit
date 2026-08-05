@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { JsonValue } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
-import { createPlan as createDraftPlan } from '../attack-planning/plan.js';
+import { createPlan as createDraftPlan } from '../attack-planning/index.js';
 import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
 import { createModelCostCeiling } from '../model-operations/model-operations.js';
 import { createReviewService } from './service.js';

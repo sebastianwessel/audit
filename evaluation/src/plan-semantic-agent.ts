@@ -1,5 +1,5 @@
 import { defineHarness, inMemorySandbox, type ModelProvider } from '@purista/harness';
-import type { AttackPlan } from '../../src/features/attack-planning/plan.schema.js';
+import type { AttackPlan } from '../../src/features/attack-planning/index.js';
 import {
   createModelStageTraceRecorder,
   createProviderUsageRecorder,

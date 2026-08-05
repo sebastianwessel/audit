@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 
-import type { ProposedFinding } from '../../attack-planning/plan.schema.js';
-import { AttackVectorSchema } from '../../attack-planning/plan.schema.js';
+import type { ProposedFinding } from '../../attack-planning/index.js';
+import { AttackVectorSchema } from '../../attack-planning/index.js';
 import { EvidenceMapSchema } from '../evidence-map/contract.js';
 import { SourcePostureSchema } from '../source-posture/contract.js';
 

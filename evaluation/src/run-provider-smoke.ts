@@ -1,6 +1,6 @@
 import type { ModelProvider } from '@purista/harness';
 import { z } from 'zod';
-import { createPlan } from '../../src/features/attack-planning/plan.js';
+import { createPlan } from '../../src/features/attack-planning/index.js';
 import { createAuditResumeState } from '../../src/features/audit-execution/checkpoints.js';
 import { emptyVerificationTerminalLaneCounts } from '../../src/features/audit-execution/verification/contract.js';
 import { ModelCostCeilingUsdSchema } from '../../src/features/model-operations/model-operations.schema.js';

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { AttackVectorSchema, ProposedFindingSchema } from '../../attack-planning/plan.schema.js';
+import { AttackVectorSchema, ProposedFindingSchema } from '../../attack-planning/index.js';
 import { EvidenceMapSchema } from '../evidence-map/contract.js';
 import { SourcePostureSchema } from '../source-posture/contract.js';
 import type { UnverifiedAuditCandidate } from './contract.js';

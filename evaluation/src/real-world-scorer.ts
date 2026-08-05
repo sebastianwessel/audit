@@ -1,7 +1,4 @@
-import {
-  type AttackPlan,
-  claimEvidenceItems,
-} from '../../src/features/attack-planning/plan.schema.js';
+import { type AttackPlan, claimEvidenceItems } from '../../src/features/attack-planning/index.js';
 import type { Finding } from '../../src/features/audit-execution/audit.schema.js';
 import { createFindingId } from '../../src/features/audit-execution/synthesis/identity.js';
 import {

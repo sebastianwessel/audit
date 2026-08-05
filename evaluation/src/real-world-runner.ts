@@ -1,10 +1,10 @@
 import type { ModelProvider } from '@purista/harness';
-import { createPlan } from '../../src/features/attack-planning/plan.js';
 import {
   type AttackPlan,
   claimEvidenceItems,
+  createPlan,
   type SourceEvidence,
-} from '../../src/features/attack-planning/plan.schema.js';
+} from '../../src/features/attack-planning/index.js';
 import {
   aggregateCandidateIntegrityRejectionLedgers,
   aggregateFindingAdmissionFunnels,

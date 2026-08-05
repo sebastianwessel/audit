@@ -3,7 +3,7 @@ import {
   AttackPlanSchema,
   ClaimEvidenceRoleSchema,
   DraftAttackVectorSchema,
-} from '../../src/features/attack-planning/plan.schema.js';
+} from '../../src/features/attack-planning/index.js';
 import {
   CandidateIntegrityRejectionLedgerSchema,
   FindingAdmissionFunnelSchema,

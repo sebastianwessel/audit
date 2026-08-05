@@ -3,7 +3,7 @@ import { z } from 'zod';
 import {
   PlanObligationReferenceSchema,
   SourceEvidenceSchema,
-} from '../../attack-planning/plan.schema.js';
+} from '../../attack-planning/index.js';
 import { SourcePostureNotApplicableReasonSchema } from '../source-posture/contract.js';
 
 export const ObligationMapStateSchema = z.enum(['mapped', 'unanswered', 'not-reached']);

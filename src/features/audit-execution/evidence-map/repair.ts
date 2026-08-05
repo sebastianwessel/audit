@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { sha256 } from '../../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
-import type { AttackVector } from '../../attack-planning/plan.schema.js';
+import type { AttackVector } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 import {
   type EvidenceMap,

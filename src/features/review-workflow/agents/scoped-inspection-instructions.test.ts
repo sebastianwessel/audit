@@ -1,18 +1,18 @@
 import { expect, test } from 'bun:test';
+import { planningAgentInstructions } from '../../attack-planning/index.js';
 
-import { candidateGroundingAgentInstructions } from './candidate-grounding/instructions.js';
-import { countercheckAgentInstructions } from './countercheck/instructions.js';
-import { developerGuidanceAgentInstructions } from './developer-guidance/instructions.js';
+import { candidateGroundingAgentInstructions } from '../../audit-execution/candidate-grounding/index.js';
+import { countercheckAgentInstructions } from '../../audit-execution/countercheck/index.js';
 import {
   evidenceMapAgentInstructions,
   evidenceMapRepairAgentInstructions,
-} from './evidence-map/instructions.js';
-import { investigationAgentInstructions } from './investigation/instructions.js';
-import { planningAgentInstructions } from './planning/instructions.js';
+} from '../../audit-execution/evidence-map/index.js';
+import { investigationAgentInstructions } from '../../audit-execution/investigation/index.js';
+import { sourcePostureAgentInstructions } from '../../audit-execution/source-posture/index.js';
+import { verificationAgentInstructions } from '../../audit-execution/verification/index.js';
+import { developerGuidanceAgentInstructions } from '../../developer-guidance/index.js';
 import { retryGuidanceInstruction } from './retry-guidance-instructions.js';
 import { scopedInspectionFirstActionInstruction } from './scoped-inspection-instructions.js';
-import { sourcePostureAgentInstructions } from './source-posture/instructions.js';
-import { verificationAgentInstructions } from './verification/instructions.js';
 
 test('gives every source-deciding agent one shared mandatory first-action instruction', () => {
   for (const instructions of [

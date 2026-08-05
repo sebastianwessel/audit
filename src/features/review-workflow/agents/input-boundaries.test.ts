@@ -1,10 +1,10 @@
 import { expect, test } from 'bun:test';
-import { CandidateGroundingModelInputSchema } from './candidate-grounding/contract.js';
-import { EvidenceMapModelInputSchema } from './evidence-map/contract.js';
-import { VectorAuditModelInputSchema } from './investigation/contract.js';
-import { PlanModelInputSchema } from './planning/contract.js';
-import { SourcePostureModelInputSchema } from './source-posture/contract.js';
-import { VerificationModelInputSchema } from './verification/contract.js';
+import { PlanModelInputSchema } from '../../attack-planning/index.js';
+import { CandidateGroundingModelInputSchema } from '../../audit-execution/candidate-grounding/index.js';
+import { EvidenceMapModelInputSchema } from '../../audit-execution/evidence-map/index.js';
+import { VectorAuditModelInputSchema } from '../../audit-execution/investigation/index.js';
+import { SourcePostureModelInputSchema } from '../../audit-execution/source-posture/index.js';
+import { VerificationModelInputSchema } from '../../audit-execution/verification/index.js';
 
 test('keeps source-planning and candidate-blind inputs free of later-stage claim data', () => {
   for (const schema of [

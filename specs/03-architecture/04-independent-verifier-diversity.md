@@ -38,7 +38,7 @@ The configuration adapter owns all environment loading with existing precedence.
 
 No CLI flag overrides verification-route configuration. Incomplete verifier-route configuration, unavailable adapter packages, same normalized route, unsupported capability, or missing named secret are preflight failures before a target jail, provider call, or checkpoint is opened. The product never reads a secret outside the provider-resolution adapter. Price values are never accepted from `.env` or CLI.
 
-`RuntimeConfigurationSchema` owns the strict primary and verifier route shapes. `platform/harness/` owns the provider-resolution port and `review-workflow/agents/verification/` remains the only owner of verifier semantics. No provider or route selection logic belongs in prompts, audit execution, target tools, evaluator answer keys, or reports.
+`RuntimeConfigurationSchema` owns the strict primary and verifier route shapes. `platform/harness/` owns the provider-resolution port and `audit-execution/verification/agent/` remains the only owner of verifier semantics. No provider or route selection logic belongs in prompts, audit execution, target tools, evaluator answer keys, or reports.
 
 ## Execution, recovery, and observability
 

@@ -1,16 +1,27 @@
 import type { ModelProvider } from '@purista/harness';
-import { assertPlanIsSealed } from '../../src/features/attack-planning/plan.js';
+import type {
+  PlanModelOutput,
+  PlanModelRequest,
+} from '../../src/features/attack-planning/index.js';
+import {
+  assertPlanIsSealed,
+  PlanModelRequestSchema,
+} from '../../src/features/attack-planning/index.js';
+import { runPlanningStage } from '../../src/features/attack-planning/planner/stage/index.js';
 import type { AuditReport } from '../../src/features/audit-execution/audit.schema.js';
 import type {
   CandidateGroundingRequest,
   CandidateGroundingStageOutput,
 } from '../../src/features/audit-execution/candidate-grounding/contract.js';
 import { CandidateGroundingRequestSchema } from '../../src/features/audit-execution/candidate-grounding/contract.js';
+import { runCandidateGroundingStage } from '../../src/features/audit-execution/candidate-grounding/stage/index.js';
 import type { EvidenceMap } from '../../src/features/audit-execution/evidence-map/contract.js';
+import { runEvidenceMapStage } from '../../src/features/audit-execution/evidence-map/stage/index.js';
 import type {
   HypothesisSeed,
   InvestigationObligationClosure,
 } from '../../src/features/audit-execution/investigation/contract.js';
+import { runInvestigationStage } from '../../src/features/audit-execution/investigation/stage/index.js';
 import { modelStagesForAudit } from '../../src/features/audit-execution/model-stage-observations.js';
 import type {
   AuditInvestigationRequest,
@@ -25,8 +36,10 @@ import {
   SourcePostureRequestSchema,
 } from '../../src/features/audit-execution/phase-input/contract.js';
 import type { SourcePosture } from '../../src/features/audit-execution/source-posture/contract.js';
+import { runSourcePostureStage } from '../../src/features/audit-execution/source-posture/stage/index.js';
 import type { AuditVerificationRequest } from '../../src/features/audit-execution/verification/contract.js';
 import { AuditVerificationRequestSchema } from '../../src/features/audit-execution/verification/contract.js';
+import { runVerificationStage } from '../../src/features/audit-execution/verification/stage/index.js';
 import {
   combineToolUsage,
   type EvaluatorFailureDiagnosticSink,
@@ -37,19 +50,8 @@ import {
   summarizeModelStages,
 } from '../../src/features/model-operations/model-operations.js';
 import type { ModelRoute } from '../../src/features/model-operations/model-operations.schema.js';
-import type {
-  PlanModelOutput,
-  PlanModelRequest,
-} from '../../src/features/review-workflow/agents/planning/contract.js';
-import { PlanModelRequestSchema } from '../../src/features/review-workflow/agents/planning/contract.js';
 import { stageErrorCode } from '../../src/features/review-workflow/runtime/invocation.js';
 import { createReviewService } from '../../src/features/review-workflow/service.js';
-import { runCandidateGroundingStage } from '../../src/features/review-workflow/stages/candidate-grounding.js';
-import { runEvidenceMapStage } from '../../src/features/review-workflow/stages/evidence-map.js';
-import { runInvestigationStage } from '../../src/features/review-workflow/stages/investigation.js';
-import { runPlanningStage } from '../../src/features/review-workflow/stages/planning.js';
-import { runSourcePostureStage } from '../../src/features/review-workflow/stages/source-posture.js';
-import { runVerificationStage } from '../../src/features/review-workflow/stages/verification.js';
 import { ContextDocumentSchema } from '../../src/features/target-inventory/inventory.schema.js';
 import type { JailedReadOnlyFilesystem } from '../../src/platform/filesystem/index.js';
 import {

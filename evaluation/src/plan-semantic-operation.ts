@@ -1,4 +1,4 @@
-import type { AttackPlan } from '../../src/features/attack-planning/plan.schema.js';
+import type { AttackPlan } from '../../src/features/attack-planning/index.js';
 import type { ModelCostCeiling } from '../../src/features/model-operations/model-operations.js';
 import {
   readOptionalJsonArtifact,

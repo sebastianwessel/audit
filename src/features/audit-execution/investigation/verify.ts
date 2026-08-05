@@ -4,7 +4,7 @@ import {
   type ClaimEvidenceRole,
   hasApprovedPlanObligations,
   planObligationKey,
-} from '../../attack-planning/plan.schema.js';
+} from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import { createSourceEvidenceReference } from '../evidence-reference.js';

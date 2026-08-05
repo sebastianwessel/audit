@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { createPlan as createDraftPlan, resealPlan } from '../attack-planning/plan.js';
+import { createPlan as createDraftPlan, resealPlan } from '../attack-planning/index.js';
 import { observeModelStage } from '../model-operations/model-operations.js';
 import {
   emptyCandidateIntegrityRejectionLedger,

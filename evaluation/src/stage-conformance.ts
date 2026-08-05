@@ -1,29 +1,29 @@
 import type { JsonValue, ObjectResponse, ToolCallSpec } from '@purista/harness';
-import { AttackVectorSchema } from '../../src/features/attack-planning/plan.schema.js';
+import { AttackVectorSchema } from '../../src/features/attack-planning/index.js';
+import { runPlanningStage } from '../../src/features/attack-planning/planner/stage/index.js';
 import { AuditInvestigationRequestSchema } from '../../src/features/audit-execution/audit.schema.js';
 import { CandidateGroundingRequestSchema } from '../../src/features/audit-execution/candidate-grounding/contract.js';
+import { runCandidateGroundingStage } from '../../src/features/audit-execution/candidate-grounding/stage/index.js';
 import { EvidenceMapSchema } from '../../src/features/audit-execution/evidence-map/contract.js';
+import { runEvidenceMapStage } from '../../src/features/audit-execution/evidence-map/stage/index.js';
 import { HypothesisSeedSchema } from '../../src/features/audit-execution/investigation/contract.js';
+import { runInvestigationStage } from '../../src/features/audit-execution/investigation/stage/index.js';
 import {
   EvidenceMapRequestSchema,
   SourcePostureRequestSchema,
 } from '../../src/features/audit-execution/phase-input/contract.js';
 import { SourcePostureSchema } from '../../src/features/audit-execution/source-posture/contract.js';
+import { runSourcePostureStage } from '../../src/features/audit-execution/source-posture/stage/index.js';
 import {
   AuditCountercheckRequestSchema,
   AuditVerificationRequestSchema,
 } from '../../src/features/audit-execution/verification/contract.js';
+import { runVerificationStage } from '../../src/features/audit-execution/verification/stage/index.js';
 import {
   hasSuccessfulScopedSourceInspection,
   type ToolUsage,
 } from '../../src/features/model-operations/model-operations.js';
-import { runCandidateGroundingStage } from '../../src/features/review-workflow/stages/candidate-grounding.js';
-import { runEvidenceMapStage } from '../../src/features/review-workflow/stages/evidence-map.js';
-import { runInvestigationStage } from '../../src/features/review-workflow/stages/investigation.js';
-import { runPlanningStage } from '../../src/features/review-workflow/stages/planning.js';
 import { runScopedModelStage } from '../../src/features/review-workflow/stages/scoped-model-stage.js';
-import { runSourcePostureStage } from '../../src/features/review-workflow/stages/source-posture.js';
-import { runVerificationStage } from '../../src/features/review-workflow/stages/verification.js';
 import { scopedInspectionRequirement } from '../../src/features/review-workflow/tools/contract.js';
 import type { JailedReadOnlyFilesystem } from '../../src/platform/filesystem/index.js';
 import { HarnessExecutionConfigurationSchema } from '../../src/platform/harness/audit-harness.js';

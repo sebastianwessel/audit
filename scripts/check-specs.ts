@@ -188,6 +188,39 @@ for (const forbiddenPath of ['tests/unit', 'tests/contracts']) {
   }
 }
 
+const requiredFeatureFacades = [
+  'src/features/attack-planning/index.ts',
+  'src/features/attack-planning/planner/agent/index.ts',
+  'src/features/attack-planning/planner/stage/index.ts',
+  'src/features/audit-execution/index.ts',
+  'src/features/audit-execution/evidence-map/agent/index.ts',
+  'src/features/audit-execution/evidence-map/stage/index.ts',
+  'src/features/audit-execution/source-posture/agent/index.ts',
+  'src/features/audit-execution/source-posture/stage/index.ts',
+  'src/features/audit-execution/investigation/agent/index.ts',
+  'src/features/audit-execution/investigation/stage/index.ts',
+  'src/features/audit-execution/candidate-grounding/agent/index.ts',
+  'src/features/audit-execution/candidate-grounding/stage/index.ts',
+  'src/features/audit-execution/verification/agent/index.ts',
+  'src/features/audit-execution/verification/stage/index.ts',
+  'src/features/developer-guidance/index.ts',
+  'src/features/developer-guidance/agent/index.ts',
+  'src/features/developer-guidance/stage/index.ts',
+  'src/features/review-workflow/model-contracts/index.ts',
+  'src/features/review-workflow/instructions/index.ts',
+  'src/features/review-workflow/stage-lifecycle/index.ts',
+] as const;
+for (const path of requiredFeatureFacades) {
+  if (!(await Bun.file(path).exists())) {
+    throw new Error(`Feature facade is missing: ${path}`);
+  }
+}
+for (const retiredPath of ['src/features/review-workflow/infrastructure'] as const) {
+  if (await Bun.file(retiredPath).exists()) {
+    throw new Error(`Retired feature facade must not be retained: ${retiredPath}`);
+  }
+}
+
 const retiredObligationTerms = [
   'evidenceQuestionIndex',
   'successCriterionIndex',

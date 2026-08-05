@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { type JsonValue, type ModelProvider, OperationCancelledError } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
-import { createPlan as createDraftPlan } from '../../src/features/attack-planning/plan.js';
+import { createPlan as createDraftPlan } from '../../src/features/attack-planning/index.js';
 import {
   observeModelStage,
   summarizeModelStages,

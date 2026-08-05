@@ -34,8 +34,8 @@ flowchart LR
 | `audit-execution/investigation` | Discovery seed, per-obligation closure, seed/map/posture binding | Presentation, classification, urgency, remediation, or admission |
 | `audit-execution/candidate-grounding` | Seed-to-candidate pairing and canonical grounding contract | New seeds, security rules, scope expansion, or verifier verdict |
 | `audit-execution/investigation/verify` | Canonical source/map/posture integrity validation | Security semantics, dataflow, or control-effectiveness inference |
-| `review-workflow/agents/investigation` | Small discovery input/output and instructions | Grounding or verifier decision |
-| `review-workflow/agents/candidate-grounding` | Full candidate grounding input/output and instructions | New hypothesis discovery or report admission |
+| `audit-execution/investigation/agent` | Small discovery input/output and instructions | Grounding or verifier decision |
+| `audit-execution/candidate-grounding/agent` | Full candidate grounding input/output and instructions | New hypothesis discovery or report admission |
 | `audit-execution/admission` | Source-free count conservation and terminal attrition reasons | Source/model content or security meaning |
 | `evaluation` | Source-free per-trial diagnostic aggregation | Target/answer-key/model-content persistence |
 

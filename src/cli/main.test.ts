@@ -2,10 +2,12 @@ import { expect, test } from 'bun:test';
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createPlan } from '../features/attack-planning/plan.js';
-import { AttackPlanSchema } from '../features/attack-planning/plan.schema.js';
-import { resealAttackPlanDraft } from '../features/attack-planning/plan-authoring.js';
-import { AttackPlanDraftSchema } from '../features/attack-planning/plan-authoring.schema.js';
+import {
+  AttackPlanDraftSchema,
+  AttackPlanSchema,
+  createPlan,
+  resealAttackPlanDraft,
+} from '../features/attack-planning/index.js';
 import {
   AuditReportSchema,
   type AuditRunAttempt,

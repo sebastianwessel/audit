@@ -4,7 +4,7 @@ import {
   writeMarkdownArtifact,
 } from '../../platform/artifact-store/json-artifact-store.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
-import type { AttackPlan } from '../attack-planning/plan.schema.js';
+import type { AttackPlan } from '../attack-planning/index.js';
 import {
   type PublicAuditReport,
   PublicAuditReportSchema,

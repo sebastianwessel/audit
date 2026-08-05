@@ -1,7 +1,10 @@
 import { describe, expect, test } from 'bun:test';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
-import { createPlan as createDraftPlan, resealPlan } from '../attack-planning/plan.js';
-import { claimEvidenceItems } from '../attack-planning/plan.schema.js';
+import {
+  claimEvidenceItems,
+  createPlan as createDraftPlan,
+  resealPlan,
+} from '../attack-planning/index.js';
 import { observeModelStage } from '../model-operations/model-operations.js';
 import {
   emptyCandidateIntegrityRejectionLedger,

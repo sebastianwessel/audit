@@ -1,4 +1,4 @@
-import { claimEvidenceItems, type ProposedFinding } from '../../attack-planning/plan.schema.js';
+import { claimEvidenceItems, type ProposedFinding } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 
 export type InvestigationEvidencePackage = Readonly<{

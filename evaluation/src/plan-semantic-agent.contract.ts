@@ -2,7 +2,7 @@ import { z } from 'zod';
 import {
   AdditionalObservationBaseSchema,
   type AttackPlan,
-} from '../../src/features/attack-planning/plan.schema.js';
+} from '../../src/features/attack-planning/index.js';
 import {
   BoundedTextSchema,
   IdentifierSchema,

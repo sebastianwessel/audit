@@ -1,7 +1,4 @@
-import {
-  hasExactPlanObligations,
-  type SourceEvidenceRole,
-} from '../../attack-planning/plan.schema.js';
+import { hasExactPlanObligations, type SourceEvidenceRole } from '../../attack-planning/index.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import type { SourcePosture } from '../source-posture/contract.js';
 import type {

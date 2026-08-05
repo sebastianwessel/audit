@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createPlan as createDraftPlan } from '../../src/features/attack-planning/plan.js';
+import { createPlan as createDraftPlan } from '../../src/features/attack-planning/index.js';
 import type { AuditVectorResult } from '../../src/features/audit-execution/audit.schema.js';
 import {
   observeModelStage,

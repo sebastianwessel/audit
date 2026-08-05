@@ -6,7 +6,7 @@ import {
   PlanObligationReferenceSchema,
   PlanObligationReferencesSchema,
   ProposedFindingSchema,
-} from '../../attack-planning/plan.schema.js';
+} from '../../attack-planning/index.js';
 import {
   EvidenceMapFactIdsSchema,
   UnverifiedEvidenceMapFactIdsSchema,

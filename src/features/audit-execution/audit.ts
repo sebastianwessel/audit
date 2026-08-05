@@ -1,8 +1,7 @@
 import { createStableId, sha256 } from '../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
-import { assertPlanMatchesTarget } from '../attack-planning/plan.js';
-import type { AttackPlan } from '../attack-planning/plan.schema.js';
-import { hasExactPlanObligations } from '../attack-planning/plan.schema.js';
+import type { AttackPlan } from '../attack-planning/index.js';
+import { assertPlanMatchesTarget, hasExactPlanObligations } from '../attack-planning/index.js';
 import {
   hasSuccessfulScopedSourceInspection,
   mergeModelStageObservations,

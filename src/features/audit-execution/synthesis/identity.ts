@@ -3,7 +3,7 @@ import type {
   ClaimEvidenceRole,
   PlanObligationReference,
   SourceEvidence,
-} from '../../attack-planning/plan.schema.js';
+} from '../../attack-planning/index.js';
 
 type FindingIdentitySubject = Readonly<{
   vectorId: string;

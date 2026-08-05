@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
 import { ArtifactTextSchema } from '../../../shared/contracts/artifact-text.js';
-import {
-  ClaimEvidenceRoleSchema,
-  ProposedFindingSchema,
-} from '../../attack-planning/plan.schema.js';
+import { ClaimEvidenceRoleSchema, ProposedFindingSchema } from '../../attack-planning/index.js';
 
 /**
  * Human-readable, redacted semantic context. It is not raw model output,

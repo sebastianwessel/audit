@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { createPlan as createDraftPlan } from '../attack-planning/plan.js';
+import { createPlan as createDraftPlan } from '../attack-planning/index.js';
 import { runStaticAudit } from '../audit-execution/audit.js';
 import { AuditReportSchema } from '../audit-execution/audit.schema.js';
 import { createPublicAuditReport } from './public-contract.js';

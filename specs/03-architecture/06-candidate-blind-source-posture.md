@@ -22,7 +22,7 @@ flowchart LR
 
 | ID | Actor | Trigger | Preconditions | Final state | Owner | Verification |
 | --- | --- | --- | --- | --- | --- | --- |
-| CAP-067 | Source-posture assessor | Validated evidence map for one enabled plan vector | Exact matching plan, scoped sources, validated map | One validated posture assessment per plan review obligation, or explicit failed/incomplete coverage | `audit-execution/source-posture`, `review-workflow/agents/source-posture`, `review-workflow/stages/source-posture` | Blind-input, closed-schema, source/map binding, tool-use, recovery, telemetry, unknown-language, privacy, and provider-evaluation tests. |
+| CAP-067 | Source-posture assessor | Validated evidence map for one enabled plan vector | Exact matching plan, scoped sources, validated map | One validated posture assessment per plan review obligation, or explicit failed/incomplete coverage | `audit-execution/source-posture` (including `agent/` and the stage) | Blind-input, closed-schema, source/map binding, tool-use, recovery, telemetry, unknown-language, privacy, and provider-evaluation tests. |
 
 ## Strict contract and admission semantics
 

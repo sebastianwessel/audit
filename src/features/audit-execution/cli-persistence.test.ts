@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { readJsonArtifact } from '../../platform/artifact-store/json-artifact-store.js';
-import { createPlan } from '../attack-planning/plan.js';
+import { createPlan } from '../attack-planning/index.js';
 import { observeModelStage } from '../model-operations/model-operations.js';
 import { AuditContextOverflowLedgerSchema } from './audit.schema.js';
 import { auditContextOverflowLedgerPath } from './checkpoints.js';

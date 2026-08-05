@@ -1,14 +1,14 @@
 import { basename } from 'node:path';
 import type { ModelProvider } from '@purista/harness';
 import type { z } from 'zod';
-import { assertPlanIsSealed } from '../features/attack-planning/plan.js';
-import { AttackPlanSchema } from '../features/attack-planning/plan.schema.js';
 import {
+  AttackPlanDraftSchema,
+  AttackPlanSchema,
+  assertPlanIsSealed,
   createAttackPlanDraft,
+  renderAttackPlanMarkdown,
   resealAttackPlanDraft,
-} from '../features/attack-planning/plan-authoring.js';
-import { AttackPlanDraftSchema } from '../features/attack-planning/plan-authoring.schema.js';
-import { renderAttackPlanMarkdown } from '../features/attack-planning/plan-markdown.js';
+} from '../features/attack-planning/index.js';
 import {
   type AuditRunAttempt,
   AuditRunAttemptSchema,
@@ -42,8 +42,8 @@ import {
   developerGuidanceModelStages,
   hasExactDeveloperGuidanceCheckpointBinding,
 } from '../features/developer-guidance/identity.js';
+import { developerGuidanceProtocolFingerprint } from '../features/developer-guidance/index.js';
 import { renderDeveloperGuidanceMarkdown } from '../features/developer-guidance/report.js';
-import { developerGuidanceProtocolFingerprint } from '../features/review-workflow/agents/developer-guidance/instructions.js';
 import {
   evidenceMapProtocolFingerprint,
   reviewWorkflowPromptProtocolFingerprint,

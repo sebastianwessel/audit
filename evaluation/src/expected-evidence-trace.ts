@@ -1,4 +1,4 @@
-import type { AttackPlan, SourceEvidence } from '../../src/features/attack-planning/plan.schema.js';
+import type { AttackPlan, SourceEvidence } from '../../src/features/attack-planning/index.js';
 import type { VectorCoverage } from '../../src/features/audit-execution/audit.schema.js';
 import type { EvidenceMap } from '../../src/features/audit-execution/evidence-map/contract.js';
 import type { SourcePosture } from '../../src/features/audit-execution/source-posture/contract.js';

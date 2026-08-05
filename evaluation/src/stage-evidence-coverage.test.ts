@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { SourceEvidenceSchema } from '../../src/features/attack-planning/plan.schema.js';
+import { SourceEvidenceSchema } from '../../src/features/attack-planning/index.js';
 import { EvidenceMapSchema } from '../../src/features/audit-execution/evidence-map/contract.js';
 
 import { loadCorpusPack } from './corpus.js';

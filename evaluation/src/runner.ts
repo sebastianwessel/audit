@@ -1,4 +1,4 @@
-import { createPlan } from '../../src/features/attack-planning/plan.js';
+import { createPlan } from '../../src/features/attack-planning/index.js';
 import { runAudit } from '../../src/features/audit-execution/audit.js';
 import { sha256 } from '../../src/shared/contracts/core.js';
 import {

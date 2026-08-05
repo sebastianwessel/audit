@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { BoundedTextSchema, RelativePathSchema } from '../../../shared/contracts/core.js';
-import { AttackVectorSchema } from '../../attack-planning/plan.schema.js';
+import { AttackVectorSchema } from '../../attack-planning/index.js';
 import { EvidenceMapInsufficienciesSchema, EvidenceMapSchema } from '../evidence-map/contract.js';
 import { SourcePostureSchema } from '../source-posture/contract.js';
 

@@ -1,10 +1,9 @@
 import { expect, test } from 'bun:test';
-
-import { createPlan as createDraftPlan } from '../../src/features/attack-planning/plan.js';
 import {
   type ClaimEvidenceItem,
   claimEvidenceItems,
-} from '../../src/features/attack-planning/plan.schema.js';
+  createPlan as createDraftPlan,
+} from '../../src/features/attack-planning/index.js';
 import type { Finding } from '../../src/features/audit-execution/audit.schema.js';
 import { createFindingId } from '../../src/features/audit-execution/synthesis/identity.js';
 import {

@@ -1,4 +1,4 @@
-import type { AttackVector } from '../../attack-planning/plan.schema.js';
+import type { AttackVector } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 
 /** Matches the small glob grammar accepted in executable plan artifacts. */

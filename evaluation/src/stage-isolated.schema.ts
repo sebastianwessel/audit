@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AttackPlanSchema } from '../../src/features/attack-planning/plan.schema.js';
+import { AttackPlanSchema } from '../../src/features/attack-planning/index.js';
 import {
   ModelCostSummarySchema,
   ModelRouteSchema,

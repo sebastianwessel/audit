@@ -1,4 +1,4 @@
-import type { PlanObligationReference } from '../../attack-planning/plan.schema.js';
+import type { PlanObligationReference } from '../../attack-planning/index.js';
 import type { SourcePosture } from './contract.js';
 
 export type SourcePostureProvenance = Readonly<{

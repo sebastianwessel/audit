@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { IdentifierSchema, RelativePathSchema, Sha256Schema } from '../../shared/contracts/core.js';
-import { InventorySummarySchema } from '../attack-planning/plan.schema.js';
+import { InventorySummarySchema } from '../attack-planning/index.js';
 
 export const ContextKindSchema = z.enum([
   'architecture',

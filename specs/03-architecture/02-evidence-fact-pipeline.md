@@ -32,9 +32,9 @@ flowchart LR
 
 | Owner | Owns | Must not own |
 | --- | --- | --- |
-| `review-workflow/agents/planning` | Draft threat-plan contract/instructions | Plan approval or target mutation |
-| `review-workflow/agents/investigation` | Hypothesis contract/instructions | Finding admission or verifier decision |
-| `review-workflow/agents/verification` | Verdict contract/instructions | New findings, altered evidence, classification/urgency/remediation decision |
+| `attack-planning/planner/agent` | Draft threat-plan contract/instructions | Plan approval or target mutation |
+| `audit-execution/investigation/agent` | Hypothesis contract/instructions | Finding admission or verifier decision |
+| `audit-execution/verification/agent` | Verdict contract/instructions | New findings, altered evidence, classification/urgency/remediation decision |
 | `audit-execution/investigation` | Scope, path manifest, evidence integrity, source-minimal draft | Security semantics from text patterns |
 | `audit-execution/verification` | Verdict binding, acceptance state, phase retry | Repository-wide access or synthesis |
 | `audit-execution/checkpoints` | Phase-bound validated source-minimal recovery artifacts | Raw model/tool/source persistence |

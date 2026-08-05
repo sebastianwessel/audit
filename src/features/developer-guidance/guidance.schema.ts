@@ -5,12 +5,12 @@ import {
   ModelIdentifierSchema,
   ModelProviderIdentifierSchema,
 } from '../../shared/contracts/model-identity.js';
+import { RecommendedPrioritySchema } from '../developer-guidance/index.js';
 import {
   ModelCostCeilingStateSchema,
   ModelRunObservationSchema,
   ModelStageObservationSchema,
 } from '../model-operations/model-operations.schema.js';
-import { RecommendedPrioritySchema } from '../review-workflow/agents/developer-guidance/contract.js';
 
 const GuidanceBindingSchema = z.strictObject({
   findingId: IdentifierSchema,

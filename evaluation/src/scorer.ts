@@ -1,4 +1,4 @@
-import { claimEvidenceItems } from '../../src/features/attack-planning/plan.schema.js';
+import { claimEvidenceItems } from '../../src/features/attack-planning/index.js';
 import type { Finding } from '../../src/features/audit-execution/audit.schema.js';
 import type { EvaluationFixture, ExpectedFinding, Metrics } from './evaluation.schema.js';
 

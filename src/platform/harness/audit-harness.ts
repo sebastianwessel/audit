@@ -1,52 +1,50 @@
 import { defineHarness, inMemorySandbox, type ModelProvider } from '@purista/harness';
-import { createPlan } from '../../features/attack-planning/plan.js';
-import { AttackPlanSchema } from '../../features/attack-planning/plan.schema.js';
+import {
+  AttackPlanSchema,
+  createPlan,
+  PlanModelInputSchema,
+  PlanModelOutputSchema,
+  PlanModelRequestSchema,
+  planningAgentInstructions,
+} from '../../features/attack-planning/index.js';
 import {
   CandidateGroundingModelInputSchema,
   CandidateGroundingModelOutputSchema,
-} from '../../features/review-workflow/agents/candidate-grounding/contract.js';
-import { candidateGroundingAgentInstructions } from '../../features/review-workflow/agents/candidate-grounding/instructions.js';
+  candidateGroundingAgentInstructions,
+} from '../../features/audit-execution/candidate-grounding/index.js';
 import {
   CountercheckModelInputSchema,
   CountercheckModelOutputSchema,
-} from '../../features/review-workflow/agents/countercheck/contract.js';
-import { countercheckAgentInstructions } from '../../features/review-workflow/agents/countercheck/instructions.js';
-import {
-  DeveloperGuidanceModelInputSchema,
-  DeveloperGuidanceModelOutputSchema,
-} from '../../features/review-workflow/agents/developer-guidance/contract.js';
-import { developerGuidanceAgentInstructions } from '../../features/review-workflow/agents/developer-guidance/instructions.js';
+  countercheckAgentInstructions,
+} from '../../features/audit-execution/countercheck/index.js';
 import {
   EvidenceMapModelInputSchema,
   EvidenceMapModelOutputSchema,
   EvidenceMapRepairModelInputSchema,
   EvidenceMapRepairModelOutputSchema,
-} from '../../features/review-workflow/agents/evidence-map/contract.js';
-import {
   evidenceMapAgentInstructions,
   evidenceMapRepairAgentInstructions,
-} from '../../features/review-workflow/agents/evidence-map/instructions.js';
+} from '../../features/audit-execution/evidence-map/index.js';
 import {
   AuditModelOutputSchema,
+  investigationAgentInstructions,
   VectorAuditModelInputSchema,
-} from '../../features/review-workflow/agents/investigation/contract.js';
-import { investigationAgentInstructions } from '../../features/review-workflow/agents/investigation/instructions.js';
-import {
-  PlanModelInputSchema,
-  PlanModelOutputSchema,
-  PlanModelRequestSchema,
-} from '../../features/review-workflow/agents/planning/contract.js';
-import { planningAgentInstructions } from '../../features/review-workflow/agents/planning/instructions.js';
+} from '../../features/audit-execution/investigation/index.js';
 import {
   SourcePostureModelInputSchema,
   SourcePostureModelOutputSchema,
-} from '../../features/review-workflow/agents/source-posture/contract.js';
-import { sourcePostureAgentInstructions } from '../../features/review-workflow/agents/source-posture/instructions.js';
+  sourcePostureAgentInstructions,
+} from '../../features/audit-execution/source-posture/index.js';
 import {
   VerificationModelInputSchema,
   VerificationModelOutputSchema,
-} from '../../features/review-workflow/agents/verification/contract.js';
-import { verificationAgentInstructions } from '../../features/review-workflow/agents/verification/instructions.js';
+  verificationAgentInstructions,
+} from '../../features/audit-execution/verification/index.js';
+import {
+  DeveloperGuidanceModelInputSchema,
+  DeveloperGuidanceModelOutputSchema,
+  developerGuidanceAgentInstructions,
+} from '../../features/developer-guidance/index.js';
 import {
   RepoGrepToolInputSchema as GrepFilesInputSchema,
   RepoGrepToolOutputSchema as GrepFilesOutputSchema,

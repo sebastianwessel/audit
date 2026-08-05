@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { sha256 } from '../../../shared/contracts/core.js';
-import { AttackVectorSchema } from '../../attack-planning/plan.schema.js';
+import { AttackVectorSchema } from '../../attack-planning/index.js';
 
 import {
   EvidenceMapInsufficienciesSchema,

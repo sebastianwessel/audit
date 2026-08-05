@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { JsonValue, ObjectResponse, ToolCallSpec } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
-import { createPlan } from '../../src/features/attack-planning/plan.js';
+import { createPlan } from '../../src/features/attack-planning/index.js';
 import {
   observeModelStage,
   summarizeModelStages,

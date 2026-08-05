@@ -2,7 +2,7 @@ export const CanonicalPersistedArtifactVersions = [
   {
     artifact: 'Attack plan',
     version: 4,
-    sourcePath: 'src/features/attack-planning/plan.schema.ts',
+    sourcePath: 'src/features/attack-planning/plan/plan.schema.ts',
     schemaName: 'AttackPlanSchema',
   },
   {

@@ -28,6 +28,27 @@ test('bootstrap keeps public docs and the vertical-slice structure', async () =>
   }
 });
 
+test('topic facades keep model contracts separate from executable stages', async () => {
+  const facades = [
+    'src/features/attack-planning/planner/agent/index.ts',
+    'src/features/attack-planning/planner/stage/index.ts',
+    'src/features/audit-execution/evidence-map/agent/index.ts',
+    'src/features/audit-execution/evidence-map/stage/index.ts',
+    'src/features/audit-execution/source-posture/agent/index.ts',
+    'src/features/audit-execution/source-posture/stage/index.ts',
+    'src/features/audit-execution/investigation/agent/index.ts',
+    'src/features/audit-execution/investigation/stage/index.ts',
+    'src/features/audit-execution/candidate-grounding/agent/index.ts',
+    'src/features/audit-execution/candidate-grounding/stage/index.ts',
+    'src/features/audit-execution/verification/agent/index.ts',
+    'src/features/audit-execution/verification/stage/index.ts',
+  ];
+  for (const path of facades) expect(await Bun.file(path).exists()).toBe(true);
+  expect(await Bun.file('src/features/review-workflow/infrastructure/index.ts').exists()).toBe(
+    false,
+  );
+});
+
 test('the specification reading order exposes every canonical top-level area', async () => {
   const readingOrder = await Bun.file('specs/README.md').text();
   for (const section of CanonicalSpecReadingOrderSections) {

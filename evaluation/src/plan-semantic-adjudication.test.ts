@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { createPlan } from '../../src/features/attack-planning/plan.js';
+import { createPlan } from '../../src/features/attack-planning/index.js';
 import { observeModelStage } from '../../src/features/model-operations/model-operations.js';
 
 import { CorpusAnswerKeySchema } from './corpus.schema.js';

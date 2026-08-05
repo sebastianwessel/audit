@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { ClaimEvidenceRoleSchema } from '../../src/features/attack-planning/plan.schema.js';
+import { ClaimEvidenceRoleSchema } from '../../src/features/attack-planning/index.js';
 import {
   IdentifierSchema,
   RelativePathSchema,

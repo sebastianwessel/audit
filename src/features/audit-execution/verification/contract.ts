@@ -14,7 +14,7 @@ import {
   PlanObligationReferencesSchema,
   SourceEvidenceRoleSchema,
   SourceEvidenceSchema,
-} from '../../attack-planning/plan.schema.js';
+} from '../../attack-planning/index.js';
 import {
   EvidenceMapFactIdsSchema,
   EvidenceMapInsufficienciesSchema,

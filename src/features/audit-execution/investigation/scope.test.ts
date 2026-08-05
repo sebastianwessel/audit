@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { AttackVectorSchema } from '../../attack-planning/plan.schema.js';
+import { AttackVectorSchema } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 
 import { matchesGlob, selectScopedSources } from './scope.js';

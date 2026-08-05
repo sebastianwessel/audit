@@ -10,7 +10,7 @@ import {
 } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 
-import { createPlan } from '../attack-planning/plan.js';
+import { createPlan } from '../attack-planning/index.js';
 import { PublicAuditReportSchema } from '../audit-report/public-contract.js';
 import {
   type DeveloperGuidanceAttempt,

@@ -1,4 +1,4 @@
-import type { AttackVector } from '../../attack-planning/plan.schema.js';
+import type { AttackVector } from '../../attack-planning/index.js';
 import { type EvidenceMap, mappedControlFactIdsForObligation } from '../evidence-map/contract.js';
 import {
   type SourcePosture,

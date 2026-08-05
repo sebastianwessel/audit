@@ -1,13 +1,13 @@
 import { auditWorkflowStructuredOutputRegistry } from '../../platform/harness/audit-harness.js';
 import { structuredOutputContractRegistryFingerprint } from '../../platform/harness/structured-output-compatibility.js';
 import { sha256 } from '../../shared/contracts/core.js';
-import { candidateGroundingAgentInstructions } from './agents/candidate-grounding/instructions.js';
-import { countercheckAgentInstructions } from './agents/countercheck/instructions.js';
-import { evidenceMapAgentInstructions } from './agents/evidence-map/instructions.js';
-import { investigationAgentInstructions } from './agents/investigation/instructions.js';
-import { planningAgentInstructions } from './agents/planning/instructions.js';
-import { sourcePostureAgentInstructions } from './agents/source-posture/instructions.js';
-import { verificationAgentInstructions } from './agents/verification/instructions.js';
+import { planningAgentInstructions } from '../attack-planning/index.js';
+import { candidateGroundingAgentInstructions } from '../audit-execution/candidate-grounding/index.js';
+import { countercheckAgentInstructions } from '../audit-execution/countercheck/index.js';
+import { evidenceMapAgentInstructions } from '../audit-execution/evidence-map/index.js';
+import { investigationAgentInstructions } from '../audit-execution/investigation/index.js';
+import { sourcePostureAgentInstructions } from '../audit-execution/source-posture/index.js';
+import { verificationAgentInstructions } from '../audit-execution/verification/index.js';
 import { ReviewRepositoryToolDescriptions, ReviewRepositoryToolIds } from './tools/contract.js';
 
 /**

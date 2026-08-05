@@ -4,8 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { prepareProductRoots, runAudit } from '../../src/cli/main.js';
-import { createPlan } from '../../src/features/attack-planning/plan.js';
-import { AttackPlanSchema } from '../../src/features/attack-planning/plan.schema.js';
+import { AttackPlanSchema, createPlan } from '../../src/features/attack-planning/index.js';
 import {
   AuditRunAttemptSchema,
   AuditRunManifestSchema,

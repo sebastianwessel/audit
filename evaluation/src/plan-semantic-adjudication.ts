@@ -1,4 +1,4 @@
-import type { AttackPlan } from '../../src/features/attack-planning/plan.schema.js';
+import type { AttackPlan } from '../../src/features/attack-planning/index.js';
 import type { ModelStageObservation } from '../../src/features/model-operations/model-operations.js';
 import { canonicalJson, sha256 } from '../../src/shared/contracts/core.js';
 import { AuditRuntimeError } from '../../src/shared/errors/audit-runtime-error.js';

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { IdentifierSchema } from '../../../shared/contracts/core.js';
-import { PlanObligationReferenceSchema } from '../../attack-planning/plan.schema.js';
+import { PlanObligationReferenceSchema } from '../../attack-planning/index.js';
 import {
   type EvidenceMap,
   mappedControlFactIdsForObligation,

@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import type { ProposedFinding } from '../../attack-planning/plan.schema.js';
+import type { ProposedFinding } from '../../attack-planning/index.js';
 import type { SourceDocument } from '../audit.schema.js';
 
 import { buildInvestigationEvidencePackage } from './evidence-package.js';

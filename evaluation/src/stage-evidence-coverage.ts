@@ -1,4 +1,4 @@
-import type { SourceEvidence } from '../../src/features/attack-planning/plan.schema.js';
+import type { SourceEvidence } from '../../src/features/attack-planning/index.js';
 import type { EvidenceMap } from '../../src/features/audit-execution/evidence-map/contract.js';
 
 import type {

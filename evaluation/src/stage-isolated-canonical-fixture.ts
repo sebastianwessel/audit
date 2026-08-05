@@ -1,5 +1,5 @@
-import { createPlan } from '../../src/features/attack-planning/plan.js';
-import type { AttackVector } from '../../src/features/attack-planning/plan.schema.js';
+import type { AttackVector } from '../../src/features/attack-planning/index.js';
+import { createPlan } from '../../src/features/attack-planning/index.js';
 import type { SourceDocument } from '../../src/features/audit-execution/audit.schema.js';
 import { CandidateGroundingRequestSchema } from '../../src/features/audit-execution/candidate-grounding/contract.js';
 import { EvidenceMapSchema } from '../../src/features/audit-execution/evidence-map/contract.js';
