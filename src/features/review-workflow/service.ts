@@ -77,6 +77,7 @@ import {
   type TargetInventoryCapture,
 } from '../target-inventory/inventory.js';
 import type { TargetInventory } from '../target-inventory/inventory.schema.js';
+import { admittedSourcePaths } from '../target-inventory/inventory.schema.js';
 import {
   type ContextOverflowTopology,
   contextOverflowRecoveryProtocolFingerprint,
@@ -242,7 +243,7 @@ export function createReviewService(
           contextDigest: inventory.contextDigest,
           targetDisplayName: input.targetDisplayName,
           inventorySummary: inventory.summary,
-          sourcePaths: inventory.sourcePaths,
+          sourcePaths: admittedSourcePaths(inventory.sourceSnapshot),
           context: inventory.context,
           createdAt: input.createdAt,
         },

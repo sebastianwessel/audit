@@ -10,6 +10,7 @@ import { AuditInvestigationRequestSchema } from '../../src/features/audit-execut
 import { SourcePostureSchema } from '../../src/features/audit-execution/source-posture/contract.js';
 import { VerifiableHypothesisSchema } from '../../src/features/audit-execution/verification/contract.js';
 import { captureTargetInventory } from '../../src/features/target-inventory/inventory.js';
+import { admittedSourcePaths } from '../../src/features/target-inventory/inventory.schema.js';
 import { createJailedReadOnlyFilesystem } from '../../src/platform/filesystem/index.js';
 import { AuditRuntimeError } from '../../src/shared/errors/audit-runtime-error.js';
 import type { LoadedCorpusCase, LoadedCorpusPack } from './corpus.js';
@@ -70,7 +71,7 @@ export async function prepareStageIsolatedCanonicalFixture(input: {
         contextDigest: captured.inventory.contextDigest,
         targetDisplayName: input.descriptor.caseId,
         inventorySummary: captured.inventory.summary,
-        sourcePaths: captured.inventory.sourcePaths,
+        sourcePaths: admittedSourcePaths(captured.inventory.sourceSnapshot),
         context: captured.inventory.context,
         createdAt: input.loadedCase.reviewedPlan.reviewedAt,
       },

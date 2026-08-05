@@ -141,7 +141,6 @@ export const TargetInventorySchema = z
     targetFingerprint: Sha256Schema,
     contextDigest: Sha256Schema,
     summary: InventorySummarySchema,
-    sourcePaths: z.array(RelativePathSchema).min(1),
     sourceSnapshot: SourceSnapshotManifestSchema,
     context: z.array(ContextDocumentSchema),
   })
@@ -163,3 +162,8 @@ export type SourceSnapshotManifest = z.infer<typeof SourceSnapshotManifestSchema
 export type SourceSnapshotRetentionIndex = z.infer<typeof SourceSnapshotRetentionIndexSchema>;
 export type SourceSnapshotRow = z.infer<typeof SourceSnapshotRowSchema>;
 export type TargetInventory = z.infer<typeof TargetInventorySchema>;
+
+/** The immutable manifest is the sole source of admitted source-path identity. */
+export function admittedSourcePaths(manifest: SourceSnapshotManifest): string[] {
+  return manifest.rows.flatMap((row) => (row.disposition === 'admitted' ? [row.path] : []));
+}

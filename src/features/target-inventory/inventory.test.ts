@@ -7,6 +7,7 @@ import { createJailedReadOnlyFilesystem } from '../../platform/filesystem/index.
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import { parseContextDocument } from './context.js';
 import { DefaultSourceAdmissionPolicy, inferLanguageHint, inventoryTarget } from './inventory.js';
+import { admittedSourcePaths } from './inventory.schema.js';
 
 test('inventory binds a deterministic source fingerprint and optional context digest', async () => {
   const fixture = await mkdtemp(join(tmpdir(), 'audit-inventory-'));
@@ -91,7 +92,7 @@ test('records named default exclusions instead of silently omitting eligible-loo
   const inventory = await inventoryTarget(
     await createJailedReadOnlyFilesystem({ targetRoot: target }),
   );
-  expect(inventory.sourcePaths).toEqual(['app.custom']);
+  expect(admittedSourcePaths(inventory.sourceSnapshot)).toEqual(['app.custom']);
   expect(inventory.sourceSnapshot.policy).toEqual(DefaultSourceAdmissionPolicy);
   expect(inventory.sourceSnapshot.rows).toEqual(
     expect.arrayContaining([
@@ -127,7 +128,7 @@ test('records one explicit source-free admission row for every discovered regula
     await createJailedReadOnlyFilesystem({ targetRoot: target }),
   );
 
-  expect(inventory.sourcePaths).toEqual(['app.unknown']);
+  expect(admittedSourcePaths(inventory.sourceSnapshot)).toEqual(['app.unknown']);
   expect(inventory.sourceSnapshot.rows).toEqual([
     { disposition: 'excluded', path: '.env', reason: 'local-secret-store' },
     expect.objectContaining({

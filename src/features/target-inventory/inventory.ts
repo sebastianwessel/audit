@@ -166,7 +166,6 @@ export async function captureTargetInventory(
       ),
       languageHints,
     },
-    sourcePaths: sources.map((source) => source.path),
     sourceSnapshot,
     context,
   });

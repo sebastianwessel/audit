@@ -148,7 +148,6 @@ export async function loadRetainedTargetSnapshot(input: {
     targetFingerprint: input.targetFingerprint,
     contextDigest: input.contextDigest,
     summary,
-    sourcePaths: sources.map((source) => source.path),
     sourceSnapshot,
     context,
   });
