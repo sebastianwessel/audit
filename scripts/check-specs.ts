@@ -211,6 +211,11 @@ const retiredObligationTerms = [
   'one candidate-blind conclusion (`supported`, `contradicted`, or `inconclusive`)',
   'one supported, contradicted, or inconclusive assessment for every vector question',
 ] as const;
+const retiredGroundingTerms = [
+  'binding-rejected',
+  'groundingBindingRejectedCount',
+  'Grounding binding rejected',
+] as const;
 for (const path of [
   'AGENTS.md',
   '.agent/IMPLEMENTATION.md',
@@ -226,6 +231,11 @@ for (const path of [
   for (const term of retiredObligationTerms) {
     if (content.includes(term)) {
       throw new Error(`Normative contract retains retired obligation terminology: ${path}`);
+    }
+  }
+  for (const term of retiredGroundingTerms) {
+    if (content.includes(term)) {
+      throw new Error(`Normative contract retains retired grounding terminology: ${path}`);
     }
   }
 }

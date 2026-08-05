@@ -74,6 +74,9 @@ test('normative contracts use only the canonical obligation and posture vocabula
     'question-and-success-criterion',
     'one candidate-blind conclusion (`supported`, `contradicted`, or `inconclusive`)',
     'one supported, contradicted, or inconclusive assessment for every vector question',
+    'binding-rejected',
+    'groundingBindingRejectedCount',
+    'Grounding binding rejected',
   ];
 
   for (const path of paths) {
