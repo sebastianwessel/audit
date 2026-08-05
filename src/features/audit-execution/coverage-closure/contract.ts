@@ -1,7 +1,10 @@
 import { z } from 'zod';
 
-import { BoundedTextSchema } from '../../../shared/contracts/core.js';
-import { PlanObligationReferenceSchema } from '../../attack-planning/plan.schema.js';
+import {
+  PlanObligationReferenceSchema,
+  SourceEvidenceSchema,
+} from '../../attack-planning/plan.schema.js';
+import { SourcePostureNotApplicableReasonSchema } from '../source-posture/contract.js';
 
 export const ObligationMapStateSchema = z.enum(['mapped', 'unanswered', 'not-reached']);
 export const ObligationInvestigationStateSchema = z.enum([
@@ -31,7 +34,8 @@ export const ObligationClosureSchema = z
     sourcePostureConclusion: z
       .enum(['risk-supported', 'risk-contradicted', 'inconclusive', 'not-applicable'])
       .nullable(),
-    notApplicableReason: BoundedTextSchema.min(1).nullable().optional(),
+    notApplicableReason: SourcePostureNotApplicableReasonSchema.nullable().optional(),
+    notApplicableEvidence: z.array(SourceEvidenceSchema).min(1).optional(),
     investigationState: ObligationInvestigationStateSchema,
     candidateCount: z.number().int().nonnegative(),
     admittedFindingCount: z.number().int().nonnegative(),
@@ -60,6 +64,17 @@ export const ObligationClosureSchema = z
         code: 'custom',
         path: ['notApplicableReason'],
         message: 'Only a not-applicable posture carries a required applicability reason.',
+      });
+    }
+    if (
+      (value.sourcePostureConclusion === 'not-applicable') !==
+      (value.notApplicableEvidence !== undefined)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['notApplicableEvidence'],
+        message:
+          'Only a not-applicable posture carries required source-minimal applicability evidence.',
       });
     }
     if ((value.terminalDisposition === 'finding-admitted') !== value.admittedFindingCount > 0) {

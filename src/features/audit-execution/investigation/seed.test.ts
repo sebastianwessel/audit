@@ -27,16 +27,16 @@ const evidenceMap = EvidenceMapSchema.parse({
     {
       factId: 'fact-origin-01',
       role: 'input',
-      statement: 'The bounded source receives reviewed input.',
-      evidence: [{ path: 'src/source.unknown', startLine: 1, snippet: 'input', kind: 'source' }],
+      evidence: [
+        { path: 'src/source.unknown', startLine: 1, contentDigest: 'a'.repeat(64), kind: 'source' },
+      ],
       planObligations: [{ obligationId: 'seed-obligation-01' }],
     },
     {
       factId: 'fact-operation-01',
       role: 'operation',
-      statement: 'The bounded source performs the reviewed operation.',
       evidence: [
-        { path: 'src/source.unknown', startLine: 2, snippet: 'operation', kind: 'source' },
+        { path: 'src/source.unknown', startLine: 2, contentDigest: 'a'.repeat(64), kind: 'source' },
       ],
       planObligations: [{ obligationId: 'seed-obligation-01' }],
     },
@@ -81,7 +81,12 @@ test('admits only a seed whose map and posture references are complete and valid
   expect(
     verifyHypothesisSeeds(
       vector,
-      [{ ...seed, evidenceMapFactIds: ['missing-fact'] }],
+      [
+        {
+          ...seed,
+          evidenceMapFactIds: ['missing-fact'],
+        },
+      ],
       evidenceMap,
       sourcePosture,
     ),

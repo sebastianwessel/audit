@@ -1,4 +1,3 @@
-import { textLinesWithoutEndings } from '../../../platform/filesystem/text-lines.js';
 import { BoundedTextSchema } from '../../../shared/contracts/core.js';
 import {
   type AttackVector,
@@ -6,7 +5,7 @@ import {
   planObligationKey,
 } from '../../attack-planning/plan.schema.js';
 import type { SourceDocument } from '../audit.schema.js';
-import { redactArtifactText } from '../investigation/redaction.js';
+import { createSourceEvidenceReference } from '../evidence-reference.js';
 import {
   type EvidenceMap,
   EvidenceMapFactRoleSchema,
@@ -22,46 +21,38 @@ export type EvidenceMapVerificationResult = Readonly<{
 }>;
 
 /**
- * Checks only source-location and plan-binding integrity. It deliberately does
- * not determine whether a fact is security-relevant or whether a control works.
+ * Validates one lossless recovery fragment without requiring it to represent
+ * the complete vector. The caller must still run {@link verifyEvidenceMap}
+ * after all fragments are reduced before allowing the audit to continue.
  */
-export function verifyEvidenceMap(
+export function verifyEvidenceMapFragment(
   vector: AttackVector,
   evidenceMap: UnverifiedEvidenceMap | EvidenceMap,
   sources: readonly SourceDocument[],
-): EvidenceMapVerificationResult {
+): Readonly<{ evidenceMap: EvidenceMap; rejectedFactCount: number }> {
   const byPath = new Map(sources.map((source) => [source.path, source] as const));
   const retainedFactIds = new Set<string>();
   const facts = evidenceMap.facts.flatMap((fact) => {
     const role = EvidenceMapFactRoleSchema.safeParse(fact.role);
-    const statement = BoundedTextSchema.min(1).safeParse(fact.statement);
-    if (!role.success || !statement.success || retainedFactIds.has(fact.factId)) return [];
+    const statementIsValid =
+      !('statement' in fact) || BoundedTextSchema.min(1).safeParse(fact.statement).success;
+    if (!role.success || !statementIsValid || retainedFactIds.has(fact.factId)) return [];
     if (!hasApprovedPlanObligations(vector, fact.planObligations)) return [];
     const evidence = fact.evidence.flatMap((item) => {
       const source = byPath.get(item.path);
       if (source === undefined) return [];
-      const sourceLine = textLinesWithoutEndings(source.content)[item.startLine - 1];
-      if (sourceLine === undefined) return [];
-      return [
-        {
-          path: source.path,
-          startLine: item.startLine,
-          endLine: item.startLine,
-          snippet: redactArtifactText(sourceLine),
-          kind:
-            source.languageHint === 'configuration'
-              ? ('configuration' as const)
-              : ('source' as const),
-        },
-      ];
+      const reference = createSourceEvidenceReference({ source, startLine: item.startLine });
+      return reference === undefined ? [] : [reference];
     });
     if (evidence.length !== fact.evidence.length) return [];
     retainedFactIds.add(fact.factId);
+    const summary =
+      'statement' in fact ? fact.statement : 'summary' in fact ? fact.summary : undefined;
     return [
       {
         factId: fact.factId,
         role: role.data,
-        statement: redactArtifactText(statement.data),
+        ...(summary === undefined ? {} : { summary }),
         evidence,
         planObligations: fact.planObligations,
       },
@@ -70,16 +61,36 @@ export function verifyEvidenceMap(
   const mappedObligationKeys = new Set(
     facts.flatMap((fact) => fact.planObligations.map(planObligationKey)),
   );
-  const unansweredPlanObligations = evidenceMap.unansweredPlanObligations.filter(
-    (reference) =>
-      hasApprovedPlanObligations(vector, [reference]) &&
-      !mappedObligationKeys.has(planObligationKey(reference)),
-  );
-  const verified = EvidenceMapSchema.parse({
-    facts,
-    unansweredPlanObligations,
-    limitations: uniqueSorted(evidenceMap.limitations.map(redactArtifactText)),
+  return Object.freeze({
+    evidenceMap: EvidenceMapSchema.parse({
+      facts,
+      unansweredPlanObligations: evidenceMap.unansweredPlanObligations.filter(
+        (reference) =>
+          hasApprovedPlanObligations(vector, [reference]) &&
+          !mappedObligationKeys.has(planObligationKey(reference)),
+      ),
+      limitations:
+        'controlCoverage' in evidenceMap
+          ? evidenceMap.limitations.length > 0
+            ? ['model-declared-limitation']
+            : []
+          : evidenceMap.limitations,
+    }),
+    rejectedFactCount: evidenceMap.facts.length - facts.length,
   });
+}
+
+/**
+ * Checks only source-location and plan-binding integrity. It deliberately does
+ * not determine whether a fact is security-relevant or whether a control works.
+ */
+export function verifyEvidenceMap(
+  vector: AttackVector,
+  evidenceMap: UnverifiedEvidenceMap | EvidenceMap,
+  sources: readonly SourceDocument[],
+): EvidenceMapVerificationResult {
+  const fragment = verifyEvidenceMapFragment(vector, evidenceMap, sources);
+  const verified = fragment.evidenceMap;
   const representedObligations = new Set([
     ...verified.facts.flatMap((fact) => fact.planObligations.map(planObligationKey)),
     ...verified.unansweredPlanObligations.map(planObligationKey),
@@ -107,15 +118,11 @@ export function verifyEvidenceMap(
   });
   return Object.freeze({
     evidenceMap: verified,
-    rejectedFactCount: evidenceMap.facts.length - verified.facts.length,
+    rejectedFactCount: fragment.rejectedFactCount,
     complete:
       completeControlCoverage &&
       vector.reviewObligations.every((obligation) =>
         representedObligations.has(planObligationKey({ obligationId: obligation.obligationId })),
       ),
   });
-}
-
-function uniqueSorted(values: readonly string[]): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

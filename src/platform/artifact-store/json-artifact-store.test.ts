@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { access, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -7,8 +7,11 @@ import { z } from 'zod';
 import {
   type ArtifactStoreError,
   acquireArtifactLease,
+  readArtifactLeaseMetadata,
   readJsonArtifact,
   readOptionalJsonArtifact,
+  releaseArtifactLease,
+  removeJsonArtifact,
   writeJsonArtifact,
   writeJsonLinesArtifact,
   writeMarkdownArtifact,
@@ -166,6 +169,45 @@ describe('JSON artifact store', () => {
     } satisfies Pick<ArtifactStoreError, 'code'>);
   });
 
+  test('removes only one exact regular JSON artifact', async () => {
+    const outputRoot = await createArtifactRoot();
+    const artifact = { zeta: 'remove', alpha: 7, nested: { zulu: true, beta: false } };
+    await writeJsonArtifact(
+      outputRoot,
+      'runs/audit-run-01.attempt.json',
+      AuditArtifactSchema,
+      artifact,
+    );
+    await writeJsonArtifact(
+      outputRoot,
+      'runs/audit-run-02.attempt.json',
+      AuditArtifactSchema,
+      artifact,
+    );
+
+    await removeJsonArtifact(outputRoot, 'runs/audit-run-01.attempt.json');
+
+    await expect(
+      readJsonArtifact(outputRoot, 'runs/audit-run-01.attempt.json', AuditArtifactSchema),
+    ).rejects.toMatchObject({
+      code: 'artifact-not-found',
+    } satisfies Pick<ArtifactStoreError, 'code'>);
+    await expect(
+      readJsonArtifact(outputRoot, 'runs/audit-run-02.attempt.json', AuditArtifactSchema),
+    ).resolves.toEqual(artifact);
+  });
+
+  test('rejects removing a directory through the exact JSON artifact operation', async () => {
+    const outputRoot = await createArtifactRoot();
+    await mkdir(join(outputRoot, 'runs', 'audit-run-01.attempt.json'), { recursive: true });
+
+    await expect(
+      removeJsonArtifact(outputRoot, 'runs/audit-run-01.attempt.json'),
+    ).rejects.toMatchObject({
+      code: 'artifact-invalid-output-path',
+    } satisfies Pick<ArtifactStoreError, 'code'>);
+  });
+
   test('leaves no final or temporary artifact when schema validation fails before writing', async () => {
     const outputRoot = await createArtifactRoot();
     const RejectingArtifactSchema = z
@@ -197,10 +239,35 @@ describe('JSON artifact store', () => {
       code: 'artifact-lease-unavailable',
     } satisfies Pick<ArtifactStoreError, 'code'>);
   });
+
+  test('releases only an exactly confirmed metadata-sealed lease', async () => {
+    const outputRoot = await createArtifactRoot();
+    const artifactPath = 'work/leases/provider-evaluation.lock';
+    const metadata = {
+      runId: 'provider-run-01',
+      attemptId: 'provider-attempt-01',
+      checkpointFingerprint: 'a'.repeat(64),
+    };
+    const lease = await acquireArtifactLease(outputRoot, artifactPath, { metadata });
+
+    await expect(readArtifactLeaseMetadata(outputRoot, artifactPath)).resolves.toEqual(metadata);
+    await expect(
+      releaseArtifactLease(outputRoot, artifactPath, {
+        ...metadata,
+        attemptId: 'provider-attempt-02',
+      }),
+    ).rejects.toMatchObject({
+      code: 'artifact-lease-mismatch',
+    } satisfies Pick<ArtifactStoreError, 'code'>);
+    await expect(readArtifactLeaseMetadata(outputRoot, artifactPath)).resolves.toEqual(metadata);
+
+    await lease.release();
+    await expect(readArtifactLeaseMetadata(outputRoot, artifactPath)).resolves.toBeUndefined();
+  });
 });
 
 async function createArtifactRoot(): Promise<string> {
-  const artifactRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-artifact-store-'));
+  const artifactRoot = await mkdtemp(join(tmpdir(), 'audit-artifact-store-'));
   artifactRoots.push(artifactRoot);
   return artifactRoot;
 }

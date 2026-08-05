@@ -4,7 +4,7 @@ Status: active. Waves 1–4 completed on 2026-07-31; Waves 4.1–4.2 close live-
 
 ## Outcome
 
-Security Reviewer becomes a truthful, resumable static-review workflow before another provider-quality baseline is taken. The work fixes protocol and measurement root causes; it must not add a language parser, AST dependency, regex/API finding rule, source cap, benchmark-specific heuristic, or model ensemble workaround.
+Audit becomes a truthful, resumable static-review workflow before another provider-quality baseline is taken. The work fixes protocol and measurement root causes; it must not add a language parser, AST dependency, regex/API finding rule, source cap, benchmark-specific heuristic, or model ensemble workaround.
 
 ## Evidence that drives this plan
 

@@ -42,6 +42,20 @@ function createFixturePlan() {
         ],
         limitations: [],
       },
+      {
+        observationId: 'review-operations-boundary',
+        title: 'Review operations-boundary propagation',
+        rationale: 'A human may retain this optional context for a later plan review.',
+        scopeGlobs: ['src/operations/**'],
+        reviewObligations: [
+          {
+            obligationId: 'operations-boundary-01',
+            riskStatement: 'An operations boundary may need later human review.',
+            evidenceRequirement: 'A human decides whether source evidence justifies audit work.',
+          },
+        ],
+        limitations: [],
+      },
     ],
   });
 }
@@ -57,13 +71,20 @@ describe('plan authoring lifecycle', () => {
       vectors: [{ ...firstVector, scopeGlobs: ['src/private/**'] }],
     };
 
-    const resealed = resealAttackPlanDraft({ basePlan, draft: editedDraft });
+    const resealed = resealAttackPlanDraft({
+      basePlan,
+      draft: editedDraft,
+      resealedAt: '2026-08-04T12:01:00.000Z',
+    });
 
     expect(resealed.planId).not.toBe(basePlan.planId);
     expect(resealed.vectors[0]?.vectorId).not.toBe(basePlan.vectors[0]?.vectorId);
     expect(resealed.targetFingerprint).toBe(basePlan.targetFingerprint);
     expect(resealed.contextDigest).toBe(basePlan.contextDigest);
     expect(resealed.inventorySummary).toEqual(basePlan.inventorySummary);
+    expect(resealed.createdAt).toBe(basePlan.createdAt);
+    expect(resealed.resealedFromPlanId).toBe(basePlan.planId);
+    expect(resealed.resealedAt).toBe('2026-08-04T12:01:00.000Z');
   });
 
   test('rejects a draft bound to another sealed plan', () => {
@@ -73,6 +94,7 @@ describe('plan authoring lifecycle', () => {
       resealAttackPlanDraft({
         basePlan,
         draft: { ...draft, basePlanDigest: 'c'.repeat(64) },
+        resealedAt: '2026-08-04T12:01:00.000Z',
       }),
     ).toThrow('not bound');
   });
@@ -80,7 +102,11 @@ describe('plan authoring lifecycle', () => {
   test('rejects a draft that does not change executable plan content', () => {
     const basePlan = createFixturePlan();
     expect(() =>
-      resealAttackPlanDraft({ basePlan, draft: createAttackPlanDraft(basePlan) }),
+      resealAttackPlanDraft({
+        basePlan,
+        draft: createAttackPlanDraft(basePlan),
+        resealedAt: '2026-08-04T12:01:00.000Z',
+      }),
     ).toThrow('does not change');
   });
 
@@ -90,11 +116,14 @@ describe('plan authoring lifecycle', () => {
     const resealed = resealAttackPlanDraft({
       basePlan,
       draft: { ...draft, promotedObservationIds: ['review-session-boundary'] },
+      resealedAt: '2026-08-04T12:01:00.000Z',
     });
 
     expect(resealed.vectors.map((vector) => vector.title)).toContain(
       'Review session-boundary propagation',
     );
-    expect(resealed.additionalObservations).toEqual([]);
+    expect(resealed.additionalObservations.map((observation) => observation.observationId)).toEqual(
+      ['review-operations-boundary'],
+    );
   });
 });

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 6,
+  "caseId": "codeql-prototype-polluting-assignment-001",
+  "findingCoverage": "targeted",
+  "expectedPlanScenarios": [
+    {
+      "scenarioId": "object-integrity-computed-write",
+      "objective": "Review request-derived property names before they are written into ordinary object state.",
+      "sourceOnlyApplicable": true,
+      "requiredRiskCondition": "A request-controlled key can alter object-prototype behavior through an ordinary object property assignment without special-key protection.",
+      "evidenceRequirements": [
+        "Inspect the request-derived property key.",
+        "Inspect the target object write and any special-key protection."
+      ],
+      "relevantPaths": [
+        "app.js"
+      ],
+      "expectedFindingIds": [
+        "expected-01"
+      ]
+    }
+  ],
+  "expectedFindings": [
+    {
+      "findingId": "expected-01",
+      "staticReviewApplicable": true,
+      "evidenceRoles": [
+        {
+          "role": "operation",
+          "notApplicable": false,
+          "ranges": [
+            { "path": "app.js", "startLine": 7, "endLine": 7 }
+          ]
+        },
+        {
+          "role": "unsafe-condition",
+          "notApplicable": false,
+          "ranges": [
+            { "path": "app.js", "startLine": 2, "endLine": 7 }
+          ]
+        }
+      ]
+    }
+  ],
+  "patchedExpectation": "no-matching-finding",
+  "staticReviewApplicable": true,
+  "adjudicationStatus": "ai-assisted",
+  "reviewers": [
+    "evaluation-ai-assisted-source-review-2026-08-03"
+  ],
+  "independentReviews": [
+    {
+      "reviewer": "evaluation-ai-assisted-source-review-2026-08-03",
+      "reviewerKind": "ai-assisted",
+      "reviewedAt": "2026-08-03T16:00:00.000Z",
+      "decision": "include",
+      "findingCoverage": "targeted",
+      "expectedPlanScenarios": [
+        {
+          "scenarioId": "object-integrity-computed-write",
+          "objective": "Review request-derived property names before they are written into ordinary object state.",
+          "sourceOnlyApplicable": true,
+          "requiredRiskCondition": "A request-controlled key can alter object-prototype behavior through an ordinary object property assignment without special-key protection.",
+          "evidenceRequirements": [
+            "Inspect the request-derived property key.",
+            "Inspect the target object write and any special-key protection."
+          ],
+          "relevantPaths": ["app.js"],
+          "expectedFindingIds": ["expected-01"]
+        }
+      ],
+      "expectedFindings": [
+        {
+          "findingId": "expected-01",
+          "staticReviewApplicable": true,
+          "evidenceRoles": [
+            { "role": "operation", "notApplicable": false, "ranges": [{ "path": "app.js", "startLine": 7, "endLine": 7 }] },
+            { "role": "unsafe-condition", "notApplicable": false, "ranges": [{ "path": "app.js", "startLine": 2, "endLine": 7 }] }
+          ]
+        }
+      ],
+      "patchedExpectation": "no-matching-finding",
+      "staticReviewApplicable": true,
+      "notes": "Source-only development review. The patched Map variant removes the ordinary-object write; an unrelated state-growth observation needs separate adjudication."
+    }
+  ],
+  "notes": "Targeted source-only development key for the request-derived ordinary-object assignment. The paired source replaces object-property writes with Map operations. Neither source may be executed."
+}

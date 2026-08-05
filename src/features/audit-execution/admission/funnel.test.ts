@@ -26,6 +26,7 @@ test('builds and aggregates a balanced content-free finding admission funnel', (
     ],
     verifierToolEvidenceRejectedCount: 0,
     verifierReconciledCount: 1,
+    duplicateCollapsedCount: 0,
     admittedFindingCount: 1,
   });
   const combined = aggregateFindingAdmissionFunnels([first, emptyFindingAdmissionFunnel(), first]);
@@ -62,6 +63,7 @@ test('keeps each source-free incomplete verifier lane distinct', () => {
     ],
     verifierToolEvidenceRejectedCount: 0,
     verifierReconciledCount: 0,
+    duplicateCollapsedCount: 0,
     admittedFindingCount: 0,
   });
   expect(funnel).toMatchObject({

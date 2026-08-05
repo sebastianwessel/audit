@@ -13,36 +13,76 @@ afterEach(async () => {
 });
 
 describe('root topology', () => {
-  test('canonicalizes separate existing roots without creating the output root', async () => {
+  test('canonicalizes separate roots without creating either artifact root', async () => {
     const root = await createRoot();
     const target = join(root, 'target');
     const context = join(root, 'context');
-    const output = join(root, 'output');
+    const publicArtifacts = join(root, 'public-artifacts');
+    const privateWork = join(root, 'private-work');
     await Promise.all([mkdir(target), mkdir(context)]);
 
     await expect(
-      validateRootTopology({ targetRoot: target, contextRoot: context, outputRoot: output }),
+      validateRootTopology({
+        targetRoot: target,
+        contextRoot: context,
+        publicArtifactRoot: publicArtifacts,
+        privateWorkRoot: privateWork,
+      }),
     ).resolves.toEqual({
       targetRoot: await realpath(target),
       contextRoot: await realpath(context),
-      outputRoot: join(await realpath(root), 'output'),
+      publicArtifactRoot: join(await realpath(root), 'public-artifacts'),
+      privateWorkRoot: join(await realpath(root), 'private-work'),
     });
-    await expect(access(output)).rejects.toThrow();
+    await expect(access(publicArtifacts)).rejects.toThrow();
+    await expect(access(privateWork)).rejects.toThrow();
   });
 
   test('rejects equal and ancestor/descendant root pairs', async () => {
     const root = await createRoot();
     const target = join(root, 'target');
     const context = join(root, 'context');
-    const output = join(root, 'output');
-    await Promise.all([mkdir(target), mkdir(context), mkdir(output)]);
+    const publicArtifacts = join(root, 'public-artifacts');
+    const privateWork = join(root, 'private-work');
+    await Promise.all([mkdir(target), mkdir(context), mkdir(publicArtifacts), mkdir(privateWork)]);
 
     const invalidPairs = [
-      { targetRoot: target, contextRoot: target, outputRoot: output },
-      { targetRoot: target, contextRoot: context, outputRoot: target },
-      { targetRoot: target, contextRoot: context, outputRoot: join(target, 'artifacts') },
-      { targetRoot: join(output, 'repo'), contextRoot: context, outputRoot: output },
-      { targetRoot: target, contextRoot: join(output, 'context'), outputRoot: output },
+      {
+        targetRoot: target,
+        contextRoot: target,
+        publicArtifactRoot: publicArtifacts,
+        privateWorkRoot: privateWork,
+      },
+      {
+        targetRoot: target,
+        contextRoot: context,
+        publicArtifactRoot: target,
+        privateWorkRoot: privateWork,
+      },
+      {
+        targetRoot: target,
+        contextRoot: context,
+        publicArtifactRoot: join(target, 'artifacts'),
+        privateWorkRoot: privateWork,
+      },
+      {
+        targetRoot: join(publicArtifacts, 'repo'),
+        contextRoot: context,
+        publicArtifactRoot: publicArtifacts,
+        privateWorkRoot: privateWork,
+      },
+      {
+        targetRoot: target,
+        contextRoot: join(publicArtifacts, 'context'),
+        publicArtifactRoot: publicArtifacts,
+        privateWorkRoot: privateWork,
+      },
+      {
+        targetRoot: target,
+        contextRoot: context,
+        publicArtifactRoot: publicArtifacts,
+        privateWorkRoot: publicArtifacts,
+      },
     ] as const;
 
     for (const input of invalidPairs) {
@@ -70,7 +110,7 @@ describe('root topology', () => {
 });
 
 async function createRoot(): Promise<string> {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-root-topology-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-root-topology-'));
   roots.push(root);
   return root;
 }

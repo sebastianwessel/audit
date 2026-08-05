@@ -10,14 +10,21 @@ import {
 } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
-import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
-import { EvidenceMapRequestSchema } from '../../audit-execution/phase-input/contract.js';
-import { EvidenceMapModelInputSchema } from '../agents/evidence-map/contract.js';
+import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/audit-harness.js';
+import {
+  EvidenceMapRepairRequestSchema,
+  EvidenceMapRequestSchema,
+} from '../../audit-execution/phase-input/contract.js';
+import {
+  EvidenceMapModelInputSchema,
+  EvidenceMapRepairModelInputSchema,
+} from '../agents/evidence-map/contract.js';
 
 import { runEvidenceMapStage } from './evidence-map.js';
+import { runEvidenceMapRepairStage } from './evidence-map-repair.js';
 
 test('fails closed when a tool-guided evidence map completes without scoped source inspection', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-stage-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-evidence-map-stage-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   provider.enqueueObject({
@@ -33,6 +40,7 @@ test('fails closed when a tool-guided evidence map completes without scoped sour
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
+    sources: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -61,7 +69,7 @@ test('fails closed when a tool-guided evidence map completes without scoped sour
 });
 
 test('maps neutral source facts after inspection when advisory context is hostile', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-advisory-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-evidence-map-advisory-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   enqueueScopedSearch(provider, 'advisory-context-inspection');
@@ -95,6 +103,7 @@ test('maps neutral source facts after inspection when advisory context is hostil
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
+    sources: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -138,7 +147,7 @@ test('maps neutral source facts after inspection when advisory context is hostil
 });
 
 test('fails closed when the only source-tool attempt is rejected', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-rejected-tool-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-evidence-map-rejected-tool-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   provider.enqueueObject({
@@ -166,6 +175,7 @@ test('fails closed when the only source-tool attempt is rejected', async () => {
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
+    sources: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -196,7 +206,7 @@ test('fails closed when the only source-tool attempt is rejected', async () => {
 });
 
 test('fails closed instead of choosing conflicting map facts from overflow partitions', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-overflow-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-evidence-map-overflow-'));
   await writeFile(join(targetRoot, 'a.unknown'), 'value = request.input;\n', 'utf8');
   await writeFile(join(targetRoot, 'b.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new OverflowFirstObjectProvider();
@@ -207,6 +217,7 @@ test('fails closed instead of choosing conflicting map facts from overflow parti
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
+    sources: sourcesFor('a.unknown', 'b.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -226,7 +237,7 @@ test('fails closed instead of choosing conflicting map facts from overflow parti
 });
 
 test('retries an uninspected tool loop inside the same scope before failing coverage', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-evidence-map-retry-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-evidence-map-retry-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   const output = {
@@ -248,6 +259,7 @@ test('retries an uninspected tool loop inside the same scope before failing cove
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
+    sources: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -275,6 +287,83 @@ test('retries an uninspected tool loop inside the same scope before failing cove
   expect(provider.requests).toHaveLength(2);
 });
 
+test('repairs a map with only generic gap data and fresh scoped source inspection', async () => {
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-evidence-map-repair-'));
+  await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
+  const provider = new FakeModelProvider();
+  enqueueScopedSearch(provider, 'repair-inspection');
+  provider.enqueueObject({
+    object: {
+      facts: [
+        {
+          factId: 'fact-repaired-operation-01',
+          role: 'operation',
+          statement: 'The scoped source performs the reviewed operation.',
+          evidence: [{ path: 'reviewed.unknown', startLine: 1 }],
+          planObligations: [{ obligationId: 'test-obligation-01' }],
+        },
+      ],
+    },
+    usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
+    finishReason: 'stop',
+  });
+
+  const result = await runEvidenceMapRepairStage({
+    modelProvider: provider,
+    filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
+    request: EvidenceMapRepairRequestSchema.parse({
+      vector: vector(),
+      availableSourcePaths: ['reviewed.unknown'],
+      limitations: [],
+      evidenceMap: {
+        facts: [],
+        unansweredPlanObligations: [{ obligationId: 'test-obligation-01' }],
+        limitations: [],
+      },
+      insufficiencies: [
+        {
+          obligationIds: ['test-obligation-01'],
+          needs: ['operation-evidence-missing'],
+        },
+      ],
+    }),
+    sources: [
+      {
+        path: 'reviewed.unknown',
+        content: 'value = request.input;\n',
+        languageHint: null,
+      },
+    ],
+    context: [],
+    sessionId: 'evidence-map-repair-stage-01',
+    modelName: undefined,
+    harnessExecution: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
+    modelCacheRoutingKey: undefined,
+    modelPricing: {},
+    cacheRoutingEnabled: false,
+  });
+
+  expect(result).toMatchObject({
+    status: 'completed',
+    output: { facts: [{ factId: 'fact-repaired-operation-01' }] },
+    modelObservation: {
+      stage: 'evidence-map-repair',
+      toolUsage: { successfulGrepFilesCallCount: 1 },
+    },
+  });
+  const repairInput = firstEvidenceMapRepairModelInput(provider);
+  expect(repairInput.insufficiencies).toEqual([
+    {
+      obligationIds: ['test-obligation-01'],
+      needs: ['operation-evidence-missing'],
+    },
+  ]);
+  expect(Object.hasOwn(repairInput, 'candidate')).toBeFalse();
+  expect(Object.hasOwn(repairInput, 'finding')).toBeFalse();
+  expect(Object.hasOwn(repairInput, 'priority')).toBeFalse();
+  expect(JSON.stringify(repairInput)).not.toContain('value = request.input');
+});
+
 function vector() {
   return {
     vectorId: 'vector-unknown-01',
@@ -292,6 +381,14 @@ function vector() {
     ],
     limitations: [],
   };
+}
+
+function sourcesFor(...paths: readonly string[]) {
+  return paths.map((path) => ({
+    path,
+    content: 'value = request.input;\n',
+    languageHint: null,
+  }));
 }
 
 class OverflowFirstObjectProvider extends FakeModelProvider {
@@ -338,6 +435,19 @@ function firstEvidenceMapModelInput(provider: FakeModelProvider) {
     throw new Error('The mapper did not send a JSON user input.');
   }
   return EvidenceMapModelInputSchema.parse(JSON.parse(message.content));
+}
+
+function firstEvidenceMapRepairModelInput(provider: FakeModelProvider) {
+  const request = provider.requests[0];
+  if (request === undefined)
+    throw new Error('The repair mapper did not make an initial model request.');
+  if (!('messages' in request))
+    throw new Error('The repair mapper made a non-message model request.');
+  const message = request.messages.find((entry) => entry.role === 'user');
+  if (message === undefined || typeof message.content !== 'string') {
+    throw new Error('The repair mapper did not send a JSON user input.');
+  }
+  return EvidenceMapRepairModelInputSchema.parse(JSON.parse(message.content));
 }
 
 function mapOutput(path: string, statement: string) {

@@ -28,5 +28,5 @@ The reconciliation is transient verifier evidence projected only for accepted fi
 2. Canonical materialization projects reconciliation evidence only from map facts bound to the exact obligation and fails closed on invalid selections.
 3. The existing control, posture, scoped tool-use, source-evidence, source-posture, redaction, and phase-boundary rules remain intact.
 4. Unknown-extension source follows the same schema and model protocol without a parser or language-specific branch.
-5. Contract, materialization, harness, audit, recovery, privacy, schema, and full local checks pass before an opt-in five-repeat provider measurement using the unchanged pack/profile/model/route/repetition policy and a new prompt-protocol fingerprint.
+5. Contract, materialization, harness, audit, recovery, privacy, schema, and full local checks pass before an opt-in provider measurement using the unchanged pack/profile/model/route, an explicitly recorded repeat count, and a new prompt-protocol fingerprint.
 6. The measurement is diagnostic only. Promotion requires the separately specified qualified, repository-disjoint, dual-reviewed corpus and private holdout; one case, language, median, or structural result cannot promote the behavior.

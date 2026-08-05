@@ -28,8 +28,9 @@ const evidenceMap = EvidenceMapSchema.parse({
     {
       factId: 'closure-verify-fact-01',
       role: 'operation',
-      statement: 'The bounded source contains the reviewed operation.',
-      evidence: [{ path: 'source.unknown', startLine: 1, snippet: 'operation', kind: 'source' }],
+      evidence: [
+        { path: 'source.unknown', startLine: 1, contentDigest: 'a'.repeat(64), kind: 'source' },
+      ],
       planObligations: [{ obligationId: 'closure-verify-obligation-01' }],
     },
   ],
@@ -63,6 +64,17 @@ test('accepts one valid closure for each planned obligation', () => {
   expect(result.closures).toEqual([
     { ...validClosure, sourcePostureAssessmentIds: ['closure-verify-posture-01'] },
   ]);
+});
+
+test('projects an unverified closure limitation to a closed durable token', () => {
+  const result = verifyInvestigationClosures(
+    vector,
+    [{ ...validClosure, limitations: ['MODEL_CLOSURE_PROSE_SENTINEL'] }],
+    evidenceMap,
+    sourcePosture,
+  );
+  expect(result.closures[0]?.limitations).toEqual(['model-declared-limitation']);
+  expect(JSON.stringify(result.closures)).not.toContain('PROSE_SENTINEL');
 });
 
 test('rejects an incomplete or duplicate closure set before it is checkpointed', () => {

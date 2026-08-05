@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "pack": {
+    "schemaVersion": 4,
+    "packId": "juliet-verification",
+    "stage": "verification",
+    "corpusPackId": "audit-real-world-seed",
+    "corpusPackVersion": "0.3.0",
+    "corpusManifestFingerprint": "4bbad8420bf70452425c1d5936155a2a54f25ee30b3fc47ee71e1d1d971d0952",
+    "caseId": "nist-juliet-cwe121-01",
+    "variant": "vulnerable",
+    "repetition": 1,
+    "planProfile": "audit-reviewed-plan",
+    "corpusSourceDigest": "5de40d05f1db6eb1963fbe5069b6c3623b8ecedc6c99d6e7dd9cb5ce7afd09f8",
+    "targetFingerprint": "eb2441299310cfda32d0365147bb09dcf3f00458df413493a1c07b1c73b339a2",
+    "contextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workflowProtocolFingerprint": "2e283fdd1cd2ba66110fb843715a19510de38b335d3ed54313670a0f5f59f260",
+    "stageProtocolFingerprint": "a8ace3cfc9891b7a741125565260e2004a3b4b3ff29eb592b201d34a928f4ab7",
+    "evaluatorProtocolFingerprint": "3259ad968b1621af18b2718c93ef577dd988b072af04ebb9a40a874e1d8aac6a",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "route": "primary",
+    "evaluatorProvider": "openai",
+    "evaluatorModel": "gpt-5.6-terra",
+    "evaluatorRoute": "primary",
+    "productInput": {
+      "stage": "verification",
+      "referenceId": "juliet-verification-product",
+      "fingerprint": "7b1dc9465e97c9d241baed1f5bcd054a7160c1af5b1840d7790f777e9d7c5a5f"
+    },
+    "expectedOutcome": {
+      "privateReferenceId": "juliet-verification-rubric",
+      "fingerprint": "a70dee112dcf8366c44bb4d5f8e49fe7fcd1a92d3b8d31a10676f5518a94df5f",
+      "expectedOutcomeCount": 1
+    }
+  },
+  "canonicalInputFingerprint": "7b1dc9465e97c9d241baed1f5bcd054a7160c1af5b1840d7790f777e9d7c5a5f",
+  "rubric": {
+    "rubricId": "juliet-verification-rubric",
+    "rubricFingerprint": "a70dee112dcf8366c44bb4d5f8e49fe7fcd1a92d3b8d31a10676f5518a94df5f",
+    "stage": "verification",
+    "expectedOutcomes": [
+      {
+        "expectedOutcomeId": "verification-closure",
+        "objective": "Reach one terminal verifier decision for the supplied bounded hypothesis.",
+        "requiredRiskCondition": "The result closes the hypothesis as accepted, rejected, or incomplete.",
+        "evidenceRequirements": [
+          "Retain only terminal closure, not source text or locations."
+        ],
+        "requiredRoles": [
+          "operation",
+          "unsafe-condition"
+        ]
+      }
+    ]
+  }
+}

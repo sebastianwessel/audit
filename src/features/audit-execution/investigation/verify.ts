@@ -1,18 +1,29 @@
 import { textLinesWithoutEndings } from '../../../platform/filesystem/text-lines.js';
 import {
   type AttackVector,
+  type ClaimEvidenceRole,
   hasApprovedPlanObligations,
-  type ProposedFinding,
   planObligationKey,
 } from '../../attack-planning/plan.schema.js';
 import type { SourceDocument } from '../audit.schema.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
+import { createSourceEvidenceReference } from '../evidence-reference.js';
+import { ClaimNarrativeSchema } from '../narrative/contract.js';
 import type { SourcePosture } from '../source-posture/contract.js';
 import { type VerifiableHypothesis, VerifiableHypothesisSchema } from '../verification/contract.js';
-import type { CandidateStructuralRejectionReason } from './contract.js';
-import { redactArtifactText } from './redaction.js';
+import {
+  type CandidateStructuralRejectionReason,
+  type UnverifiedAuditCandidate,
+  UnverifiedAuditCandidateSchema,
+} from './contract.js';
 
-export type FindingVerificationResult<Candidate extends ProposedFinding> = Readonly<{
+type VerificationCandidate = UnverifiedAuditCandidate | VerifiableHypothesis;
+type ClaimEvidenceBundleInput = Readonly<{
+  role: ClaimEvidenceRole;
+  evidence: readonly Readonly<{ path: string; startLine: number }>[];
+}>;
+
+export type FindingVerificationResult<Candidate> = Readonly<{
   verified: readonly VerifiableHypothesis[];
   rejectedCount: number;
   rejectionReasons: readonly string[];
@@ -23,7 +34,7 @@ export type FindingVerificationResult<Candidate extends ProposedFinding> = Reado
 }>;
 
 /** Verifies model output against only the bounded source package it was allowed to inspect. */
-export function verifyModelFindings<Candidate extends ProposedFinding>(
+export function verifyModelFindings<Candidate>(
   vector: AttackVector,
   findings: readonly Candidate[],
   sources: readonly SourceDocument[],
@@ -38,13 +49,19 @@ export function verifyModelFindings<Candidate extends ProposedFinding>(
     Readonly<{ candidate: Candidate; reason: CandidateStructuralRejectionReason }>
   > = [];
   for (const finding of findings) {
-    const parsedHypothesis = VerifiableHypothesisSchema.safeParse(finding);
-    if (!parsedHypothesis.success) {
-      rejectionReasons.push('model-hypothesis-invalid');
-      rejected.push({ candidate: finding, reason: 'model-hypothesis-invalid' });
-      continue;
+    const parsedUnverified = UnverifiedAuditCandidateSchema.safeParse(finding);
+    let hypothesis: VerificationCandidate;
+    if (parsedUnverified.success) {
+      hypothesis = parsedUnverified.data;
+    } else {
+      const parsedCanonical = VerifiableHypothesisSchema.safeParse(finding);
+      if (!parsedCanonical.success) {
+        rejectionReasons.push('model-hypothesis-invalid');
+        rejected.push({ candidate: finding, reason: 'model-hypothesis-invalid' });
+        continue;
+      }
+      hypothesis = parsedCanonical.data;
     }
-    const hypothesis = parsedHypothesis.data;
     if (hypothesis.vectorId !== vector.vectorId) {
       rejectionReasons.push('model-vector-mismatch');
       continue;
@@ -80,39 +97,40 @@ export function verifyModelFindings<Candidate extends ProposedFinding>(
       rejected.push({ candidate: finding, reason: 'model-evidence-invalid-or-out-of-scope' });
       continue;
     }
-    const evidence = hypothesis.evidence.flatMap((item, index) => {
-      const source = byPath.get(item.path);
-      if (source === undefined) return [];
-      const sourceLine = textLinesWithoutEndings(source.content)[item.startLine - 1];
-      if (sourceLine === undefined) return [];
-      return [
-        {
-          index,
-          ...item,
-          endLine: item.startLine,
-          snippet: redactArtifactText(sourceLine),
-          kind:
-            source.languageHint === 'configuration'
-              ? ('configuration' as const)
-              : ('source' as const),
-        },
-      ];
+    const claimEvidenceBundles = hypothesis.claimEvidenceBundles.map((bundle) => {
+      const evidence = bundle.evidence.map((item) => {
+        const source = byPath.get(item.path);
+        if (source === undefined) return undefined;
+        return createSourceEvidenceReference({
+          source,
+          startLine: item.startLine,
+          role: bundle.role,
+        });
+      });
+      if (evidence.some((item) => item === undefined)) return undefined;
+      return {
+        role: bundle.role,
+        evidence: evidence.filter((item): item is NonNullable<typeof item> => item !== undefined),
+      };
     });
-    if (evidence.length !== hypothesis.evidence.length) {
+    if (claimEvidenceBundles.some((bundle) => bundle === undefined)) {
       rejectionReasons.push('model-evidence-invalid-or-out-of-scope');
       rejected.push({ candidate: finding, reason: 'model-evidence-invalid-or-out-of-scope' });
       continue;
     }
-    const orderedEvidence = evidence.map(({ index: _index, ...item }) => item);
-    verified.push({
-      ...hypothesis,
-      statement: redactArtifactText(hypothesis.statement),
-      evidence: orderedEvidence,
-      limitations: uniqueSorted([
-        ...hypothesis.limitations.map(redactArtifactText),
-        'Static evidence was verified for approved scope and source location; runtime reachability remains unproven.',
-      ]),
-    });
+    verified.push(
+      VerifiableHypothesisSchema.parse({
+        vectorId: hypothesis.vectorId,
+        narrative: narrativeForCandidate(hypothesis),
+        claimEvidenceBundles: claimEvidenceBundles.filter(
+          (bundle): bundle is NonNullable<typeof bundle> => bundle !== undefined,
+        ),
+        planObligations: hypothesis.planObligations,
+        evidenceMapFactIds: hypothesis.evidenceMapFactIds,
+        claimEvidenceSelections: hypothesis.claimEvidenceSelections,
+        sourcePostureAssessmentIds: hypothesis.sourcePostureAssessmentIds,
+      }),
+    );
   }
   return Object.freeze({
     verified,
@@ -122,26 +140,46 @@ export function verifyModelFindings<Candidate extends ProposedFinding>(
   });
 }
 
-function hasRequiredClaimEvidence(finding: ProposedFinding): boolean {
-  const unsafeEvidence = finding.evidence.filter((item) => item.role === 'unsafe-condition');
-  return finding.evidence.length >= 2 && unsafeEvidence.length > 0;
-}
-
-function hasAnyInScopeEvidenceLine(
-  finding: ProposedFinding,
-  byPath: ReadonlyMap<string, SourceDocument>,
-): boolean {
-  return finding.evidence.some((evidence) => {
-    const source = byPath.get(evidence.path);
-    return (
-      source !== undefined &&
-      textLinesWithoutEndings(source.content)[evidence.startLine - 1] !== undefined
-    );
+function narrativeForCandidate(candidate: VerificationCandidate) {
+  if ('narrative' in candidate) return candidate.narrative;
+  return ClaimNarrativeSchema.parse({
+    statement: candidate.statement,
+    roleExplanations: candidate.claimEvidenceBundles.map((bundle) => ({
+      role: bundle.role,
+      explanation: bundle.explanation,
+    })),
+    limitations: candidate.limitations,
   });
 }
 
+function hasRequiredClaimEvidence(
+  finding: Readonly<{ claimEvidenceBundles: readonly ClaimEvidenceBundleInput[] }>,
+): boolean {
+  return (
+    finding.claimEvidenceBundles.length === 2 &&
+    finding.claimEvidenceBundles.every((bundle) => bundle.evidence.length > 0) &&
+    finding.claimEvidenceBundles.some((bundle) => bundle.role === 'operation') &&
+    finding.claimEvidenceBundles.some((bundle) => bundle.role === 'unsafe-condition')
+  );
+}
+
+function hasAnyInScopeEvidenceLine(
+  finding: Readonly<{ claimEvidenceBundles: readonly ClaimEvidenceBundleInput[] }>,
+  byPath: ReadonlyMap<string, SourceDocument>,
+): boolean {
+  return finding.claimEvidenceBundles
+    .flatMap((bundle) => bundle.evidence)
+    .some((evidence) => {
+      const source = byPath.get(evidence.path);
+      return (
+        source !== undefined &&
+        textLinesWithoutEndings(source.content)[evidence.startLine - 1] !== undefined
+      );
+    });
+}
+
 function hasValidEvidenceMapReferences(
-  finding: VerifiableHypothesis,
+  finding: Omit<VerifiableHypothesis, 'narrative'>,
   evidenceMap: EvidenceMap,
   requireClaimMapLocationBinding: boolean,
 ): boolean {
@@ -156,15 +194,17 @@ function hasValidEvidenceMapReferences(
       );
     }) &&
     (!requireClaimMapLocationBinding ||
-      finding.evidence.every((claimEvidence) =>
-        selectedFacts.some((fact) =>
-          fact?.evidence.some(
-            (factEvidence) =>
-              factEvidence.path === claimEvidence.path &&
-              factEvidence.startLine === claimEvidence.startLine,
+      finding.claimEvidenceBundles
+        .flatMap((bundle) => bundle.evidence)
+        .every((claimEvidence) =>
+          selectedFacts.some((fact) =>
+            fact?.evidence.some(
+              (factEvidence) =>
+                factEvidence.path === claimEvidence.path &&
+                factEvidence.startLine === claimEvidence.startLine,
+            ),
           ),
-        ),
-      )) &&
+        )) &&
     finding.planObligations.every((obligation) =>
       finding.evidenceMapFactIds.some((factId) =>
         facts
@@ -178,7 +218,7 @@ function hasValidEvidenceMapReferences(
 }
 
 function hasValidSourcePostureReferences(
-  finding: VerifiableHypothesis,
+  finding: Omit<VerifiableHypothesis, 'narrative'>,
   sourcePosture: SourcePosture,
 ): boolean {
   const assessments = new Map(

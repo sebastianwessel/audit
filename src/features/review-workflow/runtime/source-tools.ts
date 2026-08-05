@@ -1,4 +1,5 @@
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import { textLinesWithoutEndings } from '../../../platform/filesystem/text-lines.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import { matchesGlob } from '../../audit-execution/investigation/scope.js';
 import { inferLanguageHint } from '../../target-inventory/inventory.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
@@ -47,7 +48,10 @@ export function createReviewSourceTools(
         path: read.relativePath,
         startLine: read.startLine,
         endLine: read.endLine,
-        text: read.text,
+        lines: textLinesWithoutEndings(read.text).map((text, index) => ({
+          line: read.startLine + index,
+          text,
+        })),
       };
     },
     grepFiles: async (input) => {
@@ -62,7 +66,7 @@ export function createReviewSourceTools(
         mode: input.mode,
         caseSensitive: input.caseSensitive,
         relativePaths: requestedPaths,
-        contextLines: 0,
+        contextLines: input.contextLines,
       });
       return {
         matches: matched.matches
@@ -102,7 +106,7 @@ export function selectApplicableContext(
 
 function assertAllowedPath(path: string, allowedPaths: ReadonlySet<string> | undefined): void {
   if (allowedPaths !== undefined && !allowedPaths.has(path)) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'invalid-input',
       'The requested path is outside the approved vector scope.',
     );

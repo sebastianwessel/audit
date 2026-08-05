@@ -1,5 +1,9 @@
 # Complete cardinality contracts
 
+Status: implemented and regression-verified on 2026-08-04. Product queues may
+bound only concurrent work; no fixed collection cardinality silently omits
+eligible evidence or source-free operational rows.
+
 ## Contract
 
 Product repository tools, audit lineage, and evaluator artifacts must not reject or truncate complete declared collections because of a fixed product cardinality. This applies to include/exclude glob sets, lineage entries, per-trial plan/finding/review-required identities, readiness distributions/criteria/limitations, comparison incompatibilities, comparison stage rows, and evaluator-only acquisition metadata lanes, language sets, candidate registries, and advisory range collections.

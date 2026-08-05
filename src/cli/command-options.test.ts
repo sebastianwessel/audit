@@ -6,62 +6,133 @@ test('accepts only the declared option set for each CLI command', () => {
   expect(() =>
     assertValidCommandOptions('plan', {
       target: 'target',
-      output: 'output',
-      provider: 'openai',
+      work: 'work',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('audit', {
       target: 'target',
       plan: 'plans/plan.json',
+      work: 'work',
+      'public-output': 'public-artifacts',
       resume: 'true',
       'retry-unfinished': 'false',
     }),
   ).not.toThrow();
-  expect(() => assertValidCommandOptions('report', { report: 'reports/audit.json' })).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('guidance', {
+      target: 'target',
+      plan: 'plans/plan.json',
+      report: 'reports/report.json',
+      'run-id': 'guidance-run-001',
+      resume: 'true',
+      'retry-unfinished': 'true',
+    }),
+  ).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('report', {
+      'public-output': 'public-artifacts',
+      report: 'reports/audit.json',
+    }),
+  ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('lineage', {
+      'public-output': 'public-artifacts',
       previous: 'reports/previous.json',
       current: 'reports/current.json',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('plan-draft', {
+      work: 'private-work',
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('plan-reseal', {
+      work: 'private-work',
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
+    }),
+  ).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('discard', {
+      work: 'private-work',
+      plan: 'plans/plan.json',
+      'run-id': 'audit-run-01',
     }),
   ).not.toThrow();
 });
 
 test('rejects unknown and command-incompatible CLI options before I/O', () => {
   expect(() => assertValidCommandOptions('plan', { target: 'target', typo: 'value' })).toThrow(
-    'Invalid options',
+    'Unknown option --typo',
   );
-  expect(() => assertValidCommandOptions('audit', { target: 'target' })).toThrow('Invalid options');
+  expect(() => assertValidCommandOptions('plan', { target: 'target', output: 'output' })).toThrow(
+    'Unknown option --output',
+  );
+  for (const option of [
+    'provider',
+    'model',
+    'api-key-env',
+    'max-parallel-vectors',
+    'max-estimated-cost-usd',
+  ]) {
+    expect(() =>
+      assertValidCommandOptions('plan', { target: 'target', [option]: 'value' }),
+    ).toThrow(`Unknown option --${option}`);
+  }
+  expect(() => assertValidCommandOptions('audit', { target: 'target' })).toThrow(
+    'Missing required option --plan',
+  );
   expect(() =>
-    assertValidCommandOptions('report', { report: 'reports/audit.json', provider: 'openai' }),
-  ).toThrow('Invalid options');
+    assertValidCommandOptions('report', {
+      'public-output': 'public-artifacts',
+      report: 'reports/audit.json',
+      provider: 'openai',
+    }),
+  ).toThrow('Unknown option --provider');
   expect(() =>
     assertValidCommandOptions('lineage', {
+      'public-output': 'public-artifacts',
       previous: 'reports/previous.json',
       current: 'reports/current.json',
       resume: 'true',
     }),
-  ).toThrow('Invalid options');
-  expect(() => assertValidCommandOptions('plan-draft', { plan: 'plans/plan.json' })).toThrow(
-    'Invalid options',
+  ).toThrow('Unknown option --resume');
+  expect(() => assertValidCommandOptions('report', { report: 'reports/audit.json' })).toThrow(
+    'Missing required option --public-output',
   );
   expect(() =>
+    assertValidCommandOptions('plan-draft', {
+      plan: 'plans/plan.json',
+      draft: 'plan-drafts/review.json',
+    }),
+  ).toThrow('Missing required option --work');
+  expect(() =>
+    assertValidCommandOptions('plan-draft', { work: 'private-work', plan: 'plans/plan.json' }),
+  ).toThrow('Missing required option --draft');
+  expect(() =>
     assertValidCommandOptions('plan-reseal', {
+      work: 'private-work',
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
       provider: 'openai',
     }),
-  ).toThrow('Invalid options');
+  ).toThrow('Unknown option --provider');
+  expect(() =>
+    assertValidCommandOptions('discard', {
+      work: 'private-work',
+      plan: 'plans/plan.json',
+    }),
+  ).toThrow('Missing required option --run-id');
+  expect(() =>
+    assertValidCommandOptions('discard', {
+      target: 'target',
+      work: 'private-work',
+      plan: 'plans/plan.json',
+      'run-id': 'audit-run-01',
+    }),
+  ).toThrow('Unknown option --target');
 });

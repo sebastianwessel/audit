@@ -1,0 +1,8 @@
+from pathlib import Path
+
+
+def extract_entry(root: Path, entry_name: str, content: bytes) -> None:
+    destination = (root / entry_name).resolve()
+    if root.resolve() not in destination.parents:
+        raise ValueError('Archive entry escapes extraction root.')
+    destination.write_bytes(content)

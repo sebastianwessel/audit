@@ -40,6 +40,12 @@ export function verifyInvestigationClosures(
     const provenance = deriveSourcePostureProvenance([closure.planObligation], sourcePosture);
     return {
       ...closure,
+      limitations:
+        'sourcePostureAssessmentIds' in rawClosure
+          ? closure.limitations
+          : closure.limitations.length > 0
+            ? (['model-declared-limitation'] as const)
+            : [],
       evidenceMapFactIds: mergeUniqueIdentifiers(
         closure.evidenceMapFactIds,
         provenance.evidenceMapFactIds,

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { BoundedTextSchema, IdentifierSchema } from '../../../shared/contracts/core.js';
 import {
+  ClaimEvidenceBundlesSchema,
   PlanObligationReferenceSchema,
   PlanObligationReferencesSchema,
   ProposedFindingSchema,
@@ -11,13 +12,14 @@ import {
   UnverifiedEvidenceMapFactIdsSchema,
 } from '../evidence-map/contract.js';
 import { SourcePostureAssessmentIdsSchema } from '../source-posture/contract.js';
+import { UnverifiedClaimEvidenceSelectionBundlesSchema } from '../verification/contract.js';
 
 /**
  * A non-reportable discovery result. Grounding owns a single precise claim and
  * its source basis; presentation, classification, urgency, and remediation are
  * intentionally outside the confirmation path.
  */
-export const HypothesisSeedSchema = z.strictObject({
+const HypothesisSeedFields = {
   seedId: IdentifierSchema,
   vectorId: IdentifierSchema,
   hypothesis: BoundedTextSchema.min(1),
@@ -25,18 +27,35 @@ export const HypothesisSeedSchema = z.strictObject({
   evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
   sourcePostureAssessmentIds: SourcePostureAssessmentIdsSchema,
   limitations: z.array(BoundedTextSchema.min(1)),
-});
+};
+
+export const HypothesisSeedSchema = z.strictObject(HypothesisSeedFields);
 
 /** Model output omits posture IDs; the validated posture owns their projection. */
-export const UnverifiedHypothesisSeedSchema = HypothesisSeedSchema.omit({
-  sourcePostureAssessmentIds: true,
+export const UnverifiedHypothesisSeedSchema = z.strictObject({
+  seedId: HypothesisSeedFields.seedId,
+  vectorId: HypothesisSeedFields.vectorId,
+  hypothesis: HypothesisSeedFields.hypothesis,
+  planObligations: HypothesisSeedFields.planObligations,
+  evidenceMapFactIds: HypothesisSeedFields.evidenceMapFactIds,
+  limitations: HypothesisSeedFields.limitations,
 });
 
-/** A bounded investigator candidate before canonical evidence admission. */
-export const UnverifiedAuditCandidateSchema = ProposedFindingSchema.extend({
+/** Process-local model prose is validated before it is projected into canonical provenance. */
+export const UnverifiedAuditCandidateSchema = z.strictObject({
+  vectorId: ProposedFindingSchema.shape.vectorId,
+  statement: BoundedTextSchema.min(1),
+  claimEvidenceBundles: ClaimEvidenceBundlesSchema.element
+    .extend({
+      explanation: BoundedTextSchema.min(1),
+    })
+    .array()
+    .length(2),
+  claimEvidenceSelections: UnverifiedClaimEvidenceSelectionBundlesSchema,
   planObligations: PlanObligationReferencesSchema,
   evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
   sourcePostureAssessmentIds: SourcePostureAssessmentIdsSchema,
+  limitations: z.array(BoundedTextSchema.min(1)),
 });
 
 /** Content-free canonical-admission categories, never security meaning. */
@@ -67,18 +86,23 @@ export const InvestigationClosureDispositionSchema = z.enum([
   'incomplete',
 ]);
 
+/** Closed durable replacement for model-authored investigation limitations. */
+export const InvestigationLimitationCodeSchema = z.literal('model-declared-limitation');
+
 export const InvestigationObligationClosureSchema = z.strictObject({
   planObligation: PlanObligationReferenceSchema,
   disposition: InvestigationClosureDispositionSchema,
   evidenceMapFactIds: EvidenceMapFactIdsSchema,
   sourcePostureAssessmentIds: SourcePostureAssessmentIdsSchema,
-  limitations: z.array(BoundedTextSchema.min(1)),
+  limitations: z.array(InvestigationLimitationCodeSchema),
 });
 
-export const UnverifiedInvestigationObligationClosureSchema =
-  InvestigationObligationClosureSchema.omit({ sourcePostureAssessmentIds: true }).extend({
-    evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
-  });
+export const UnverifiedInvestigationObligationClosureSchema = z.strictObject({
+  planObligation: PlanObligationReferenceSchema,
+  disposition: InvestigationClosureDispositionSchema,
+  evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
+  limitations: z.array(BoundedTextSchema.min(1)),
+});
 
 function uniqueClosureObligations(
   closures: readonly { planObligation: { obligationId: string } }[],

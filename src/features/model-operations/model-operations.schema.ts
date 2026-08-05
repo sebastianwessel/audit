@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+import { IdentifierSchema, IsoDateTimeSchema, Sha256Schema } from '../../shared/contracts/core.js';
+import {
+  ModelIdentifierSchema,
+  ModelProviderIdentifierSchema,
+} from '../../shared/contracts/model-identity.js';
+import { OutputValidationRetryGuidanceSchema } from '../../shared/contracts/model-retry-guidance.js';
+
 export const ModelUsageSchema = z
   .strictObject({
     modelCallCount: z.number().int().nonnegative(),
@@ -125,7 +132,12 @@ export const ModelRequestObservationSchema = z
     }
   });
 
-export const ModelStageErrorCodeSchema = z.string().trim().min(1).max(64);
+/**
+ * Stable, content-free stage tokens include collision-resistant validation
+ * signatures. The bound accommodates the full SHA-256 signature plus its
+ * count suffix without truncating distinct structural failures.
+ */
+export const ModelStageErrorCodeSchema = z.string().trim().min(1).max(128);
 
 /**
  * Ordered, source-free control-flow telemetry from one model stage. It never
@@ -163,7 +175,6 @@ export const ToolUsageSchema = z
     successfulGrepFilesCallCount: z.number().int().nonnegative(),
     rejectedCallCount: z.number().int().nonnegative(),
     returnedBytes: z.number().int().nonnegative(),
-    budgetExhausted: z.boolean(),
   })
   .superRefine((value, context) => {
     if (
@@ -202,10 +213,13 @@ export const ToolUsageSchema = z
 export const ModelStageSchema = z.enum([
   'planning',
   'evidence-mapping',
+  'evidence-map-repair',
   'source-posture',
   'investigation',
   'candidate-grounding',
   'verification',
+  'plan-semantic-adjudication',
+  'developer-guidance',
   'countercheck',
 ]);
 
@@ -215,6 +229,52 @@ export const ModelStageIdSchema = z
   .min(1)
   .max(160)
   .regex(/^[a-zA-Z0-9._:-]+$/u);
+
+/**
+ * Evaluator-only diagnostic metadata. It deliberately omits provider message,
+ * request identifier, headers, body, prompt, source, and tool payloads.
+ */
+export const SafeModelFailureMetadataSchema = z.strictObject({
+  provider: ModelProviderIdentifierSchema,
+  model: ModelIdentifierSchema,
+  method: z.string().trim().min(1).max(80),
+  reason: z
+    .enum([
+      'http_error',
+      'network',
+      'rate_limited',
+      'provider_unavailable',
+      'unstructured_response',
+      'malformed_response',
+      'context_length_exceeded',
+      'embedding_count_mismatch',
+      'rerank_result_mismatch',
+    ])
+    .nullable(),
+  status: z.int().min(100).max(599).nullable(),
+  providerCode: z.string().trim().min(1).max(120).nullable(),
+});
+
+/** Source-free, evaluator-private failure event; it never affects product state. */
+export const EvaluatorFailureDiagnosticSchema = z.strictObject({
+  schemaVersion: z.literal(2),
+  diagnosticId: IdentifierSchema,
+  evaluationRunId: IdentifierSchema,
+  occurredAt: IsoDateTimeSchema,
+  stage: ModelStageSchema,
+  route: ModelRouteSchema,
+  stageId: ModelStageIdSchema,
+  attemptOrdinal: z.int().positive(),
+  durationMs: z.int().nonnegative(),
+  scopeFingerprint: Sha256Schema,
+  protocolFingerprint: Sha256Schema,
+  errorCode: ModelStageErrorCodeSchema,
+  /** Safe static field paths for a structural output retry, never model values or prose. */
+  validationRetryGuidance: OutputValidationRetryGuidanceSchema.nullable(),
+  errorClass: z.enum(['model-error', 'harness-error', 'application-error', 'unknown-error']),
+  modelFailure: SafeModelFailureMetadataSchema.nullable(),
+});
+export type EvaluatorFailureDiagnostic = z.infer<typeof EvaluatorFailureDiagnosticSchema>;
 
 export const ModelStageObservationSchema = z
   .strictObject({

@@ -1,6 +1,29 @@
 import { z } from 'zod';
 
-import type { AuditReport } from './audit.schema.js';
+type TerminalClosure = Readonly<{
+  terminalDisposition:
+    | 'finding-admitted'
+    | 'candidate-rejected'
+    | 'review-required'
+    | 'no-source-backed-candidate'
+    | 'not-applicable'
+    | 'incomplete'
+    | 'not-reached';
+}>;
+
+type TerminalCoverage = Readonly<{
+  completed: boolean;
+  outcome: 'completed' | 'not-applicable' | 'incomplete' | 'skipped' | 'failed' | 'cancelled';
+  obligationClosure: readonly TerminalClosure[];
+  planned: boolean;
+}>;
+
+type TerminalReport = Readonly<{
+  coverage: readonly TerminalCoverage[];
+  findings: readonly unknown[];
+  reviewRequired: readonly unknown[];
+  errors: readonly unknown[];
+}>;
 
 export const AuditTerminalClassificationSchema = z.strictObject({
   outcome: z.enum(['completed', 'partial', 'failed', 'cancelled']),
@@ -15,19 +38,42 @@ export const AuditTerminalClassificationSchema = z.strictObject({
 
 export type AuditTerminalClassification = z.infer<typeof AuditTerminalClassificationSchema>;
 
+/**
+ * The only terminal-completion predicate shared by report classification and
+ * persisted vector-coverage validation. A completed label cannot override an
+ * unresolved plan obligation.
+ */
+export function isTerminallyCompleteVector(
+  coverage: Pick<TerminalCoverage, 'completed' | 'outcome' | 'obligationClosure'>,
+): boolean {
+  if (!coverage.completed) return false;
+  if (coverage.outcome === 'skipped') return true;
+  if (
+    coverage.obligationClosure.some(
+      (closure) =>
+        closure.terminalDisposition === 'incomplete' ||
+        closure.terminalDisposition === 'not-reached',
+    )
+  )
+    return false;
+  const entirelyNotApplicable = coverage.obligationClosure.every(
+    (closure) => closure.terminalDisposition === 'not-applicable',
+  );
+  if (coverage.outcome === 'not-applicable') return entirelyNotApplicable;
+  return coverage.outcome === 'completed' && !entirelyNotApplicable;
+}
+
 /** The sole projection from vector closure state to run outcome, counters, and exit code. */
-export function classifyAuditTerminal(report: AuditReport): AuditTerminalClassification {
+export function classifyAuditTerminal(report: TerminalReport): AuditTerminalClassification {
   const counters = {
-    plannedVectors: report.coverage.length,
+    plannedVectors: report.coverage.filter((coverage) => coverage.planned).length,
     completedVectors: report.coverage.filter((coverage) => coverage.completed).length,
     failedVectors: report.coverage.filter((coverage) => coverage.outcome === 'failed').length,
     findingCount: report.findings.length,
   };
   const outcomes = report.coverage.map((coverage) => coverage.outcome);
-  const allComplete = outcomes.every(
-    (outcome) => outcome === 'completed' || outcome === 'not-applicable' || outcome === 'skipped',
-  );
-  if (allComplete) {
+  const allComplete = report.coverage.every(isTerminallyCompleteVector);
+  if (allComplete && report.errors.length === 0) {
     return AuditTerminalClassificationSchema.parse({
       outcome: 'completed',
       exitCode: report.findings.length > 0 ? 1 : 0,

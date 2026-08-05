@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 6,
+  "caseId": "ruby-session-deserialization",
+  "findingCoverage": "targeted",
+  "expectedPlanScenarios": [
+    {
+      "scenarioId": "deserialization-session-restore",
+      "objective": "Review session restoration of caller-controlled serialized data.",
+      "sourceOnlyApplicable": true,
+      "requiredRiskCondition": "Untrusted serialized input can construct executable object state rather than data-only values.",
+      "evidenceRequirements": ["Inspect serialized input origin.", "Inspect deserialization API and allowed data shape."],
+      "relevantPaths": ["lib/session.rb"],
+      "expectedFindingIds": ["expected-01"]
+    }
+  ],
+  "expectedFindings": [
+    {
+      "findingId": "expected-01",
+      "staticReviewApplicable": true,
+      "evidenceRoles": [
+        {
+          "role": "operation",
+          "notApplicable": false,
+          "ranges": [
+            {
+              "path": "lib/session.rb",
+              "startLine": 3,
+              "endLine": 3
+            }
+          ]
+        },
+        {
+          "role": "unsafe-condition",
+          "notApplicable": false,
+          "ranges": [
+            {
+              "path": "lib/session.rb",
+              "startLine": 3,
+              "endLine": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "patchedExpectation": "no-matching-finding",
+  "staticReviewApplicable": true,
+  "adjudicationStatus": "provisional",
+  "reviewers": ["private research corpus author"],
+  "notes": "Locally authored diagnostic case. The vulnerable variant restores an untrusted serialized object; the patched variant parses data-only JSON. It is not real-world reliability evidence."
+}

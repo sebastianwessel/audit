@@ -2,12 +2,14 @@ import { z } from 'zod';
 
 import { AuditCountercheckRequestSchema } from '../../../audit-execution/verification/contract.js';
 import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
+import { ModelRetryGuidanceSchema } from '../../runtime/retry-guidance.js';
 import { ScopedInspectionRequirementSchema } from '../../tools/contract.js';
 import { VerificationModelOutputSchema } from '../verification/contract.js';
 
 export const CountercheckModelInputSchema = AuditCountercheckRequestSchema.extend({
   context: z.array(ContextDocumentSchema),
   inspectionRequirement: ScopedInspectionRequirementSchema,
+  retryGuidance: ModelRetryGuidanceSchema,
 });
 
 /** Countercheck output is deliberately identical to a verifier verdict. */

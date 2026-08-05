@@ -9,6 +9,7 @@ import {
 } from '../../../audit-execution/verification/contract.js';
 import { VerificationEvidenceSelectionBasisSchema } from '../../../audit-execution/verification/evidence-basis.js';
 import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
+import { ModelRetryGuidanceSchema } from '../../runtime/retry-guidance.js';
 import { ScopedInspectionRequirementSchema } from '../../tools/contract.js';
 
 export const VerificationModelInputSchema = z.strictObject({
@@ -21,9 +22,17 @@ export const VerificationModelInputSchema = z.strictObject({
   availableSourcePaths: z.array(RelativePathSchema),
   context: z.array(ContextDocumentSchema),
   inspectionRequirement: ScopedInspectionRequirementSchema,
+  retryGuidance: ModelRetryGuidanceSchema,
 });
 
-export const VerificationModelOutputSchema = UnverifiedAuditVerificationResultSchema;
+/**
+ * Provider structured-output transports require a JSON object at the root.
+ * Keep the decision union single-owned in the verification contract and use
+ * this envelope only at the model boundary.
+ */
+export const VerificationModelOutputSchema = z.strictObject({
+  result: UnverifiedAuditVerificationResultSchema,
+});
 
 export type { VerificationDecision } from '../../../audit-execution/verification/contract.js';
 export type VerificationModelInput = z.infer<typeof VerificationModelInputSchema>;

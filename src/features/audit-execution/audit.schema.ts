@@ -1,15 +1,19 @@
 import { z } from 'zod';
 
+import { IdentifierSchema, IsoDateTimeSchema, Sha256Schema } from '../../shared/contracts/core.js';
 import {
-  BoundedTextSchema,
-  IdentifierSchema,
-  IsoDateTimeSchema,
-  Sha256Schema,
-} from '../../shared/contracts/core.js';
-import { ProposedFindingSchema } from '../attack-planning/plan.schema.js';
+  ModelIdentifierSchema,
+  ModelProviderIdentifierSchema,
+} from '../../shared/contracts/model-identity.js';
+import {
+  AuditRuntimeErrorCodeSchema,
+  isRetryableAuditRuntimeErrorCode,
+} from '../../shared/errors/audit-runtime-error.js';
+import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
 import {
   ModelCostCeilingStateSchema,
   ModelRunObservationSchema,
+  ModelStageErrorCodeSchema,
   ModelStageIdSchema,
   ModelStageObservationSchema,
 } from '../model-operations/model-operations.schema.js';
@@ -21,23 +25,23 @@ import {
   HypothesisSeedStructuralRejectionReasonSchema,
   InvestigationObligationClosuresSchema,
 } from './investigation/contract.js';
+import { NarratedProposedFindingSchema } from './narrative/contract.js';
 import { AuditInvestigationRequestSchema, SourceDocumentSchema } from './phase-input/contract.js';
 import { SourcePostureSchema } from './source-posture/contract.js';
+import { isTerminallyCompleteVector } from './terminal-classification.js';
 import type { AuditVerificationRequestSchema } from './verification/contract.js';
 import {
   PersistedAuditVerificationResultSchema,
-  VerifiableHypothesisSchema,
   VerificationTerminalLaneCountsSchema,
   VerificationTerminalLaneSchema,
 } from './verification/contract.js';
 
+export { MaxParallelVectorsSchema } from '../../shared/contracts/concurrency.js';
 export type {
   AuditInvestigationRequest,
   SourceDocument,
 } from './phase-input/contract.js';
 export { AuditInvestigationRequestSchema, SourceDocumentSchema };
-
-export const MaxParallelVectorsSchema = z.number().int().min(1).max(8);
 
 /** Content-free accounting of how a vector's model hypotheses reached a terminal outcome. */
 export const FindingAdmissionFunnelSchema = z
@@ -52,6 +56,8 @@ export const FindingAdmissionFunnelSchema = z
     verifierEvidenceRejectedCount: z.number().int().nonnegative(),
     verifierReconciledCount: z.number().int().nonnegative(),
     postVerificationRejectedCount: z.number().int().nonnegative(),
+    /** Equivalent source-backed claims collapsed before coverage and reporting. */
+    duplicateCollapsedCount: z.number().int().nonnegative(),
     admittedFindingCount: z.number().int().nonnegative(),
     /** Closed source-free diagnostic lanes for candidate-aware terminal attempts. */
     verificationTerminalLanes: VerificationTerminalLaneCountsSchema,
@@ -86,13 +92,15 @@ export const FindingAdmissionFunnelSchema = z
     }
     if (
       value.verifierReconciledCount !==
-      value.postVerificationRejectedCount + value.admittedFindingCount
+      value.postVerificationRejectedCount +
+        value.duplicateCollapsedCount +
+        value.admittedFindingCount
     ) {
       context.addIssue({
         code: 'custom',
         path: ['verifierReconciledCount'],
         message:
-          'Reconciled verifier results must be admitted or rejected by a post-verification phase.',
+          'Reconciled verifier results must be admitted, duplicate-collapsed, or rejected by a post-verification phase.',
       });
     }
     const lanes = value.verificationTerminalLanes;
@@ -150,6 +158,52 @@ export const CandidateIntegrityRejectionLedgerSchema = z.record(
   z.number().int().nonnegative(),
 );
 
+/**
+ * Closed source-free limitation signals permitted in durable vector coverage.
+ * Any model-authored explanation is collapsed before checkpoint or report
+ * persistence; it is never a durable artifact field.
+ */
+export const VectorCoverageLimitationCodes = [
+  'coverage-incomplete',
+  'audit-continuation-failed',
+  'checkpoint-persistence-failed',
+  'evidence-map-incomplete',
+  'model-declared-limitation',
+  'obligation-closure-incomplete',
+  'provider-cancelled',
+  'provider-failure',
+  'scope-no-matches',
+  'source-inspection-missing',
+  'source-posture-unavailable',
+] as const;
+
+const vectorCoverageLimitationCodeSet: ReadonlySet<string> = new Set(VectorCoverageLimitationCodes);
+
+/** Runtime-closed while remaining compatible with transient pre-persistence strings. */
+export const VectorCoverageLimitationCodeSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .superRefine((value, context) => {
+    if (vectorCoverageLimitationCodeSet.has(value)) return;
+    context.addIssue({
+      code: 'custom',
+      message: 'Vector coverage limitations must use a closed durable code.',
+    });
+  });
+
+/** Collapses transient model or operational prose into the only generic durable code. */
+export function materializeVectorCoverageLimitations(limitations: readonly string[]): string[] {
+  return [
+    ...new Set(
+      limitations.map((limitation) =>
+        vectorCoverageLimitationCodeSet.has(limitation) ? limitation : 'model-declared-limitation',
+      ),
+    ),
+  ].sort((left, right) => left.localeCompare(right));
+}
+
 /** Source-free categories for discovery seeds rejected before grounding. */
 export const DiscoveryIntegrityRejectionLedgerSchema = z.record(
   HypothesisSeedStructuralRejectionReasonSchema,
@@ -162,7 +216,6 @@ export const VectorCoverageSchema = z
     planned: z.boolean(),
     completed: z.boolean(),
     matchedSourcePaths: z.number().int().nonnegative(),
-    deterministicCandidateCount: z.number().int().nonnegative(),
     evidenceMapFactCount: z.number().int().nonnegative(),
     evidenceMapUnansweredObligationCount: z.number().int().nonnegative(),
     sourcePostureAssessmentCount: z.number().int().nonnegative(),
@@ -180,8 +233,8 @@ export const VectorCoverageSchema = z
       'failed',
       'cancelled',
     ]),
-    errorCode: z.string().trim().min(1).max(64).nullable(),
-    limitations: z.array(BoundedTextSchema.min(1)),
+    errorCode: ModelStageErrorCodeSchema.nullable(),
+    limitations: z.array(VectorCoverageLimitationCodeSchema),
     /** Source-free terminal accounting for every plan-owned review obligation. */
     obligationClosure: ObligationClosureMatrixSchema,
     admissionFunnel: FindingAdmissionFunnelSchema.optional(),
@@ -189,6 +242,7 @@ export const VectorCoverageSchema = z
     /** Per-reason integrity loss; no candidate content or model text is retained. */
     candidateIntegrityRejections: CandidateIntegrityRejectionLedgerSchema.optional(),
     evidenceMapObservation: ModelStageObservationSchema.optional(),
+    evidenceMapRepairObservations: z.array(ModelStageObservationSchema).optional(),
     sourcePostureObservation: ModelStageObservationSchema.optional(),
     modelObservation: ModelStageObservationSchema.optional(),
     candidateGroundingObservation: ModelStageObservationSchema.optional(),
@@ -269,19 +323,15 @@ export const VectorCoverageSchema = z
         message: 'Reported findings must equal the admission-funnel finding count.',
       });
     }
-    const successfulOutcome =
-      coverage.outcome === 'completed' ||
-      coverage.outcome === 'not-applicable' ||
-      coverage.outcome === 'skipped';
-    if (coverage.completed !== successfulOutcome) {
+    const terminallyComplete = isTerminallyCompleteVector(coverage);
+    if (coverage.completed !== terminallyComplete) {
       context.addIssue({
         code: 'custom',
         path: ['completed'],
-        message:
-          'Only completed, not-applicable, and intentionally skipped outcomes may mark coverage complete.',
+        message: 'Only a complete terminal closure may mark coverage complete.',
       });
     }
-    if (successfulOutcome && coverage.errorCode !== null) {
+    if (terminallyComplete && coverage.errorCode !== null) {
       context.addIssue({
         code: 'custom',
         path: ['errorCode'],
@@ -300,12 +350,69 @@ export const VectorCoverageSchema = z
     }
   });
 
+/**
+ * Stable, source-free error vocabulary for reports and resumable checkpoints.
+ * Unknown operational detail is intentionally collapsed before it can cross
+ * this boundary.
+ */
+export const AuditErrorCodeSchema = z.union([
+  AuditRuntimeErrorCodeSchema,
+  z.enum([
+    'evidence-map-incomplete',
+    'evidence-map-repair-no-progress',
+    'evidence-map-repair-unavailable',
+    'model-evidence-rejected',
+    'obligation-closure-incomplete',
+    'source-posture-incomplete',
+    'tool-evidence-required',
+    'validation-output-shape',
+    'verifier-evidence-rejected',
+    'verifier-evidence-projection-invalid',
+    'verifier-inspection-missing',
+    'verifier-stage-failed',
+    'verifier-wrapper-contract-invalid',
+  ]),
+]);
+
+export type AuditErrorCode = z.infer<typeof AuditErrorCodeSchema>;
+
+/**
+ * `retryable` on a persisted audit error means that the exact unfinished
+ * boundary has a defined recovery path. It does not promise another dispatch
+ * within the current invocation.
+ */
+const ExplicitlyRecoverableAuditErrorCodes = [
+  'evidence-map-incomplete',
+  'evidence-map-repair-no-progress',
+  'evidence-map-repair-unavailable',
+  'obligation-closure-incomplete',
+  'source-posture-incomplete',
+  'tool-evidence-required',
+] as const satisfies readonly AuditErrorCode[];
+
+/** Single owner for the persisted audit-error recovery affordance. */
+export function isRetryableAuditErrorCode(code: AuditErrorCode): boolean {
+  return (
+    isRetryableAuditRuntimeErrorCode(code) ||
+    ExplicitlyRecoverableAuditErrorCodes.includes(
+      code as (typeof ExplicitlyRecoverableAuditErrorCodes)[number],
+    )
+  );
+}
+
+/** Collapses an unrecognized runtime error token to the stable provider failure code. */
+export function materializeAuditErrorCode(value: string): AuditErrorCode {
+  const parsed = AuditErrorCodeSchema.safeParse(value);
+  return parsed.success ? parsed.data : 'provider-failure';
+}
+
 export const AuditErrorSchema = z.strictObject({
-  code: z.string().trim().min(1).max(64),
+  code: AuditErrorCodeSchema,
   stage: z.enum([
     'inventory',
     'planning',
     'evidence-mapping',
+    'evidence-map-repair',
     'source-posture',
     'investigation',
     'candidate-grounding',
@@ -316,7 +423,6 @@ export const AuditErrorSchema = z.strictObject({
     'report',
     'provider',
   ]),
-  message: z.string().trim().min(1).max(320),
   retryable: z.boolean(),
 });
 
@@ -325,8 +431,8 @@ export const AuditVectorResultSchema = z
   .strictObject({
     coverage: VectorCoverageSchema,
     errors: z.array(AuditErrorSchema),
-    proposed: z.array(ProposedFindingSchema),
-    reviewRequired: z.array(ProposedFindingSchema),
+    proposed: z.array(NarratedProposedFindingSchema),
+    reviewRequired: z.array(NarratedProposedFindingSchema),
   })
   .superRefine((result, context) => {
     if (result.coverage.findingCount !== result.proposed.length) {
@@ -353,14 +459,32 @@ export const AuditVectorResultSchema = z
     }
   });
 
+/** Materializes the sole durable vector-limitation representation before persistence. */
+export function materializeAuditVectorResultForPersistence(
+  result: AuditVectorResult,
+): AuditVectorResult {
+  return {
+    ...result,
+    errors: result.errors.map((error) => ({
+      code: materializeAuditErrorCode(error.code),
+      stage: error.stage,
+      retryable: error.retryable,
+    })),
+    coverage: {
+      ...result.coverage,
+      limitations: materializeVectorCoverageLimitations(result.coverage.limitations),
+    },
+  };
+}
+
 /** The immutable identity a checkpoint must match before it can be reused. */
 export const AuditCheckpointBindingSchema = z.strictObject({
   runId: IdentifierSchema,
   planId: IdentifierSchema,
   planDigest: Sha256Schema,
   targetFingerprint: Sha256Schema,
-  provider: z.string().trim().min(1).max(64),
-  model: z.string().trim().min(1).max(160),
+  provider: ModelProviderIdentifierSchema,
+  model: ModelIdentifierSchema,
   verificationRouteFingerprint: Sha256Schema,
   evidenceMapProtocolFingerprint: Sha256Schema,
   reviewWorkflowProtocolFingerprint: Sha256Schema,
@@ -379,6 +503,29 @@ export const ContextOverflowTopologyStateSchema = z.enum([
 ]);
 
 /**
+ * The only telemetry retained for a recovered child. Provider-backed work
+ * must retain its content-free observation; a deterministic empty child must
+ * say so explicitly rather than making provider usage appear to be zero.
+ */
+/**
+ * The execution ownership attached to every reusable audit-stage decision.
+ * Provider-backed work is inseparable from its content-free cost observation;
+ * a no-provider result must say so explicitly.
+ */
+export const AuditCheckpointExecutionSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('provider'),
+    modelObservation: ModelStageObservationSchema,
+  }),
+  z.strictObject({
+    kind: z.literal('deterministic'),
+  }),
+]);
+
+/** A persisted child is never the terminal phase result; reduction owns that boundary. */
+export const ContextOverflowRecoveryLeafStateSchema = z.literal('partial');
+
+/**
  * An opaque scope identity; source paths, ranges, context bodies, and their
  * digests remain in the retained snapshot and never enter this ledger.
  */
@@ -389,8 +536,8 @@ export const ContextOverflowTopologyEventSchema = z
     attempt: z.number().int().positive(),
     scopeFingerprint: Sha256Schema,
     state: ContextOverflowTopologyStateSchema,
-    errorCode: z.string().trim().min(1).max(64).nullable(),
-    modelObservation: ModelStageObservationSchema.optional(),
+    errorCode: ModelStageErrorCodeSchema.nullable(),
+    execution: AuditCheckpointExecutionSchema.optional(),
     savedAt: IsoDateTimeSchema,
   })
   .superRefine((event, context) => {
@@ -418,6 +565,35 @@ export const ContextOverflowTopologyEventSchema = z
         message: 'A failed or cancelled scope must retain a stable error code.',
       });
     }
+    const terminalExecutionRequired =
+      event.state === 'overflowed' ||
+      event.state === 'completed' ||
+      event.state === 'failed' ||
+      event.state === 'cancelled';
+    if (terminalExecutionRequired && event.execution === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['execution'],
+        message: 'A terminal recovery transition must declare provider or deterministic execution.',
+      });
+    }
+    if (
+      (event.state === 'overflowed' || event.state === 'failed' || event.state === 'cancelled') &&
+      event.execution?.kind === 'deterministic'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['execution'],
+        message: 'An errored recovery transition must retain its provider observation.',
+      });
+    }
+    if ((event.state === 'pending' || event.state === 'running') && event.execution !== undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['execution'],
+        message: 'A non-terminal recovery transition cannot retain execution telemetry.',
+      });
+    }
   });
 
 /**
@@ -425,9 +601,16 @@ export const ContextOverflowTopologyEventSchema = z
  * which remains reusable exclusively through feature-owned validated drafts.
  */
 export const AuditContextOverflowLedgerSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
-  phase: z.enum(['evidence-mapping', 'source-posture', 'investigation', 'candidate-grounding']),
+  schemaVersion: z.literal(3),
+  phase: z.enum([
+    'evidence-mapping',
+    'evidence-map-repair',
+    'source-posture',
+    'investigation',
+    'candidate-grounding',
+  ]),
   parentStageId: ModelStageIdSchema,
+  phaseInputFingerprint: Sha256Schema,
   recoveryProtocolFingerprint: Sha256Schema,
   rootScopeFingerprint: Sha256Schema,
   events: z.array(ContextOverflowTopologyEventSchema),
@@ -462,40 +645,59 @@ export const AuditContextOverflowLedgerSchema = AuditCheckpointBindingSchema.ext
  * passed source-location, obligation, and redaction validation for this exact
  * recovery scope before it can be written.
  */
-export const AuditEvidenceMapRecoveryLeafSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
-  phase: z.literal('evidence-mapping'),
+const AuditEvidenceMapRecoveryLeafBaseSchema = AuditCheckpointBindingSchema.extend({
+  schemaVersion: z.literal(4),
   parentStageId: ModelStageIdSchema,
+  phaseInputFingerprint: Sha256Schema,
   recoveryProtocolFingerprint: Sha256Schema,
   rootScopeFingerprint: Sha256Schema,
   childKey: z.string().regex(/^root(?:\/(?:left|right))*$/u),
   scopeFingerprint: Sha256Schema,
-  evidenceMap: EvidenceMapSchema,
+  recoveryState: ContextOverflowRecoveryLeafStateSchema,
+  execution: AuditCheckpointExecutionSchema,
   savedAt: IsoDateTimeSchema,
 });
 
+/** Validated neutral-map recovery output for mapping or append-only repair. */
+export const AuditEvidenceMapRecoveryLeafSchema = z.discriminatedUnion('phase', [
+  AuditEvidenceMapRecoveryLeafBaseSchema.extend({
+    phase: z.literal('evidence-mapping'),
+    evidenceMap: EvidenceMapSchema,
+  }),
+  AuditEvidenceMapRecoveryLeafBaseSchema.extend({
+    phase: z.literal('evidence-map-repair'),
+    evidenceMap: EvidenceMapSchema,
+  }),
+]);
+
 /** Validated candidate-blind posture fragment for one exact recovered scope. */
 export const AuditSourcePostureRecoveryLeafSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(4),
   phase: z.literal('source-posture'),
   parentStageId: ModelStageIdSchema,
+  phaseInputFingerprint: Sha256Schema,
   recoveryProtocolFingerprint: Sha256Schema,
   rootScopeFingerprint: Sha256Schema,
   childKey: z.string().regex(/^root(?:\/(?:left|right))*$/u),
   scopeFingerprint: Sha256Schema,
+  recoveryState: ContextOverflowRecoveryLeafStateSchema,
+  execution: AuditCheckpointExecutionSchema,
   sourcePosture: SourcePostureSchema,
   savedAt: IsoDateTimeSchema,
 });
 
 /** Canonical grounding outcomes for one exact recovered scope; raw outputs never persist. */
 export const AuditCandidateGroundingRecoveryLeafSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(3),
   phase: z.literal('candidate-grounding'),
   parentStageId: ModelStageIdSchema,
+  phaseInputFingerprint: Sha256Schema,
   recoveryProtocolFingerprint: Sha256Schema,
   rootScopeFingerprint: Sha256Schema,
   childKey: z.string().regex(/^root(?:\/(?:left|right))*$/u),
   scopeFingerprint: Sha256Schema,
+  recoveryState: ContextOverflowRecoveryLeafStateSchema,
+  execution: AuditCheckpointExecutionSchema,
   groundings: CanonicalCandidateGroundingOutputSchema,
   savedAt: IsoDateTimeSchema,
 });
@@ -514,7 +716,7 @@ function validContextOverflowTransition(
 }
 
 export const AuditVectorCheckpointSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(13),
+  schemaVersion: z.literal(17),
   savedAt: IsoDateTimeSchema,
   result: AuditVectorResultSchema,
 }).superRefine((value, context) => {
@@ -527,31 +729,44 @@ export const AuditVectorCheckpointSchema = AuditCheckpointBindingSchema.extend({
   }
 });
 
-/** A grounded, canonical candidate set reusable for verifier retry. Discovery seeds are never persisted. */
+/** Complete canonical per-seed outcomes reusable without persisting discovery seeds. */
 export const AuditCandidateGroundingDraftSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(4),
+  schemaVersion: z.literal(10),
   phase: z.literal('candidate-grounding'),
   candidateGroundingProtocolFingerprint: Sha256Schema,
+  evidenceMapFingerprint: Sha256Schema,
+  sourcePostureFingerprint: Sha256Schema,
   savedAt: IsoDateTimeSchema,
-  findings: z.array(VerifiableHypothesisSchema),
+  groundings: CanonicalCandidateGroundingOutputSchema,
   closures: InvestigationObligationClosuresSchema,
   hypothesisGroundingFunnel: HypothesisGroundingFunnelSchema,
   candidateIntegrityRejections: CandidateIntegrityRejectionLedgerSchema,
-  discoveryObservation: ModelStageObservationSchema.optional(),
-  modelObservation: ModelStageObservationSchema.optional(),
+  discoveryObservation: ModelStageObservationSchema,
+  modelObservation: ModelStageObservationSchema,
 });
 
 /** A redacted, terminal candidate-aware decision. Raw model rationale is never checkpointed. */
-export const PersistedCandidateAwareResultSchema = PersistedAuditVerificationResultSchema.extend({
-  terminalLane: VerificationTerminalLaneSchema,
-  modelObservation: ModelStageObservationSchema.optional(),
-});
+export const PersistedCandidateAwareResultSchema = z.discriminatedUnion('decision', [
+  PersistedAuditVerificationResultSchema.options[0].extend({
+    terminalLane: VerificationTerminalLaneSchema,
+    execution: AuditCheckpointExecutionSchema,
+  }),
+  PersistedAuditVerificationResultSchema.options[1].extend({
+    terminalLane: VerificationTerminalLaneSchema,
+    execution: AuditCheckpointExecutionSchema,
+  }),
+  PersistedAuditVerificationResultSchema.options[2].extend({
+    terminalLane: VerificationTerminalLaneSchema,
+    execution: AuditCheckpointExecutionSchema,
+  }),
+]);
 
 /**
  * Candidate-bound overflow history. It is source-free and lives beside the
  * exact verifier/countercheck work unit, not in a vector-wide shared ledger.
  */
 export const CandidateAwareContextOverflowTopologySchema = z.strictObject({
+  phaseInputFingerprint: Sha256Schema,
   recoveryProtocolFingerprint: Sha256Schema,
   rootScopeFingerprint: Sha256Schema,
   events: z.array(ContextOverflowTopologyEventSchema),
@@ -562,11 +777,13 @@ export const CandidateAwareContextOverflowTopologySchema = z.strictObject({
  * reuse to the exact canonical input without retaining a second candidate copy.
  */
 export const AuditCandidateAwareCheckpointSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(2),
+  schemaVersion: z.literal(5),
   phase: z.enum(['verification', 'countercheck']),
   candidateGroundingProtocolFingerprint: Sha256Schema,
   candidateOrdinal: z.number().int().min(1),
   candidateFingerprint: Sha256Schema,
+  evidenceMapFingerprint: Sha256Schema,
+  sourcePostureFingerprint: Sha256Schema,
   state: z.enum(['pending', 'running', 'completed']),
   savedAt: IsoDateTimeSchema,
   result: PersistedCandidateAwareResultSchema.optional(),
@@ -588,27 +805,53 @@ export const AuditCandidateAwareCheckpointSchema = AuditCheckpointBindingSchema.
   }
 });
 
+/** One source-free candidate-blind repair transition for an immutable map input. */
+export const AuditEvidenceMapRepairAttemptSchema = z.strictObject({
+  gapSignature: Sha256Schema,
+  inputMapFingerprint: Sha256Schema,
+  outputMapFingerprint: Sha256Schema,
+  appendedFactCount: z.number().int().nonnegative(),
+  execution: AuditCheckpointExecutionSchema,
+});
+
 /** A validated map can be reused for an interrupted investigation or verification. */
 export const AuditEvidenceMapDraftSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(5),
   phase: z.literal('evidence-mapping'),
   savedAt: IsoDateTimeSchema,
   evidenceMap: EvidenceMapSchema,
-  modelObservation: ModelStageObservationSchema.optional(),
+  evidenceMapFingerprint: Sha256Schema,
+  repairAttempts: z.array(AuditEvidenceMapRepairAttemptSchema),
+  execution: AuditCheckpointExecutionSchema,
+}).superRefine((draft, context) => {
+  const noProgressAttempts = draft.repairAttempts.filter(
+    (attempt) =>
+      attempt.inputMapFingerprint === attempt.outputMapFingerprint &&
+      attempt.appendedFactCount === 0,
+  );
+  const keys = noProgressAttempts.map(
+    (attempt) => `${attempt.inputMapFingerprint}\0${attempt.gapSignature}`,
+  );
+  if (new Set(keys).size === keys.length) return;
+  context.addIssue({
+    code: 'custom',
+    path: ['repairAttempts'],
+    message: 'A map draft cannot retain repeated no-progress repair signatures.',
+  });
 });
 
 /** A validated candidate-blind posture can be reused only by later phases. */
 export const AuditSourcePostureDraftSchema = AuditCheckpointBindingSchema.extend({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.literal(4),
   phase: z.literal('source-posture'),
+  evidenceMapFingerprint: Sha256Schema,
   savedAt: IsoDateTimeSchema,
   sourcePosture: SourcePostureSchema,
-  modelObservation: ModelStageObservationSchema.optional(),
+  execution: AuditCheckpointExecutionSchema,
 });
 
 export const FindingVerificationSchema = z.strictObject({
   status: z.enum(['verified', 'insufficient-evidence', 'rejected']),
-  reason: BoundedTextSchema.min(1),
   checks: z
     .array(
       z.enum([
@@ -616,14 +859,14 @@ export const FindingVerificationSchema = z.strictObject({
         'scope',
         'source-path',
         'line-range',
-        'source-snippet',
+        'source-content-digest',
         'claim-evidence-roles',
       ]),
     )
     .min(1),
 });
 
-export const FindingSchema = ProposedFindingSchema.extend({
+export const FindingSchema = NarratedProposedFindingSchema.extend({
   findingId: IdentifierSchema,
   status: z.enum(['needs-review', 'accepted']),
   verification: FindingVerificationSchema,
@@ -637,8 +880,8 @@ export const AuditRunManifestSchema = z.strictObject({
   finishedAt: IsoDateTimeSchema,
   targetFingerprint: Sha256Schema,
   planId: IdentifierSchema.nullable(),
-  provider: z.string().trim().min(1).max(64).nullable(),
-  model: z.string().trim().min(1).max(160).nullable(),
+  provider: ModelProviderIdentifierSchema.nullable(),
+  model: ModelIdentifierSchema.nullable(),
   outcome: z.enum(['completed', 'partial', 'failed', 'cancelled']),
   counters: z.strictObject({
     plannedVectors: z.number().int().nonnegative(),
@@ -653,7 +896,7 @@ export const AuditRunManifestSchema = z.strictObject({
 /** Content-free lifecycle record for the exclusive audit owner. */
 export const AuditRunAttemptSchema = z
   .strictObject({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(3),
     runId: IdentifierSchema,
     planId: IdentifierSchema,
     planDigest: Sha256Schema,
@@ -661,6 +904,27 @@ export const AuditRunAttemptSchema = z
     startedAt: IsoDateTimeSchema,
     finishedAt: IsoDateTimeSchema.nullable(),
     status: z.enum(['starting', 'completed', 'partial', 'failed', 'cancelled']),
+    /**
+     * The exact source-minimal report binding prepared before public publication.
+     * A prepared binding is private recovery state, not evidence that publication
+     * completed.
+     */
+    publicReport: z
+      .strictObject({
+        reportId: IdentifierSchema,
+        reportDigest: Sha256Schema,
+      })
+      .nullable(),
+    /** Separates a durable private publication intent from completed public publication. */
+    publicationState: z.enum(['not-prepared', 'prepared', 'published']),
+    /** Cleanup is operational state; it never changes the audit's terminal outcome. */
+    snapshotState: z.enum([
+      'not-retained',
+      'retained',
+      'release-pending',
+      'released',
+      'release-failed',
+    ]),
   })
   .superRefine((value, context) => {
     const terminal = value.status !== 'starting';
@@ -671,11 +935,83 @@ export const AuditRunAttemptSchema = z
         message: 'Only a terminal audit attempt may have a completion timestamp.',
       });
     }
+    if (value.status === 'starting') {
+      const isUnprepared = value.publicationState === 'not-prepared';
+      const isPrepared = value.publicationState === 'prepared';
+      const validStartingState =
+        (isUnprepared &&
+          value.publicReport === null &&
+          (value.snapshotState === 'not-retained' || value.snapshotState === 'retained')) ||
+        (isPrepared && value.publicReport !== null && value.snapshotState === 'retained');
+      if (!validStartingState) {
+        context.addIssue({
+          code: 'custom',
+          message:
+            'A starting audit attempt must be unprepared without a report or retain a prepared report binding.',
+        });
+      }
+      return;
+    }
+    if (value.status === 'partial' && value.publicReport === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['publicReport'],
+        message: 'A partial audit attempt requires its published public report binding.',
+      });
+    }
+    if (value.status === 'completed') {
+      if (value.publicReport === null) {
+        context.addIssue({
+          code: 'custom',
+          path: ['publicReport'],
+          message: 'A completed audit attempt requires its published public report binding.',
+        });
+      }
+      if (
+        value.snapshotState !== 'release-pending' &&
+        value.snapshotState !== 'released' &&
+        value.snapshotState !== 'release-failed'
+      ) {
+        context.addIssue({
+          code: 'custom',
+          path: ['snapshotState'],
+          message:
+            'A completed audit attempt must record pending, completed, or failed snapshot release.',
+        });
+      }
+    }
+    if (value.publicationState === 'published' && value.publicReport === null) {
+      context.addIssue({
+        code: 'custom',
+        path: ['publicReport'],
+        message: 'A published audit attempt requires its public report binding.',
+      });
+    }
+    if (
+      (value.status === 'completed' || value.status === 'partial') &&
+      value.publicationState !== 'published'
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['publicationState'],
+        message: 'A completed or partial audit attempt requires completed public publication.',
+      });
+    }
+    if (
+      (value.status === 'failed' || value.status === 'cancelled') &&
+      value.publicationState === 'prepared' &&
+      (value.publicReport === null || value.snapshotState !== 'retained')
+    ) {
+      context.addIssue({
+        code: 'custom',
+        message: 'A failed prepared publication must retain its exact binding and snapshot.',
+      });
+    }
   });
 
 export const AuditReportSchema = z
   .strictObject({
-    schemaVersion: z.literal(15),
+    schemaVersion: z.literal(21),
     reportId: IdentifierSchema,
     runId: IdentifierSchema,
     planId: IdentifierSchema,
@@ -767,6 +1103,7 @@ export type DiscoveryIntegrityRejectionLedger = z.infer<
 export type AuditCheckpointBinding = z.infer<typeof AuditCheckpointBindingSchema>;
 export type AuditContextOverflowLedger = z.infer<typeof AuditContextOverflowLedgerSchema>;
 export type ContextOverflowTopologyEvent = z.infer<typeof ContextOverflowTopologyEventSchema>;
+export type AuditCheckpointExecution = z.infer<typeof AuditCheckpointExecutionSchema>;
 export type AuditEvidenceMapRecoveryLeaf = z.infer<typeof AuditEvidenceMapRecoveryLeafSchema>;
 export type AuditSourcePostureRecoveryLeaf = z.infer<typeof AuditSourcePostureRecoveryLeafSchema>;
 export type AuditCandidateGroundingRecoveryLeaf = z.infer<
@@ -777,6 +1114,7 @@ export type CandidateAwareContextOverflowTopology = z.infer<
   typeof CandidateAwareContextOverflowTopologySchema
 >;
 export type AuditCandidateGroundingDraft = z.infer<typeof AuditCandidateGroundingDraftSchema>;
+export type AuditEvidenceMapRepairAttempt = z.infer<typeof AuditEvidenceMapRepairAttemptSchema>;
 export type AuditEvidenceMapDraft = z.infer<typeof AuditEvidenceMapDraftSchema>;
 export type AuditSourcePostureDraft = z.infer<typeof AuditSourcePostureDraftSchema>;
 export type AuditVerificationRequest = z.infer<typeof AuditVerificationRequestSchema>;
@@ -786,6 +1124,13 @@ export type AuditReport = z.infer<typeof AuditReportSchema>;
 export type AuditVectorCheckpoint = z.infer<typeof AuditVectorCheckpointSchema>;
 export type AuditVectorResult = z.infer<typeof AuditVectorResultSchema>;
 export type PersistedCandidateAwareResult = z.infer<typeof PersistedCandidateAwareResultSchema>;
+
+/** The sole projection from reusable execution ownership to provider telemetry. */
+export function modelObservationForAuditCheckpointExecution(
+  execution: AuditCheckpointExecution,
+): ModelStageObservation | undefined {
+  return execution.kind === 'provider' ? execution.modelObservation : undefined;
+}
 export type Finding = z.infer<typeof FindingSchema>;
 export type FindingVerification = z.infer<typeof FindingVerificationSchema>;
 export type VectorCoverage = z.infer<typeof VectorCoverageSchema>;

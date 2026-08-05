@@ -1,13 +1,17 @@
 import type { ModelProvider } from '@purista/harness';
+import { ZodError } from 'zod';
 import {
-  createSecurityReviewerHarnessWithExecution,
+  createAuditHarnessWithExecution,
   type HarnessExecutionConfiguration,
-} from '../../../platform/harness/security-reviewer-harness.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+} from '../../../platform/harness/audit-harness.js';
+import { sha256 } from '../../../shared/contracts/core.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
+import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import {
   combineToolUsage,
   createModelStageTraceRecorder,
   createProviderUsageRecorder,
+  type EvaluatorFailureDiagnosticSink,
   hasSuccessfulScopedSourceInspection,
   type ModelCostCeiling,
   type ModelPricing,
@@ -18,6 +22,7 @@ import {
   observeModelStage,
   type ProviderRequestUsage,
   type ToolUsage,
+  writeEvaluatorFailureDiagnostic,
 } from '../../model-operations/model-operations.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
@@ -31,11 +36,62 @@ import {
   recoverFromContextOverflow,
 } from '../runtime/context-overflow.js';
 import { invokeWithStageRetry, stageErrorCode } from '../runtime/invocation.js';
+import {
+  ModelOutputValidationError,
+  type ModelRetryGuidance,
+  outputValidationGuidanceForPaths,
+  validationRetryGuidanceForError,
+} from '../runtime/retry-guidance.js';
 import { createReviewSourceTools, selectApplicableContext } from '../runtime/source-tools.js';
 import { createObservedReviewToolset } from '../tools/operations.js';
 
-type SecurityReviewerHarness = ReturnType<typeof createSecurityReviewerHarnessWithExecution>;
-type SecurityReviewerSession = Awaited<ReturnType<SecurityReviewerHarness['getSession']>>;
+export type { EvaluatorFailureDiagnosticSink } from '../../model-operations/model-operations.js';
+
+type AuditHarness = ReturnType<typeof createAuditHarnessWithExecution>;
+type AuditSession = Awaited<ReturnType<AuditHarness['getSession']>>;
+
+/**
+ * Runs deterministic projection of a provider response while the scoped stage
+ * still owns its terminal observation. Projection code must convert any
+ * model-output contract violation to a stable, content-free error before it
+ * can leave the stage lifecycle.
+ */
+export function projectScopedModelOutput<Result>(project: () => Result): Result {
+  try {
+    return project();
+  } catch (error) {
+    if (isZodProjectionError(error)) {
+      const labels = error.issues
+        .map((issue) =>
+          issue.path.map((segment) => (typeof segment === 'string' ? segment : 'item')).join('.'),
+        )
+        .filter((path) => path.length > 0);
+      throw new ModelOutputValidationError(
+        outputValidationGuidanceForPaths(labels.length === 0 ? ['output'] : labels),
+      );
+    }
+    throw error;
+  }
+}
+
+function isZodProjectionError(error: unknown): error is ZodError {
+  if (error instanceof ZodError) return true;
+  if (typeof error !== 'object' || error === null || !('issues' in error)) return false;
+  const issues = error.issues;
+  return (
+    Array.isArray(issues) &&
+    issues.every(
+      (issue) =>
+        typeof issue === 'object' &&
+        issue !== null &&
+        'path' in issue &&
+        Array.isArray(issue.path) &&
+        issue.path.every(
+          (segment: unknown) => typeof segment === 'string' || typeof segment === 'number',
+        ),
+    )
+  );
+}
 
 export type ScopedModelStageCompleted<Result> = Readonly<{
   status: 'completed';
@@ -52,10 +108,35 @@ export type ScopedModelStageFailed = Readonly<{
 }>;
 
 /**
+ * The feature-owned stage contract may extend this base with its validated
+ * recovery leaf shape, but every scoped stage shares this exact durable
+ * topology binding.
+ */
+export type ScopedModelStageOverflowTopologyBase = Readonly<{
+  phaseInputFingerprint: string;
+  prior?: ContextOverflowTopology;
+  onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
+}>;
+
+export type ScopedModelStageOverflowTopology<Result> = ScopedModelStageOverflowTopologyBase &
+  Readonly<{
+    /** Phase-owned validated output artifacts that may be reused by exact scope. */
+    priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<Result>[];
+    onRecoveredLeafCompleted?: (input: {
+      childKey: string;
+      attempt: number;
+      scope: ContextRecoveryScope;
+      scopeFingerprint: string;
+      execution: AuditCheckpointExecution;
+      output: Result;
+    }) => Promise<void>;
+  }>;
+
+/**
  * Runs the invariant, content-free lifecycle shared by scoped audit model stages.
  * Stage modules retain their workflow call and any stage-specific admission policy.
  */
-export async function runScopedModelStage<Result>(input: {
+export async function runScopedModelStage<Result, RawOutput = Result>(input: {
   stage: ModelStage;
   route: ModelRoute;
   stageId: string;
@@ -91,24 +172,23 @@ export async function runScopedModelStage<Result>(input: {
    * Optional application-owned durable recovery topology. The shared stage
    * emits source-free transitions but never persists or interprets them.
    */
-  overflowTopology?: Readonly<{
-    prior?: ContextOverflowTopology;
-    /** Phase-owned validated output artifacts that may be reused by exact scope. */
-    priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<Result>[];
-    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
-    onRecoveredLeafCompleted?: (input: {
-      childKey: string;
-      attempt: number;
-      scope: ContextRecoveryScope;
-      scopeFingerprint: string;
-      output: Result;
-    }) => Promise<void>;
-  }>;
+  overflowTopology?: ScopedModelStageOverflowTopology<Result>;
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
+  /**
+   * In-memory notification emitted after the complete, content-free stage
+   * observation exists and before this lifecycle returns to an owning
+   * workflow. It deliberately receives no output, source, prompt, tool data,
+   * or raw model response.
+   */
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
   invoke: (
-    session: SecurityReviewerSession,
+    session: AuditSession,
     attempt: number,
     scope: ContextRecoveryScope,
-  ) => Promise<Result>;
+    retryGuidance: ModelRetryGuidance,
+  ) => Promise<RawOutput>;
+  /** Feature-owned conversion of raw model output before stage completion. */
+  projectOutput: (output: RawOutput, scope: ContextRecoveryScope) => Result;
   reduceRecoveredOutputs?: (leaves: readonly ContextRecoveryLeaf<Result>[]) => Result;
 }): Promise<ScopedModelStageCompleted<Result> | ScopedModelStageFailed> {
   const trace = createModelStageTraceRecorder({ pricing: input.modelPricing });
@@ -124,14 +204,16 @@ export async function runScopedModelStage<Result>(input: {
   const started = performance.now();
   const recoveredErrorCodes: string[] = [];
   try {
-    const output = await recoverFromContextOverflow({
+    const output = await recoverFromContextOverflow<Result>({
+      phaseInputFingerprint:
+        input.overflowTopology?.phaseInputFingerprint ?? sha256(`${input.stage}\0${input.stageId}`),
       sourcePaths: input.availableSourcePaths,
       context: input.context,
       selectContext: selectApplicableContext,
       invoke: async (scope, recoveryAttempt) => {
         if (input.hasModelWorkInScope?.(scope) === false) {
           if (input.emptyScopeOutput === undefined) {
-            throw new SecurityReviewerError(
+            throw new AuditRuntimeError(
               'artifact-invalid',
               'A scoped model stage declared empty recovery work without an owned empty output.',
             );
@@ -144,10 +226,12 @@ export async function runScopedModelStage<Result>(input: {
         const scopeToolUsages: ToolUsage[] = [];
         const scopeRecoveredErrorCodes: string[] = [];
         const scopeFingerprint = contextRecoveryScopeFingerprint(scope);
+        let lastAttemptOrdinal = 1;
         try {
           const output = await invokeWithStageRetry(
             input.harnessExecution,
-            async (attempt) => {
+            async (retryAttempt) => {
+              lastAttemptOrdinal = retryAttempt.ordinal;
               invocationOrdinal += 1;
               const observedToolset = createObservedReviewToolset(
                 createReviewSourceTools(
@@ -157,7 +241,7 @@ export async function runScopedModelStage<Result>(input: {
                 ),
                 trace,
               );
-              const harness = createSecurityReviewerHarnessWithExecution(
+              const harness = createAuditHarnessWithExecution(
                 recorder.provider,
                 observedToolset.toolset,
                 input.modelName,
@@ -165,21 +249,26 @@ export async function runScopedModelStage<Result>(input: {
                 input.modelCacheRoutingKey,
               );
               const session = await harness.getSession(
-                `${input.sessionId}-recovery-${recoveryAttempt}-invocation-${invocationOrdinal}-attempt-${attempt}`,
+                `${input.sessionId}-recovery-${recoveryAttempt}-invocation-${invocationOrdinal}-attempt-${retryAttempt.ordinal}`,
               );
               try {
-                const output = await input.invoke(session, attempt, scope);
+                const output = await input.invoke(
+                  session,
+                  retryAttempt.ordinal,
+                  scope,
+                  retryAttempt.guidance,
+                );
                 if (
                   input.requireScopedSourceInspection === true &&
                   scope.sourcePaths.length > 0 &&
                   !hasSuccessfulScopedSourceInspection(observedToolset.usage())
                 ) {
-                  throw new SecurityReviewerError(
+                  throw new AuditRuntimeError(
                     'coverage-incomplete',
                     'A tool-guided source-deciding stage completed without inspecting scoped source.',
                   );
                 }
-                return output;
+                return input.projectOutput(output, scope);
               } finally {
                 await session.close();
                 const toolUsage = observedToolset.usage();
@@ -212,13 +301,15 @@ export async function runScopedModelStage<Result>(input: {
           );
           return output;
         } catch (error) {
+          const errorCode = stageErrorCode(error);
+          const durationMs = performance.now() - scopeStarted;
           scopeObservations.set(
             scopeFingerprint,
             observeScopeModelStage({
               configuration: input,
               scopeFingerprint,
               status: 'failed',
-              errorCode: stageErrorCode(error),
+              errorCode,
               startedAt: scopeStarted,
               requests: recorder.requests().slice(requestsBefore),
               trace: reindexScopeTrace(trace.events().slice(traceBefore)),
@@ -226,12 +317,23 @@ export async function runScopedModelStage<Result>(input: {
               recoveredErrorCodes: scopeRecoveredErrorCodes,
             }),
           );
+          await writeEvaluatorFailureDiagnostic(input.evaluatorFailureDiagnosticSink, {
+            stage: input.stage,
+            route: input.route,
+            stageId: input.stageId,
+            attemptOrdinal: lastAttemptOrdinal,
+            durationMs,
+            scopeFingerprint,
+            errorCode,
+            validationRetryGuidance: validationRetryGuidanceForError(error),
+            error,
+          });
           throw error;
         }
       },
       reduce: (leaves) => {
         if (input.reduceRecoveredOutputs === undefined) {
-          throw new SecurityReviewerError(
+          throw new AuditRuntimeError(
             'provider-context-overflow',
             'The stage cannot losslessly recover a provider context overflow.',
           );
@@ -256,17 +358,27 @@ export async function runScopedModelStage<Result>(input: {
               : { priorRecoveredLeaves: input.overflowTopology.priorRecoveredLeaves }),
             ...(input.overflowTopology.onRecoveredLeafCompleted === undefined
               ? {}
-              : { onRecoveredLeafCompleted: input.overflowTopology.onRecoveredLeafCompleted }),
+              : {
+                  onRecoveredLeafCompleted: async (leaf) =>
+                    input.overflowTopology?.onRecoveredLeafCompleted?.({
+                      ...leaf,
+                      execution: executionForRecoveredScope(
+                        scopeObservations.get(leaf.scopeFingerprint),
+                      ),
+                    }),
+                }),
             onTopologyTransition: async (event) =>
               input.overflowTopology?.onTransition({
                 ...event,
                 ...(event.state === 'completed' ||
                 event.state === 'failed' ||
-                event.state === 'cancelled'
-                  ? (() => {
-                      const modelObservation = scopeObservations.get(event.scopeFingerprint);
-                      return modelObservation === undefined ? {} : { modelObservation };
-                    })()
+                event.state === 'cancelled' ||
+                event.state === 'overflowed'
+                  ? {
+                      execution: executionForRecoveredScope(
+                        scopeObservations.get(event.scopeFingerprint),
+                      ),
+                    }
                   : {}),
               }),
           }),
@@ -279,36 +391,38 @@ export async function runScopedModelStage<Result>(input: {
       ...reusedScopeObservations.map((observation) => observation.toolUsage),
       ...toolUsages,
     ]);
+    const modelObservation = observeModelStage({
+      stage: input.stage,
+      route: input.route,
+      stageId: input.stageId,
+      status: 'completed',
+      durationMs:
+        performance.now() -
+        started +
+        reusedScopeObservations.reduce((total, observation) => total + observation.durationMs, 0),
+      errorCode: null,
+      recoveredErrorCodes: [
+        ...reusedScopeObservations.flatMap((observation) => observation.recoveredErrorCodes),
+        ...recoveredErrorCodes,
+      ],
+      requests: [
+        ...reusedScopeObservations.flatMap((observation) => observation.requests),
+        ...recorder.requests(),
+      ],
+      pricing: input.modelPricing,
+      toolUsage,
+      trace: reindexScopeTrace([
+        ...reusedScopeObservations.flatMap((observation) => observation.trace),
+        ...trace.events(),
+      ]),
+      cacheRoutingEnabled: input.cacheRoutingEnabled,
+    });
+    input.onCompletedModelObservation?.(modelObservation);
     return {
       status: 'completed',
       output,
       toolUsage,
-      modelObservation: observeModelStage({
-        stage: input.stage,
-        route: input.route,
-        stageId: input.stageId,
-        status: 'completed',
-        durationMs:
-          performance.now() -
-          started +
-          reusedScopeObservations.reduce((total, observation) => total + observation.durationMs, 0),
-        errorCode: null,
-        recoveredErrorCodes: [
-          ...reusedScopeObservations.flatMap((observation) => observation.recoveredErrorCodes),
-          ...recoveredErrorCodes,
-        ],
-        requests: [
-          ...reusedScopeObservations.flatMap((observation) => observation.requests),
-          ...recorder.requests(),
-        ],
-        pricing: input.modelPricing,
-        toolUsage,
-        trace: reindexScopeTrace([
-          ...reusedScopeObservations.flatMap((observation) => observation.trace),
-          ...trace.events(),
-        ]),
-        cacheRoutingEnabled: input.cacheRoutingEnabled,
-      }),
+      modelObservation,
     };
   } catch (error) {
     const toolUsage = combineToolUsage([
@@ -364,10 +478,18 @@ function reusableLeafObservations<Result>(
   return topology.prior.events.flatMap((event) =>
     event.state === 'completed' &&
     reusedScopes.has(event.scopeFingerprint) &&
-    event.modelObservation !== undefined
-      ? [event.modelObservation]
+    event.execution?.kind === 'provider'
+      ? [event.execution.modelObservation]
       : [],
   );
+}
+
+function executionForRecoveredScope(
+  observation: ModelStageObservation | undefined,
+): AuditCheckpointExecution {
+  return observation === undefined
+    ? { kind: 'deterministic' }
+    : { kind: 'provider', modelObservation: observation };
 }
 
 function observeScopeModelStage(input: {

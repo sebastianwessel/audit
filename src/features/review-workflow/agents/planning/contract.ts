@@ -6,6 +6,7 @@ import {
   InventorySummarySchema,
 } from '../../../attack-planning/plan.schema.js';
 import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
+import { ModelRetryGuidanceSchema } from '../../runtime/retry-guidance.js';
 import { ScopedInspectionRequirementSchema } from '../../tools/contract.js';
 
 const PlannerVectorSchema = DraftAttackVectorBaseSchema;
@@ -24,6 +25,7 @@ export const PlanModelRequestSchema = z.strictObject({
 /** Complete planner input visible to the model. */
 export const PlanModelInputSchema = PlanModelRequestSchema.extend({
   inspectionRequirement: ScopedInspectionRequirementSchema,
+  retryGuidance: ModelRetryGuidanceSchema,
 });
 
 export const PlanModelOutputSchema = z.strictObject({

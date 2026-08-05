@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "pack": {
+    "schemaVersion": 4,
+    "packId": "openssf-map",
+    "stage": "evidence-mapping",
+    "corpusPackId": "audit-real-world-seed",
+    "corpusPackVersion": "0.3.0",
+    "corpusManifestFingerprint": "4bbad8420bf70452425c1d5936155a2a54f25ee30b3fc47ee71e1d1d971d0952",
+    "caseId": "ossf-cve-2018-16492",
+    "variant": "vulnerable",
+    "repetition": 1,
+    "planProfile": "audit-reviewed-plan",
+    "corpusSourceDigest": "9e3223748b8de0385b1d6ba28f33328245c04064e86f72ed039dabd24bb25363",
+    "targetFingerprint": "5d29adaf3313cdf9e754ed5e8ada6ed1629e3cdf641428956ea776f90413085b",
+    "contextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workflowProtocolFingerprint": "2e283fdd1cd2ba66110fb843715a19510de38b335d3ed54313670a0f5f59f260",
+    "stageProtocolFingerprint": "3aa2055bc7ca409830aeb917c51651dc5bd1a8877fac56dedffc771405ceb26f",
+    "evaluatorProtocolFingerprint": "3259ad968b1621af18b2718c93ef577dd988b072af04ebb9a40a874e1d8aac6a",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "route": "primary",
+    "evaluatorProvider": "openai",
+    "evaluatorModel": "gpt-5.6-terra",
+    "evaluatorRoute": "primary",
+    "productInput": {
+      "stage": "evidence-mapping",
+      "referenceId": "openssf-map-product",
+      "fingerprint": "903420cc2ca034052015f5076d096e8b2186ee1e5c1a59d3692fe30257e2f017"
+    },
+    "expectedOutcome": {
+      "privateReferenceId": "openssf-map-rubric",
+      "fingerprint": "4fda303e88adbff75b33b80a9c762f240307af36f3212dd380563719fb6557fe",
+      "expectedOutcomeCount": 1
+    }
+  },
+  "canonicalInputFingerprint": "903420cc2ca034052015f5076d096e8b2186ee1e5c1a59d3692fe30257e2f017",
+  "rubric": {
+    "rubricId": "openssf-map-rubric",
+    "rubricFingerprint": "4fda303e88adbff75b33b80a9c762f240307af36f3212dd380563719fb6557fe",
+    "stage": "evidence-mapping",
+    "expectedOutcomes": [
+      {
+        "expectedOutcomeId": "mapping-closure",
+        "objective": "Retain neutral facts needed for the approved mutation-boundary review.",
+        "requiredRiskCondition": "The output identifies whether a scoped mutation boundary has sufficient mapped evidence.",
+        "evidenceRequirements": [
+          "Close the approved review obligation without source text or locations."
+        ],
+        "requiredRoles": [
+          "operation",
+          "unsafe-condition"
+        ]
+      }
+    ]
+  }
+}

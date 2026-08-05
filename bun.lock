@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "security-reviewer",
+      "name": "audit",
       "dependencies": {
         "@purista/harness": "^1.7.1",
         "zod": "^4.4.3",

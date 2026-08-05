@@ -1,17 +1,173 @@
 import { describe, expect, test } from 'bun:test';
+import { ModelError } from '@purista/harness';
 import {
   combineModelUsage,
   combineToolUsage,
+  createEvaluatorFailureDiagnostic,
   createModelCostCeiling,
   createModelStageTraceRecorder,
+  mergeModelStageObservations,
   observeModelRun,
   observeModelStage,
   summarizeModelCost,
   summarizeModelStages,
+  writeEvaluatorFailureDiagnostic,
 } from './model-operations.js';
 import { ModelStageObservationSchema } from './model-operations.schema.js';
 
 describe('model operations', () => {
+  test('projects only allowlisted model-error metadata into evaluator diagnostics', () => {
+    const diagnostic = createEvaluatorFailureDiagnostic({
+      evaluationRunId: 'evaluation-run-01',
+      occurredAt: '2026-08-04T12:00:00.000Z',
+      stage: 'verification',
+      route: 'primary',
+      stageId: 'vector-01',
+      attemptOrdinal: 2,
+      durationMs: 3.4,
+      scopeFingerprint: 'a'.repeat(64),
+      protocolFingerprint: 'b'.repeat(64),
+      errorCode: 'provider-http-error',
+      error: new ModelError('source text must never persist', {
+        provider: 'openai',
+        model: 'gpt-5.6-terra',
+        method: 'object',
+        reason: 'http_error',
+        status: 400,
+        providerCode: 'invalid_json_schema',
+        providerMessage: 'secret source text',
+        providerRequestId: 'request-secret',
+        providerBody: { source: 'secret source text' },
+        providerHeaders: { authorization: 'secret' },
+      }),
+    });
+
+    expect(diagnostic).toMatchObject({
+      errorClass: 'model-error',
+      durationMs: 3,
+      modelFailure: {
+        provider: 'openai',
+        model: 'gpt-5.6-terra',
+        method: 'object',
+        reason: 'http_error',
+        status: 400,
+        providerCode: 'invalid_json_schema',
+      },
+    });
+    expect(JSON.stringify(diagnostic)).not.toContain('secret');
+    expect(JSON.stringify(diagnostic)).not.toContain('request-secret');
+  });
+
+  test('uses the same AggregateError traversal as runtime error normalization', () => {
+    const diagnostic = createEvaluatorFailureDiagnostic({
+      evaluationRunId: 'evaluation-run-01',
+      occurredAt: '2026-08-04T12:00:00.000Z',
+      stage: 'verification',
+      route: 'primary',
+      stageId: 'vector-01',
+      attemptOrdinal: 1,
+      durationMs: 1,
+      scopeFingerprint: 'a'.repeat(64),
+      protocolFingerprint: 'b'.repeat(64),
+      errorCode: 'provider-context-overflow',
+      error: new AggregateError([
+        new ModelError('content must not persist', {
+          provider: 'openai',
+          model: 'gpt-5.6-terra',
+          method: 'object',
+          reason: 'context_length_exceeded',
+        }),
+      ]),
+    });
+
+    expect(diagnostic).toMatchObject({
+      errorClass: 'model-error',
+      modelFailure: { reason: 'context_length_exceeded' },
+    });
+  });
+
+  test('treats an evaluator diagnostic write failure as non-durable best effort', async () => {
+    let writeCount = 0;
+    await expect(
+      writeEvaluatorFailureDiagnostic(
+        {
+          evaluationRunId: 'evaluation-run-01',
+          protocolFingerprint: 'b'.repeat(64),
+          now: () => '2026-08-04T12:00:00.000Z',
+          write: async () => {
+            writeCount += 1;
+            throw new Error('private diagnostic storage unavailable');
+          },
+        },
+        {
+          stage: 'verification',
+          route: 'primary',
+          stageId: 'vector-01',
+          attemptOrdinal: 1,
+          durationMs: 1,
+          scopeFingerprint: 'a'.repeat(64),
+          errorCode: 'provider-http-error',
+          error: new Error('source text must never persist'),
+        },
+      ),
+    ).resolves.toBeUndefined();
+    expect(writeCount).toBe(1);
+  });
+
+  test('merges repeated exact-stage observations without losing observed provider usage', () => {
+    const first = observeModelStage({
+      stage: 'candidate-grounding',
+      route: 'primary',
+      stageId: 'vector-01',
+      status: 'completed',
+      durationMs: 2,
+      errorCode: null,
+      requests: [
+        {
+          durationMs: 1,
+          usage: {
+            modelCallCount: 1,
+            inputTokens: 3,
+            outputTokens: 2,
+            cachedInputTokens: 0,
+            reasoningTokens: 0,
+          },
+        },
+      ],
+      pricing: {},
+      cacheRoutingEnabled: false,
+    });
+    const second = observeModelStage({
+      stage: 'candidate-grounding',
+      route: 'primary',
+      stageId: 'vector-01',
+      status: 'completed',
+      durationMs: 4,
+      errorCode: null,
+      requests: [
+        {
+          durationMs: 3,
+          usage: {
+            modelCallCount: 1,
+            inputTokens: 5,
+            outputTokens: 1,
+            cachedInputTokens: 0,
+            reasoningTokens: 0,
+          },
+        },
+      ],
+      pricing: {},
+      cacheRoutingEnabled: false,
+    });
+    expect(mergeModelStageObservations([first, second])).toMatchObject({
+      status: 'completed',
+      durationMs: 6,
+      usage: { modelCallCount: 2, inputTokens: 8, outputTokens: 3 },
+      requests: [{ ordinal: 1 }, { ordinal: 2 }],
+      cost: { totalTokens: 11, estimatedCostUsd: null, source: 'unavailable' },
+    });
+  });
+
   test('calculates cached input as a subset of total input', () => {
     expect(
       summarizeModelCost(
@@ -190,7 +346,6 @@ describe('model operations', () => {
         successfulGrepFilesCallCount: 0,
         rejectedCallCount: 0,
         returnedBytes: 0,
-        budgetExhausted: false,
       },
       cacheRoutingEnabled: true,
       stages: [],
@@ -347,7 +502,6 @@ describe('model operations', () => {
           successfulGrepFilesCallCount: 0,
           rejectedCallCount: 0,
           returnedBytes: 10,
-          budgetExhausted: false,
         },
         {
           toolCallCount: 2,
@@ -358,7 +512,6 @@ describe('model operations', () => {
           successfulGrepFilesCallCount: 1,
           rejectedCallCount: 1,
           returnedBytes: 4,
-          budgetExhausted: true,
         },
       ]),
     ).toEqual({
@@ -370,7 +523,6 @@ describe('model operations', () => {
       successfulGrepFilesCallCount: 1,
       rejectedCallCount: 1,
       returnedBytes: 14,
-      budgetExhausted: true,
     });
   });
 
@@ -424,7 +576,6 @@ describe('model operations', () => {
         successfulGrepFilesCallCount: 0,
         rejectedCallCount: 0,
         returnedBytes: 42,
-        budgetExhausted: false,
       },
       trace: trace.events(),
       cacheRoutingEnabled: false,
@@ -465,7 +616,6 @@ describe('model operations', () => {
         grepFilesCallCount: 0,
         rejectedCallCount: 0,
         returnedBytes: 0,
-        budgetExhausted: false,
       },
       cacheRoutingEnabled: false,
     };

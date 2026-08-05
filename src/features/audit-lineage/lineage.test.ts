@@ -1,33 +1,56 @@
 import { expect, test } from 'bun:test';
 
-import type { ProposedFinding } from '../attack-planning/plan.schema.js';
+import { sha256 } from '../../shared/contracts/core.js';
 import { AuditReportSchema, type Finding } from '../audit-execution/audit.schema.js';
+import type { NarratedProposedFinding } from '../audit-execution/narrative/contract.js';
 import { createFindingId } from '../audit-execution/synthesis/identity.js';
+import { createPublicAuditReport } from '../audit-report/public-contract.js';
 
 import { AuditReportLineageSchema } from './contract.js';
 import { createAuditReportLineage } from './lineage.js';
 import { renderAuditReportLineageMarkdown } from './report.js';
 
-function finding(
-  vectorId: string,
-  statement: string,
-  startLine: number,
-  snippet = 'reviewed source',
-): Finding {
-  const proposed: ProposedFinding = {
+function finding(vectorId: string, startLine: number, snippet = 'reviewed source'): Finding {
+  const proposed: NarratedProposedFinding = {
     vectorId,
-    statement,
-    evidence: [
+    narrative: {
+      statement: 'The reviewed operation may be reached with an unsafe condition.',
+      roleExplanations: [
+        { role: 'operation', explanation: 'The operation evidence identifies the action.' },
+        {
+          role: 'unsafe-condition',
+          explanation: 'The condition evidence identifies the unsafe state.',
+        },
+      ],
+      limitations: [],
+    },
+    claimEvidenceBundles: [
       {
-        path: 'source.unknown',
-        startLine,
-        snippet,
-        kind: 'source',
         role: 'operation',
+        evidence: [
+          {
+            path: 'source.unknown',
+            startLine,
+            contentDigest: sha256(snippet),
+            kind: 'source',
+            role: 'operation',
+          },
+        ],
+      },
+      {
+        role: 'unsafe-condition',
+        evidence: [
+          {
+            path: 'source.unknown',
+            startLine,
+            contentDigest: sha256(snippet),
+            kind: 'source',
+            role: 'unsafe-condition',
+          },
+        ],
       },
     ],
     planObligations: [{ obligationId: 'lineage-obligation-01' }],
-    limitations: [],
   };
   return {
     ...proposed,
@@ -35,7 +58,6 @@ function finding(
     status: 'accepted',
     verification: {
       status: 'verified',
-      reason: 'The source evidence is inside the approved vector scope.',
       checks: ['scope'],
     },
   };
@@ -46,63 +68,64 @@ function report(input: {
   vectorCompleted: boolean;
   findings: readonly Finding[];
 }) {
-  return AuditReportSchema.parse({
-    schemaVersion: 15,
-    reportId: input.reportId,
-    runId: `run-${input.reportId.slice(7)}`,
-    planId: `plan-${input.reportId.slice(7)}`,
-    targetFingerprint: 'a'.repeat(64),
-    generatedAt: '2026-07-30T12:00:00.000Z',
-    coverage: [
-      {
-        vectorId: 'vector-review-01',
-        planned: true,
-        completed: input.vectorCompleted,
-        matchedSourcePaths: 1,
-        deterministicCandidateCount: 0,
-        evidenceMapFactCount: 1,
-        evidenceMapUnansweredObligationCount: 0,
-        sourcePostureAssessmentCount: 1,
-        sourcePostureSupportedCount: 0,
-        sourcePostureContradictedCount: 0,
-        sourcePostureInconclusiveCount: 1,
-        findingCount: input.findings.length,
-        outcome: input.vectorCompleted ? 'completed' : 'incomplete',
-        errorCode: null,
-        limitations: [],
-        obligationClosure: [
-          {
-            obligationId: 'lineage-obligation-01',
-            planObligation: { obligationId: 'lineage-obligation-01' },
-            mapState: 'mapped',
-            evidenceMapFactCount: 1,
-            sourcePostureConclusion: 'inconclusive',
-            investigationState:
-              input.findings.length > 0
-                ? 'candidate-raised'
-                : input.vectorCompleted
-                  ? 'no-source-backed-candidate'
-                  : 'incomplete',
-            candidateCount: input.findings.length,
-            admittedFindingCount: input.findings.length,
-            terminalDisposition:
-              input.findings.length > 0
-                ? 'finding-admitted'
-                : input.vectorCompleted
-                  ? 'no-source-backed-candidate'
-                  : 'incomplete',
-          },
-        ],
-      },
-    ],
-    findings: input.findings,
-    reviewRequired: [],
-    errors: [],
-  });
+  return createPublicAuditReport(
+    AuditReportSchema.parse({
+      schemaVersion: 21,
+      reportId: input.reportId,
+      runId: `run-${input.reportId.slice(7)}`,
+      planId: `plan-${input.reportId.slice(7)}`,
+      targetFingerprint: 'a'.repeat(64),
+      generatedAt: '2026-07-30T12:00:00.000Z',
+      coverage: [
+        {
+          vectorId: 'vector-review-01',
+          planned: true,
+          completed: input.vectorCompleted,
+          matchedSourcePaths: 1,
+          evidenceMapFactCount: 1,
+          evidenceMapUnansweredObligationCount: 0,
+          sourcePostureAssessmentCount: 1,
+          sourcePostureSupportedCount: 0,
+          sourcePostureContradictedCount: 0,
+          sourcePostureInconclusiveCount: 1,
+          findingCount: input.findings.length,
+          outcome: input.vectorCompleted ? 'completed' : 'incomplete',
+          errorCode: null,
+          limitations: [],
+          obligationClosure: [
+            {
+              obligationId: 'lineage-obligation-01',
+              planObligation: { obligationId: 'lineage-obligation-01' },
+              mapState: 'mapped',
+              evidenceMapFactCount: 1,
+              sourcePostureConclusion: 'inconclusive',
+              investigationState:
+                input.findings.length > 0
+                  ? 'candidate-raised'
+                  : input.vectorCompleted
+                    ? 'no-source-backed-candidate'
+                    : 'incomplete',
+              candidateCount: input.findings.length,
+              admittedFindingCount: input.findings.length,
+              terminalDisposition:
+                input.findings.length > 0
+                  ? 'finding-admitted'
+                  : input.vectorCompleted
+                    ? 'no-source-backed-candidate'
+                    : 'incomplete',
+            },
+          ],
+        },
+      ],
+      findings: input.findings,
+      reviewRequired: [],
+      errors: [],
+    }),
+  );
 }
 
 test('marks a stable source-free finding fingerprint as persisting only after complete coverage', () => {
-  const retained = finding('vector-review-01', 'Retained bounded concern', 4);
+  const retained = finding('vector-review-01', 4);
   const lineage = createAuditReportLineage({
     previous: report({
       reportId: 'report-previous-01',
@@ -129,12 +152,12 @@ test('keeps a finding persisting when wording and absolute source line shift', (
     previous: report({
       reportId: 'report-previous-01',
       vectorCompleted: true,
-      findings: [finding('vector-review-01', 'Earlier wording for the same concern', 4)],
+      findings: [finding('vector-review-01', 4)],
     }),
     current: report({
       reportId: 'report-current-001',
       vectorCompleted: true,
-      findings: [finding('vector-review-01', 'Updated wording for the same concern', 19)],
+      findings: [finding('vector-review-01', 19)],
     }),
     generatedAt: '2026-07-30T12:01:00.000Z',
   });
@@ -142,7 +165,7 @@ test('keeps a finding persisting when wording and absolute source line shift', (
 });
 
 test('does not claim a missing finding is resolved when successor coverage is incomplete', () => {
-  const previousFinding = finding('vector-review-01', 'Earlier bounded concern', 4);
+  const previousFinding = finding('vector-review-01', 4);
   const lineage = createAuditReportLineage({
     previous: report({
       reportId: 'report-previous-01',
@@ -161,13 +184,8 @@ test('does not claim a missing finding is resolved when successor coverage is in
 });
 
 test('records complete unmatched records as separate new and resolved entries', () => {
-  const previousFinding = finding('vector-review-01', 'Earlier bounded concern', 4);
-  const currentFinding = finding(
-    'vector-review-01',
-    'Later bounded concern',
-    8,
-    'different source',
-  );
+  const previousFinding = finding('vector-review-01', 4);
+  const currentFinding = finding('vector-review-01', 8, 'different source');
   const lineage = createAuditReportLineage({
     previous: report({
       reportId: 'report-previous-01',
@@ -187,7 +205,7 @@ test('records complete unmatched records as separate new and resolved entries', 
 });
 
 test('keeps the persisted lineage and Markdown projection free of source-derived finding content', () => {
-  const retained = finding('vector-review-01', 'Sensitive source-derived title', 4);
+  const retained = finding('vector-review-01', 4);
   const lineage = createAuditReportLineage({
     previous: report({
       reportId: 'report-previous-01',
@@ -207,7 +225,7 @@ test('keeps the persisted lineage and Markdown projection free of source-derived
 });
 
 test('rejects an impossible duplicate deterministic identity instead of choosing an input record', () => {
-  const first = finding('vector-review-01', 'Duplicate bounded concern', 4);
+  const first = finding('vector-review-01', 4);
   const duplicate = { ...first, findingId: 'finding-different-01' };
   const invalid = report({
     reportId: 'report-previous-01',

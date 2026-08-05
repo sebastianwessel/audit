@@ -22,7 +22,7 @@ evaluation/
     README.md
 ```
 
-`evaluation/fixtures/` is safe, intentionally small, and versioned. `evaluation/runs/` contains generated output and is ignored. External corpora are never downloaded by the product or default CI; a contributor may add a separately licensed, pinned corpus only through a reviewed manifest and an offline import step.
+`evaluation/data/fixtures/` is safe, intentionally small, and versioned. `evaluation/runs/` contains generated output and is ignored. External corpora are never downloaded by the product or default CI; a contributor may add a separately licensed, pinned corpus only through a reviewed manifest and an offline import step.
 
 ## Fixture classes
 

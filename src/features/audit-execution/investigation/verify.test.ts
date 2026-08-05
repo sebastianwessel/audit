@@ -1,12 +1,9 @@
 import { expect, test } from 'bun:test';
 
-import {
-  AttackVectorSchema,
-  type ProposedFinding,
-  ProposedFindingSchema,
-} from '../../attack-planning/plan.schema.js';
+import { AttackVectorSchema, ProposedFindingSchema } from '../../attack-planning/plan.schema.js';
 import { EvidenceMapSchema } from '../evidence-map/contract.js';
 import { SourcePostureSchema } from '../source-posture/contract.js';
+import type { UnverifiedAuditCandidate } from './contract.js';
 
 import { verifyModelFindings } from './verify.js';
 
@@ -27,23 +24,41 @@ const vector = AttackVectorSchema.parse({
   limitations: [],
 });
 
-function finding(
-  vectorId: string,
-  path: string,
-  startLine: number,
-): ProposedFinding & {
-  evidenceMapFactIds: readonly string[];
-  sourcePostureAssessmentIds: readonly string[];
-} {
+function finding(vectorId: string, path: string, startLine: number): UnverifiedAuditCandidate {
   return {
     vectorId,
     statement: 'Candidate query issue',
-    evidence: [
-      { path, startLine, snippet: 'invented', kind: 'source', role: 'operation' },
-      { path, startLine, snippet: 'invented', kind: 'source', role: 'unsafe-condition' },
+    claimEvidenceBundles: [
+      {
+        role: 'operation',
+        explanation: 'The selected source operation is under review.',
+        evidence: [
+          { path, startLine, contentDigest: 'a'.repeat(64), kind: 'source', role: 'operation' },
+        ],
+      },
+      {
+        role: 'unsafe-condition',
+        explanation: 'The selected source condition is under review.',
+        evidence: [
+          {
+            path,
+            startLine,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+            role: 'unsafe-condition',
+          },
+        ],
+      },
     ],
     planObligations: [{ obligationId: 'test-obligation-01' }],
     evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+    claimEvidenceSelections: [
+      { role: 'operation', selections: [{ factId: 'fact-query-01', evidenceIndex: 0 }] },
+      {
+        role: 'unsafe-condition',
+        selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+      },
+    ],
     sourcePostureAssessmentIds: ['posture-question-01'],
     limitations: [],
   };
@@ -58,12 +73,11 @@ function evidenceMap(
       {
         factId: 'fact-input-01',
         role: originRole,
-        statement: 'The scoped source supplies the reviewed value.',
         evidence: [
           {
             path: 'src/query.txt',
             startLine: 1,
-            snippet: 'placeholder',
+            contentDigest: 'a'.repeat(64),
             kind: 'source',
           },
         ],
@@ -72,12 +86,11 @@ function evidenceMap(
       {
         factId: 'fact-query-01',
         role: 'operation',
-        statement: 'The scoped source performs the reviewed operation.',
         evidence: [
           {
             path: 'src/query.txt',
             startLine: 1,
-            snippet: 'placeholder',
+            contentDigest: 'a'.repeat(64),
             kind: 'source',
             role: 'operation',
           },
@@ -170,8 +183,9 @@ test('rejects a missing map fact even when selected valid facts cover the candid
       {
         factId: 'fact-entrypoint-01',
         role: 'entrypoint',
-        statement: 'The bounded source exposes the reviewed entrypoint.',
-        evidence: [{ path: 'src/query.txt', startLine: 1, snippet: 'SELECT', kind: 'source' }],
+        evidence: [
+          { path: 'src/query.txt', startLine: 1, contentDigest: 'a'.repeat(64), kind: 'source' },
+        ],
         planObligations: [{ obligationId: 'test-obligation-01' }],
       },
       ...evidenceMap().facts,
@@ -201,20 +215,32 @@ test('requires candidate evidence locations to come from its selected map facts'
   ];
   const candidate = {
     ...finding(vector.vectorId, 'src/query.txt', 2),
-    evidence: [
+    claimEvidenceBundles: [
       {
-        path: 'src/query.txt',
-        startLine: 2,
-        snippet: 'invented',
-        kind: 'source' as const,
         role: 'operation' as const,
+        explanation: 'The selected operation is outside the map basis.',
+        evidence: [
+          {
+            path: 'src/query.txt',
+            startLine: 2,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source' as const,
+            role: 'operation' as const,
+          },
+        ],
       },
       {
-        path: 'src/query.txt',
-        startLine: 2,
-        snippet: 'invented',
-        kind: 'source' as const,
         role: 'unsafe-condition' as const,
+        explanation: 'The selected condition is outside the map basis.',
+        evidence: [
+          {
+            path: 'src/query.txt',
+            startLine: 2,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source' as const,
+            role: 'unsafe-condition' as const,
+          },
+        ],
       },
     ],
   };
@@ -274,34 +300,49 @@ test('preserves model evidence order after replacing snippets from source', () =
     [
       {
         ...finding(vector.vectorId, 'src/settings.txt', 1),
-        evidence: [
+        claimEvidenceBundles: [
           {
-            path: 'src/settings.txt',
-            startLine: 1,
-            snippet: 'invented',
-            kind: 'source',
             role: 'operation',
+            explanation: 'The operation spans both selected source locations.',
+            evidence: [
+              {
+                path: 'src/settings.txt',
+                startLine: 1,
+                contentDigest: 'a'.repeat(64),
+                kind: 'source',
+                role: 'operation',
+              },
+              {
+                path: 'src/settings.txt',
+                startLine: 2,
+                contentDigest: 'a'.repeat(64),
+                kind: 'source',
+                role: 'operation',
+              },
+            ],
           },
           {
-            path: 'src/settings.txt',
-            startLine: 1,
-            snippet: 'invented',
-            kind: 'source',
             role: 'unsafe-condition',
-          },
-          {
-            path: 'src/settings.txt',
-            startLine: 2,
-            snippet: 'invented',
-            kind: 'source',
-            role: 'operation',
+            explanation: 'The unsafe condition is selected independently.',
+            evidence: [
+              {
+                path: 'src/settings.txt',
+                startLine: 1,
+                contentDigest: 'a'.repeat(64),
+                kind: 'source',
+                role: 'unsafe-condition',
+              },
+            ],
           },
         ],
       },
     ],
     sources,
   );
-  expect(result.verified[0]?.evidence[0]).toMatchObject({ role: 'operation', startLine: 1 });
+  expect(result.verified[0]?.claimEvidenceBundles[0]?.evidence[0]).toMatchObject({
+    role: 'operation',
+    startLine: 1,
+  });
 });
 
 test('retains a complete long source line and recognizes CR-only line locations', () => {
@@ -311,8 +352,8 @@ test('retains a complete long source line and recognizes CR-only line locations'
     [finding(vector.vectorId, 'src/query.txt', 2)],
     [{ path: 'src/query.txt', content: `first\r${longLine}\rthird`, languageHint: null }],
   );
-  expect(result.verified[0]?.evidence).toMatchObject([
-    { startLine: 2, snippet: longLine },
-    { startLine: 2, snippet: longLine },
+  expect(result.verified[0]?.claimEvidenceBundles).toMatchObject([
+    { role: 'operation', evidence: [{ startLine: 2 }] },
+    { role: 'unsafe-condition', evidence: [{ startLine: 2 }] },
   ]);
 });

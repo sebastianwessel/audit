@@ -53,6 +53,7 @@ test('renders a deterministic non-executable review projection', () => {
   expect(markdown).toContain('No runtime probing is performed.');
   expect(markdown).toContain('Additional observations for human review');
   expect(markdown).toContain('not part of this executable audit plan');
+  expect(markdown).toContain('cannot produce a finding, pass, or incomplete coverage result');
 });
 
 test('rejects an unsealed plan before rendering review material', () => {

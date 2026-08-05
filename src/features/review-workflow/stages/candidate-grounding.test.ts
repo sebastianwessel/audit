@@ -10,13 +10,13 @@ import {
 } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
-import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
+import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/audit-harness.js';
 import { CandidateGroundingRequestSchema } from '../../audit-execution/candidate-grounding/contract.js';
 
 import { runCandidateGroundingStage } from './candidate-grounding.js';
 
 test('recovers one complete seed basis per source child without duplicate outcomes', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-grounding-overflow-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-grounding-overflow-'));
   await writeFile(join(targetRoot, 'a.unknown'), 'value = request.a;\n', 'utf8');
   await writeFile(join(targetRoot, 'b.unknown'), 'value = request.b;\n', 'utf8');
   const provider = new OverflowFirstObjectProvider();
@@ -46,8 +46,8 @@ test('recovers one complete seed basis per source child without duplicate outcom
     status: 'completed',
     output: {
       groundings: [
-        { seedId: 'seed-a', disposition: 'null' },
-        { seedId: 'seed-b', disposition: 'null' },
+        { seedId: 'seed-a', disposition: 'no-source-backed-candidate' },
+        { seedId: 'seed-b', disposition: 'no-source-backed-candidate' },
       ],
     },
     modelObservation: { recoveredErrorCodes: ['provider-context-overflow'] },
@@ -55,7 +55,7 @@ test('recovers one complete seed basis per source child without duplicate outcom
 });
 
 test('fails explicitly when a seed crosses recovered source children', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-grounding-cross-scope-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-grounding-cross-scope-'));
   await writeFile(join(targetRoot, 'a.unknown'), 'value = request.a;\n', 'utf8');
   await writeFile(join(targetRoot, 'b.unknown'), 'value = request.b;\n', 'utf8');
   const provider = new OverflowFirstObjectProvider();
@@ -116,7 +116,9 @@ function enqueueScopedSearch(provider: FakeModelProvider, id: string): void {
 
 function nullGroundingOutput(seedId: string) {
   return {
-    object: { groundings: [{ seedId, candidate: null }] },
+    object: {
+      groundings: [{ seedId, candidate: null, nullReason: 'no-source-backed-candidate' }],
+    },
     usage: { inputTokens: 3, outputTokens: 2, totalTokens: 5 },
     finishReason: 'stop' as const,
   };
@@ -195,8 +197,7 @@ function sourceFact(factId: string, path: string) {
   return {
     factId,
     role: 'operation' as const,
-    statement: 'The approved source contains the reviewed operation.',
-    evidence: [{ path, startLine: 1, snippet: 'value = request;', kind: 'source' as const }],
+    evidence: [{ path, startLine: 1, contentDigest: 'a'.repeat(64), kind: 'source' as const }],
     planObligations: [{ obligationId: 'test-obligation-01' }],
   };
 }

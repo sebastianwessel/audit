@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import { createPlan as createDraftPlan, resealPlan } from '../attack-planning/plan.js';
+import { claimEvidenceItems } from '../attack-planning/plan.schema.js';
 import { observeModelStage } from '../model-operations/model-operations.js';
-import { modelStagesForAudit } from '../review-workflow/service.js';
 import {
   emptyCandidateIntegrityRejectionLedger,
   emptyHypothesisGroundingFunnel,
@@ -10,6 +10,7 @@ import {
 import {
   type AuditCandidateGrounder,
   type AuditEvidenceMapper,
+  type AuditInput,
   type AuditInvestigator,
   type AuditSourcePostureAssessor,
   auditExitCode,
@@ -18,10 +19,17 @@ import {
   runStaticAudit,
 } from './audit.js';
 import type { AuditEvidenceMapDraft } from './audit.schema.js';
+import { candidateAwareFingerprint } from './candidate-aware-identity.js';
 import { createAuditResumeState } from './checkpoints.js';
+import { evidenceMapFingerprint } from './evidence-map/repair.js';
+import { verifyEvidenceMap } from './evidence-map/verify.js';
+import { modelStagesForAudit } from './model-stage-observations.js';
+import { sourcePostureFingerprint } from './source-posture/identity.js';
+import { verifySourcePosture } from './source-posture/verify.js';
 import type {
   AuditCountercheckRequest,
   AuditVerificationRequest,
+  AuditVerificationResult,
 } from './verification/contract.js';
 
 const targetFingerprint = 'a'.repeat(64);
@@ -29,7 +37,12 @@ const contextDigest = 'b'.repeat(64);
 const approvePlan = <T>(plan: T, ..._reviewMetadata: readonly [string, string, string]): T => plan;
 
 function completedStageObservation(
-  stage: 'investigation' | 'candidate-grounding',
+  stage:
+    | 'evidence-mapping'
+    | 'source-posture'
+    | 'investigation'
+    | 'candidate-grounding'
+    | 'verification',
   stageId: string,
 ) {
   return observeModelStage({
@@ -56,6 +69,48 @@ function completedStageObservation(
   });
 }
 
+function failedInvestigationStageObservation(stageId: string) {
+  return observeModelStage({
+    stage: 'investigation',
+    route: 'primary',
+    stageId,
+    status: 'failed',
+    durationMs: 1,
+    errorCode: 'provider-response-invalid',
+    requests: [
+      {
+        durationMs: 1,
+        usage: {
+          modelCallCount: 1,
+          inputTokens: 2,
+          outputTokens: 1,
+          cachedInputTokens: 0,
+          reasoningTokens: 0,
+        },
+      },
+    ],
+    pricing: {},
+    cacheRoutingEnabled: false,
+  });
+}
+
+function failedVerificationStageObservation(
+  stageId: string,
+  errorCode: 'provider-http-error' | 'validation-repair-no-progress' = 'provider-http-error',
+) {
+  return observeModelStage({
+    stage: 'verification',
+    route: 'primary',
+    stageId,
+    status: 'failed',
+    durationMs: 1,
+    errorCode,
+    requests: [],
+    pricing: {},
+    cacheRoutingEnabled: false,
+  });
+}
+
 function postureReconciliationsFor(request: AuditVerificationRequest | AuditCountercheckRequest) {
   const facts = new Map(request.evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
   return request.sourcePosture.assessments
@@ -67,7 +122,6 @@ function postureReconciliationsFor(request: AuditVerificationRequest | AuditCoun
     .map((assessment) => ({
       assessmentId: assessment.assessmentId,
       disposition: 'supports-claim' as const,
-      explanation: 'The prior posture aligns with the independently reviewed source.',
       evidence: assessment.evidenceMapFactIds.flatMap((factId) =>
         (facts.get(factId)?.evidence ?? []).map((evidence) => ({
           ...evidence,
@@ -89,7 +143,6 @@ function obligationReconciliationsFor(
     return {
       planObligation,
       disposition: 'supports-claim' as const,
-      explanation: 'The independently reviewed source supports this approved obligation.',
       evidence: (fact?.evidence ?? []).map((evidence) => ({
         ...evidence,
         role: 'source' as const,
@@ -100,13 +153,15 @@ function obligationReconciliationsFor(
 
 const acceptVerifier = async (request: AuditVerificationRequest) => ({
   decision: 'accepted' as const,
-  reason: 'The hypothesis has been independently verified.',
-  verifiedEvidence: request.hypothesis.evidence,
+  reasonCode: 'claim-supported' as const,
+  claimEvidenceBundles: request.hypothesis.claimEvidenceBundles,
+  contradictionEvidence: null,
+  inspectedEvidence: [],
   verifiedPlanObligations: request.hypothesis.planObligations,
+  affectedPlanObligations: [],
   controlAssessment: {
     conclusion: 'no-effective-control-found' as const,
-    explanation: 'The scoped source does not show a control that negates this hypothesis.',
-    evidence: request.hypothesis.evidence,
+    evidence: [...claimEvidenceItems(request.hypothesis)],
   },
   obligationReconciliations: obligationReconciliationsFor(request),
   postureReconciliations: postureReconciliationsFor(request),
@@ -114,17 +169,44 @@ const acceptVerifier = async (request: AuditVerificationRequest) => ({
 
 const acceptCountercheck = async (request: AuditCountercheckRequest) => ({
   decision: 'accepted' as const,
-  reason: 'The verifier-reconciled hypothesis remains supported after challenge.',
-  verifiedEvidence: request.hypothesis.evidence,
+  reasonCode: 'claim-supported' as const,
+  claimEvidenceBundles: request.hypothesis.claimEvidenceBundles,
+  contradictionEvidence: null,
+  inspectedEvidence: [],
   verifiedPlanObligations: request.hypothesis.planObligations,
+  affectedPlanObligations: [],
   controlAssessment: {
     conclusion: 'no-effective-control-found' as const,
-    explanation: 'The scoped source does not show a control that negates this hypothesis.',
-    evidence: request.hypothesis.evidence,
+    evidence: [...claimEvidenceItems(request.hypothesis)],
   },
   obligationReconciliations: obligationReconciliationsFor(request),
   postureReconciliations: postureReconciliationsFor(request),
 });
+
+function rejectedResult(
+  request: AuditVerificationRequest | AuditCountercheckRequest,
+): AuditVerificationResult {
+  const counterevidence = claimEvidenceItems(request.hypothesis).at(0);
+  if (counterevidence === undefined) throw new Error('Expected candidate evidence.');
+  return {
+    decision: 'rejected',
+    reasonCode: 'claim-contradicted',
+    claimEvidenceBundles: null,
+    contradictionEvidence: [{ ...counterevidence, role: 'counterevidence' }],
+    inspectedEvidence: [],
+    verifiedPlanObligations: [],
+    affectedPlanObligations: request.hypothesis.planObligations,
+    controlAssessment: null,
+    obligationReconciliations: obligationReconciliationsFor(request).map((reconciliation) => ({
+      ...reconciliation,
+      disposition: 'contradicts-claim',
+    })),
+    postureReconciliations: postureReconciliationsFor(request).map((reconciliation) => ({
+      ...reconciliation,
+      disposition: 'contradicts-claim',
+    })),
+  };
+}
 
 const mapEvidence: AuditEvidenceMapper = async (request) => ({
   evidenceMap: {
@@ -137,7 +219,7 @@ const mapEvidence: AuditEvidenceMapper = async (request) => ({
           {
             path: request.availableSourcePaths[0] ?? 'src/query.ts',
             startLine: 1,
-            snippet: 'placeholder',
+            contentDigest: 'a'.repeat(64),
             kind: 'source' as const,
           },
         ],
@@ -151,7 +233,7 @@ const mapEvidence: AuditEvidenceMapper = async (request) => ({
           {
             path: request.availableSourcePaths[0] ?? 'src/query.ts',
             startLine: 1,
-            snippet: 'placeholder',
+            contentDigest: 'a'.repeat(64),
             kind: 'source' as const,
             role: 'operation' as const,
           },
@@ -181,7 +263,7 @@ const mapEvidenceWithControl: AuditEvidenceMapper = async (request) => {
             {
               path: request.availableSourcePaths[0] ?? 'src/query.ts',
               startLine: 1,
-              snippet: 'placeholder',
+              contentDigest: 'a'.repeat(64),
               kind: 'source' as const,
               role: 'guard' as const,
             },
@@ -214,6 +296,29 @@ const assessSourcePosture: AuditSourcePostureAssessor = async (request) => ({
     limitations: [],
   },
 });
+
+async function defaultCheckpointDependencies(
+  vector: ReturnType<typeof approvedPlan>['vectors'][number],
+) {
+  const source = {
+    path: 'src/query.ts',
+    content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+    languageHint: 'typescript' as const,
+  };
+  const request = { vector, availableSourcePaths: [source.path], limitations: [] };
+  const mapped = await mapEvidence(request);
+  const evidenceMap = verifyEvidenceMap(vector, mapped.evidenceMap, [source]).evidenceMap;
+  const posture = await assessSourcePosture({ ...request, evidenceMap });
+  const sourcePosture = verifySourcePosture(
+    vector,
+    posture.sourcePosture,
+    evidenceMap,
+  ).sourcePosture;
+  return {
+    evidenceMapFingerprint: evidenceMapFingerprint(evidenceMap),
+    sourcePostureFingerprint: sourcePostureFingerprint(sourcePosture),
+  };
+}
 
 function closuresFor(
   request: Parameters<AuditInvestigator>[0],
@@ -276,24 +381,46 @@ function sourceBackedHypothesis(vectorId: string) {
   return {
     vectorId,
     statement: 'Untrusted value reaches a query string',
-    evidence: [
+    claimEvidenceBundles: [
       {
-        path: 'src/query.ts',
-        startLine: 1,
-        snippet: 'invented',
-        kind: 'source' as const,
         role: 'operation' as const,
+        explanation: 'The source performs the reviewed query operation.',
+        evidence: [
+          {
+            path: 'src/query.ts',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source' as const,
+            role: 'operation' as const,
+          },
+        ],
       },
       {
-        path: 'src/query.ts',
-        startLine: 1,
-        snippet: 'invented',
-        kind: 'source' as const,
         role: 'unsafe-condition' as const,
+        explanation: 'The source keeps request data in the reviewed query relation.',
+        evidence: [
+          {
+            path: 'src/query.ts',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source' as const,
+            role: 'unsafe-condition' as const,
+          },
+        ],
       },
     ],
     planObligations: [{ obligationId: 'audit-obligation-01' }],
     evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+    claimEvidenceSelections: [
+      {
+        role: 'operation' as const,
+        selections: [{ factId: 'fact-query-01', evidenceIndex: 0 }],
+      },
+      {
+        role: 'unsafe-condition' as const,
+        selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+      },
+    ],
     sourcePostureAssessmentIds: ['posture-audit-obligation-01'],
     limitations: [],
   };
@@ -315,15 +442,53 @@ function sourceBackedSeed(
 }
 
 function sourceBackedCanonicalHypothesis(vectorId: string) {
-  return sourceBackedHypothesis(vectorId);
+  const candidate = sourceBackedHypothesis(vectorId);
+  return {
+    vectorId: candidate.vectorId,
+    narrative: {
+      statement: candidate.statement,
+      roleExplanations: candidate.claimEvidenceBundles.map((bundle) => ({
+        role: bundle.role,
+        explanation: bundle.explanation,
+      })),
+      limitations: candidate.limitations,
+    },
+    claimEvidenceBundles: candidate.claimEvidenceBundles.map(({ role, evidence }) => ({
+      role,
+      evidence,
+    })),
+    planObligations: candidate.planObligations,
+    evidenceMapFactIds: candidate.evidenceMapFactIds,
+    claimEvidenceSelections: candidate.claimEvidenceSelections,
+    sourcePostureAssessmentIds: candidate.sourcePostureAssessmentIds,
+  };
 }
 
 function sourceBackedGroundingCandidate(vectorId: string) {
-  const { evidence: _evidence, ...candidate } = sourceBackedHypothesis(vectorId);
+  const {
+    vectorId: _vectorId,
+    claimEvidenceBundles: _claimEvidenceBundles,
+    claimEvidenceSelections: _claimEvidenceSelections,
+    planObligations: _planObligations,
+    evidenceMapFactIds: _evidenceMapFactIds,
+    sourcePostureAssessmentIds: _sourcePostureAssessmentIds,
+    limitations: _limitations,
+    ...candidate
+  } = sourceBackedHypothesis(vectorId);
   return {
     ...candidate,
-    operationEvidence: { factId: 'fact-query-01', evidenceIndex: 0 },
-    unsafeConditionEvidence: { factId: 'fact-input-01', evidenceIndex: 0 },
+    claimEvidenceBundles: [
+      {
+        role: 'operation' as const,
+        selections: [{ factId: 'fact-query-01', evidenceIndex: 0 }],
+        explanation: 'The operation fact identifies the query operation.',
+      },
+      {
+        role: 'unsafe-condition' as const,
+        selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+        explanation: 'The input fact identifies the request-controlled condition.',
+      },
+    ],
   };
 }
 
@@ -333,9 +498,8 @@ const groundSeeds: AuditCandidateGrounder = async (request) => ({
       seedId: seed.seedId,
       candidate: {
         ...sourceBackedGroundingCandidate(seed.vectorId),
-        evidenceMapFactIds: seed.evidenceMapFactIds,
-        sourcePostureAssessmentIds: seed.sourcePostureAssessmentIds,
       },
+      nullReason: null,
     })),
   },
 });
@@ -460,19 +624,61 @@ test('preserves the true phase when evidence-map checkpoint persistence fails', 
     investigate: async () => ({ seeds: [], closures: [] }),
     verify: acceptVerifier,
     onEvidenceMapDraft: async () => {
-      throw new SecurityReviewerError(
-        'artifact-invalid',
-        'Injected checkpoint persistence failure.',
-      );
+      throw new AuditRuntimeError('artifact-invalid', 'Injected checkpoint persistence failure.');
     },
   });
   expect(report.errors).toMatchObject([
-    { code: 'artifact-invalid', stage: 'evidence-mapping', retryable: false },
+    { code: 'checkpoint-persistence-failed', stage: 'evidence-mapping', retryable: false },
   ]);
   expect(report.coverage[0]).toMatchObject({
     outcome: 'failed',
-    errorCode: 'artifact-invalid',
+    errorCode: 'checkpoint-persistence-failed',
   });
+});
+
+test('turns terminal-vector checkpoint persistence into visible failed coverage', async () => {
+  const plan = approvedPlan();
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const query = request.input;\n',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-terminal-vector-persistence-failure-01',
+    generatedAt: '2026-08-04T12:00:00.000Z',
+    mapEvidence,
+    investigate: async (request) => ({
+      seeds: [],
+      closures: closuresFor(request, 'no-source-backed-candidate'),
+    }),
+    verify: acceptVerifier,
+    onVectorResult: async () => {
+      throw new Error('Injected terminal-vector persistence failure.');
+    },
+  });
+
+  expect(report.findings).toHaveLength(0);
+  expect(report.errors).toContainEqual(
+    expect.objectContaining({
+      code: 'checkpoint-persistence-failed',
+      stage: 'audit',
+      retryable: false,
+    }),
+  );
+  expect(report.coverage).toMatchObject([
+    {
+      completed: false,
+      outcome: 'failed',
+      errorCode: 'checkpoint-persistence-failed',
+      findingCount: 0,
+    },
+  ]);
+  expect(auditExitCode(report)).toBe(3);
 });
 
 test('schedules every verifier and countercheck through one run-wide candidate-aware pool', async () => {
@@ -518,10 +724,9 @@ test('schedules every verifier and countercheck through one run-wide candidate-a
           seedId: seed.seedId,
           candidate: {
             ...sourceBackedGroundingCandidate(seed.vectorId),
-            statement: `Request-controlled value reaches query (${seed.seedId}).`,
-            evidenceMapFactIds: seed.evidenceMapFactIds,
-            sourcePostureAssessmentIds: seed.sourcePostureAssessmentIds,
+            statement: 'Request-controlled value reaches query.',
           },
+          nullReason: null,
         })),
       },
     }),
@@ -550,7 +755,13 @@ test('schedules every verifier and countercheck through one run-wide candidate-a
   expect(countercheckCallCount).toBe(6);
   expect(maximumActiveVerifierCount).toBe(2);
   expect(maximumActiveCountercheckCount).toBe(2);
-  expect(report.coverage.reduce((total, coverage) => total + coverage.findingCount, 0)).toBe(6);
+  expect(report.coverage.reduce((total, coverage) => total + coverage.findingCount, 0)).toBe(2);
+  expect(
+    report.coverage.reduce(
+      (total, coverage) => total + (coverage.admissionFunnel?.duplicateCollapsedCount ?? 0),
+      0,
+    ),
+  ).toBe(4);
 });
 
 test('returns partial coverage without promoting deterministic clues when model investigation fails', async () => {
@@ -577,8 +788,134 @@ test('returns partial coverage without promoting deterministic clues when model 
   });
   expect(report.findings).toHaveLength(0);
   expect(report.coverage[0]?.outcome).toBe('failed');
-  expect(report.errors[0]?.code).toBe('provider-failure');
+  expect(report.errors[0]?.code).toBe('audit-continuation-failed');
   expect(auditExitCode(report)).toBe(3);
+});
+
+test('retains completed phase observations and validated predecessor state after continuation fails', async () => {
+  const checkpointed: unknown[] = [];
+  const mapObservation = completedStageObservation('evidence-mapping', 'continuation-map-01');
+  const postureObservation = completedStageObservation('source-posture', 'continuation-posture-01');
+  const investigationObservation = completedStageObservation(
+    'investigation',
+    'continuation-investigation-01',
+  );
+  const report = await runApprovedAudit({
+    plan: approvedPlan(),
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-continuation-failure-01',
+    generatedAt: '2026-08-04T12:00:00.000Z',
+    mapEvidence: async (request, stageContext) => {
+      stageContext?.onCompletedModelObservation?.(mapObservation);
+      return mapEvidence(request);
+    },
+    assessSourcePosture: async (request, stageContext) => {
+      stageContext?.onCompletedModelObservation?.(postureObservation);
+      return assessSourcePosture(request);
+    },
+    investigate: async (_request, stageContext) => {
+      stageContext?.onCompletedModelObservation?.(investigationObservation);
+      throw new Error('downstream continuation failed');
+    },
+    verify: acceptVerifier,
+    onVectorResult: async (result) => {
+      checkpointed.push(result);
+    },
+  });
+
+  expect(report.errors).toMatchObject([
+    { code: 'audit-continuation-failed', stage: 'investigation', retryable: false },
+  ]);
+  expect(report.coverage).toMatchObject([
+    {
+      outcome: 'failed',
+      errorCode: 'audit-continuation-failed',
+      evidenceMapFactCount: 2,
+      sourcePostureAssessmentCount: 1,
+      evidenceMapObservation: { stage: 'evidence-mapping', status: 'completed' },
+      sourcePostureObservation: { stage: 'source-posture', status: 'completed' },
+      modelObservation: { stage: 'investigation', status: 'completed' },
+    },
+  ]);
+  expect(modelStagesForAudit(report)).toEqual([
+    mapObservation,
+    postureObservation,
+    investigationObservation,
+  ]);
+  expect(checkpointed).toMatchObject([
+    {
+      coverage: {
+        errorCode: 'audit-continuation-failed',
+        evidenceMapFactCount: 2,
+        sourcePostureAssessmentCount: 1,
+      },
+    },
+  ]);
+});
+
+test('retains a failed investigation observation in terminal coverage and the vector checkpoint', async () => {
+  const observation = failedInvestigationStageObservation('investigation-projection-failure-01');
+  const checkpointed: unknown[] = [];
+  const report = await runApprovedAudit({
+    plan: approvedPlan(),
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-investigation-projection-failure-01',
+    generatedAt: '2026-08-04T12:00:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async () => ({ seeds: [], closures: [], modelObservation: observation }),
+    verify: acceptVerifier,
+    onVectorResult: async (result) => {
+      checkpointed.push(result);
+    },
+  });
+
+  expect(report.findings).toHaveLength(0);
+  expect(report.errors).toMatchObject([
+    { code: 'provider-response-invalid', stage: 'investigation', retryable: false },
+  ]);
+  expect(report.coverage).toMatchObject([
+    {
+      outcome: 'failed',
+      errorCode: 'provider-response-invalid',
+      modelObservation: {
+        stage: 'investigation',
+        status: 'failed',
+        errorCode: 'provider-response-invalid',
+        usage: { modelCallCount: 1 },
+      },
+    },
+  ]);
+  expect(modelStagesForAudit(report)).toEqual([observation]);
+  expect(checkpointed).toMatchObject([
+    {
+      coverage: {
+        outcome: 'failed',
+        errorCode: 'provider-response-invalid',
+        modelObservation: {
+          stage: 'investigation',
+          status: 'failed',
+          errorCode: 'provider-response-invalid',
+        },
+      },
+    },
+  ]);
 });
 
 test('preserves a provider-neutral cancellation as a cancelled vector', async () => {
@@ -598,7 +935,7 @@ test('preserves a provider-neutral cancellation as a cancelled vector', async ()
     mapEvidence,
     assessSourcePosture,
     investigate: async () => {
-      throw new SecurityReviewerError('provider-cancelled', 'Provider-neutral cancellation.');
+      throw new AuditRuntimeError('provider-cancelled', 'Provider-neutral cancellation.');
     },
     verify: acceptVerifier,
     countercheck: acceptCountercheck,
@@ -607,6 +944,55 @@ test('preserves a provider-neutral cancellation as a cancelled vector', async ()
   expect(report.coverage[0]?.outcome).toBe('cancelled');
   expect(report.errors[0]?.code).toBe('provider-cancelled');
   expect(auditExitCode(report)).toBe(3);
+});
+
+test('retains completed verifier telemetry when a sibling provider call is cancelled', async () => {
+  const report = await runApprovedAudit({
+    plan: approvedPlan(),
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-cancelled-sibling-telemetry-01',
+    generatedAt: '2026-08-04T11:00:00.000Z',
+    maxParallelVectors: 2,
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: ['one', 'two', 'three'].map((suffix) => ({
+        ...sourceBackedSeed(request.vector.vectorId),
+        seedId: `seed-cancel-${suffix}`,
+      })),
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: groundSeeds,
+    verify: async (request) => {
+      if (request.verificationId.endsWith('-1')) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 2));
+        return {
+          ...(await acceptVerifier(request)),
+          modelObservation: completedStageObservation('verification', 'completed-before-cancel'),
+        };
+      }
+      throw new AuditRuntimeError('provider-cancelled', 'Provider-neutral cancellation.');
+    },
+  });
+
+  expect(report.coverage[0]).toMatchObject({
+    outcome: 'cancelled',
+    errorCode: 'provider-cancelled',
+    verificationObservations: [
+      expect.objectContaining({ stageId: 'completed-before-cancel', status: 'completed' }),
+    ],
+  });
+  expect(report.errors).toContainEqual(
+    expect.objectContaining({ code: 'provider-cancelled', stage: 'verification' }),
+  );
 });
 
 test('passes only scoped source paths to an investigator that returns no claim', async () => {
@@ -644,7 +1030,7 @@ test('reuses a validated evidence map and continues at the earliest unfinished p
   if (vector === undefined) throw new Error('Missing vector.');
   let mappedCalls = 0;
   let savedMap:
-    | Pick<AuditEvidenceMapDraft, 'vectorId' | 'evidenceMap' | 'modelObservation'>
+    | Pick<AuditEvidenceMapDraft, 'vectorId' | 'evidenceMap' | 'repairAttempts' | 'execution'>
     | undefined;
   const source = [
     {
@@ -692,7 +1078,7 @@ test('reuses a validated evidence map and continues at the earliest unfinished p
           ? []
           : [
               {
-                schemaVersion: 1,
+                schemaVersion: 5,
                 phase: 'evidence-mapping' as const,
                 runId: 'run-resume-map-01',
                 planId: plan.planId,
@@ -706,6 +1092,8 @@ test('reuses a validated evidence map and continues at the earliest unfinished p
                 vectorDigest: vector.vectorDigest,
                 savedAt: '2026-07-31T12:00:01.000Z',
                 ...savedMap,
+                evidenceMapFingerprint: evidenceMapFingerprint(savedMap.evidenceMap),
+                repairAttempts: savedMap.repairAttempts,
               },
             ],
     }),
@@ -752,20 +1140,22 @@ test('persists a source-grounded hypothesis only after independent verifier acce
       verifierRequests.push(request.verificationId);
       expect(request.hypothesis).toMatchObject({
         vectorId: vector.vectorId,
-        evidence: [
-          { path: 'src/query.ts', startLine: 1, role: 'operation' },
-          { path: 'src/query.ts', startLine: 1, role: 'unsafe-condition' },
+        claimEvidenceBundles: [
+          { role: 'operation', evidence: [{ path: 'src/query.ts', startLine: 1 }] },
+          { role: 'unsafe-condition', evidence: [{ path: 'src/query.ts', startLine: 1 }] },
         ],
       });
       return {
         decision: 'accepted',
-        reason: 'Independent source review supports the hypothesis.',
-        verifiedEvidence: request.hypothesis.evidence,
+        reasonCode: 'claim-supported',
+        claimEvidenceBundles: request.hypothesis.claimEvidenceBundles,
+        contradictionEvidence: null,
+        inspectedEvidence: [],
         verifiedPlanObligations: request.hypothesis.planObligations,
+        affectedPlanObligations: [],
         controlAssessment: {
           conclusion: 'no-effective-control-found',
-          explanation: 'No scoped control negates the claim.',
-          evidence: request.hypothesis.evidence,
+          evidence: [...claimEvidenceItems(request.hypothesis)],
         },
         obligationReconciliations: obligationReconciliationsFor(request),
         postureReconciliations: postureReconciliationsFor(request),
@@ -786,6 +1176,7 @@ test('persists a source-grounded hypothesis only after independent verifier acce
     verifierEvidenceRejectedCount: 0,
     verifierReconciledCount: 1,
     postVerificationRejectedCount: 0,
+    duplicateCollapsedCount: 0,
     admittedFindingCount: 1,
     verificationTerminalLanes: {
       accepted: 1,
@@ -797,6 +1188,46 @@ test('persists a source-grounded hypothesis only after independent verifier acce
       wrapperContractInvalid: 0,
     },
   });
+});
+
+test('retains a completed verifier observation when its candidate-aware wrapper fails afterward', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  const observation = completedStageObservation('verification', 'verifier-continuation-01');
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-verifier-continuation-01',
+    generatedAt: '2026-08-04T12:00:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: groundSeeds,
+    verify: async (_request, stageContext) => {
+      stageContext?.onCompletedModelObservation?.(observation);
+      throw new Error('candidate-aware continuation failed');
+    },
+  });
+
+  expect(report.coverage).toMatchObject([
+    {
+      outcome: 'incomplete',
+      verificationObservations: [{ stage: 'verification', status: 'completed' }],
+    },
+  ]);
+  expect(modelStagesForAudit(report)).toContainEqual(observation);
 });
 
 test('checkpoints every candidate-aware verifier transition without retaining model rationale', async () => {
@@ -837,6 +1268,67 @@ test('checkpoints every candidate-aware verifier transition without retaining mo
   expect(completed?.result).not.toHaveProperty('reason');
 });
 
+test('retains a completed verifier observation when its terminal checkpoint fails', async () => {
+  const plan = approvedPlan();
+  let verifierCalls = 0;
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-verifier-terminal-checkpoint-failure-01',
+    generatedAt: '2026-08-04T12:02:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(request.vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: groundSeeds,
+    verify: async (request) => {
+      verifierCalls += 1;
+      return {
+        ...(await acceptVerifier(request)),
+        modelObservation: completedStageObservation('verification', 'verification-completed-01'),
+      };
+    },
+    onCandidateAwareCheckpoint: async (update) => {
+      if (update.state === 'completed') {
+        throw new Error('Injected verifier checkpoint persistence failure.');
+      }
+    },
+  });
+
+  expect(verifierCalls).toBe(1);
+  expect(report.findings).toHaveLength(0);
+  expect(report.errors).toContainEqual(
+    expect.objectContaining({
+      code: 'checkpoint-persistence-failed',
+      stage: 'verification',
+      retryable: false,
+    }),
+  );
+  expect(report.coverage).toMatchObject([
+    {
+      outcome: 'failed',
+      errorCode: 'checkpoint-persistence-failed',
+      verificationObservations: [
+        {
+          stage: 'verification',
+          status: 'completed',
+          errorCode: null,
+        },
+      ],
+    },
+  ]);
+});
+
 test('binds verifier overflow topology to the exact candidate-aware checkpoint', async () => {
   const plan = approvedPlan();
   const updates: CandidateAwareCheckpointUpdate[] = [];
@@ -862,6 +1354,7 @@ test('binds verifier overflow topology to the exact candidate-aware checkpoint',
     groundCandidates: groundSeeds,
     verify: async (_request, stageContext) => {
       await stageContext?.onContextOverflowTransition?.({
+        phaseInputFingerprint: 'a'.repeat(64),
         recoveryProtocolFingerprint: 'a'.repeat(64),
         rootScopeFingerprint: 'b'.repeat(64),
         event: {
@@ -874,9 +1367,12 @@ test('binds verifier overflow topology to the exact candidate-aware checkpoint',
       });
       return {
         decision: 'incomplete',
-        reason: 'The provider context window was exceeded.',
-        verifiedEvidence: null,
+        reasonCode: 'output-invalid',
+        claimEvidenceBundles: null,
+        contradictionEvidence: null,
+        inspectedEvidence: [],
         verifiedPlanObligations: [],
+        affectedPlanObligations: [],
         controlAssessment: null,
         obligationReconciliations: [],
         postureReconciliations: [],
@@ -899,7 +1395,7 @@ test('binds verifier overflow topology to the exact candidate-aware checkpoint',
   expect(updates.at(-1)?.contextOverflowTopology).toEqual(overflowUpdate?.contextOverflowTopology);
 });
 
-test('grounds every discovery seed and rejects a changed vector or obligation binding', async () => {
+test('grounds every discovery seed with seed-owned vector and obligation binding', async () => {
   const plan = approvedPlan();
   const vector = plan.vectors[0];
   if (vector === undefined) throw new Error('Missing vector.');
@@ -923,7 +1419,9 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
     }),
     verify: acceptVerifier,
   };
-  const discoveryUpdates: { vectorId: string; evidenceMapFactIds: readonly string[] }[] = [];
+  const discoveryUpdates: Parameters<
+    NonNullable<Parameters<typeof runApprovedAudit>[0]['onVerifiedDiscoverySeed']>
+  >[0][] = [];
   const grounded = await runApprovedAudit({
     ...input,
     runId: 'run-candidate-grounding-accepted-01',
@@ -933,7 +1431,11 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
       return {
         groundings: {
           groundings: [
-            { seedId: seed.seedId, candidate: sourceBackedGroundingCandidate(vector.vectorId) },
+            {
+              seedId: seed.seedId,
+              candidate: sourceBackedGroundingCandidate(vector.vectorId),
+              nullReason: null,
+            },
           ],
         },
       };
@@ -943,7 +1445,10 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
     },
   });
   expect(discoveryUpdates).toEqual([
-    { vectorId: vector.vectorId, evidenceMapFactIds: ['fact-input-01', 'fact-query-01'] },
+    {
+      vectorId: vector.vectorId,
+      evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+    },
   ]);
   expect(grounded.findings).toHaveLength(1);
   expect(grounded.coverage[0]?.admissionFunnel).toMatchObject({
@@ -955,9 +1460,9 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
     emptyCandidateIntegrityRejectionLedger(),
   );
 
-  const rejected = await runApprovedAudit({
+  const derived = await runApprovedAudit({
     ...input,
-    runId: 'run-candidate-grounding-binding-rejected-01',
+    runId: 'run-candidate-grounding-seed-derived-01',
     groundCandidates: async (request) => {
       const seed = request.seeds[0];
       if (seed === undefined) throw new Error('Missing seed.');
@@ -966,27 +1471,184 @@ test('grounds every discovery seed and rejects a changed vector or obligation bi
           groundings: [
             {
               seedId: seed.seedId,
-              candidate: {
-                ...sourceBackedGroundingCandidate('another-vector'),
-                planObligations: seed.planObligations,
-              },
+              candidate: sourceBackedGroundingCandidate('another-vector'),
+              nullReason: null,
             },
           ],
         },
       };
     },
   });
-  expect(rejected.findings).toHaveLength(0);
-  expect(rejected.coverage[0]?.hypothesisGroundingFunnel).toMatchObject({
+  expect(derived.findings).toHaveLength(1);
+  expect(derived.coverage[0]?.hypothesisGroundingFunnel).toMatchObject({
     discoveredSeedCount: 1,
     discoveryBindingRejectedCount: 0,
-    groundingBindingRejectedCount: 1,
-    submittedCandidateCount: 0,
+    groundingBindingRejectedCount: 0,
+    submittedCandidateCount: 1,
   });
-  expect(rejected.coverage[0]?.admissionFunnel).toMatchObject({
+  expect(derived.coverage[0]?.admissionFunnel).toMatchObject({
     integrityRejectedCount: 0,
-    admittedFindingCount: 0,
+    admittedFindingCount: 1,
   });
+});
+
+test('repairs a generic grounding evidence gap candidate-blind and restarts only map-dependent work', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  let postureCalls = 0;
+  let investigationCalls = 0;
+  let groundingCalls = 0;
+  const repairInputs: unknown[] = [];
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const requestValue = request.query.userId;\nexecute(requestValue);',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-evidence-map-repair-grounding-01',
+    generatedAt: '2026-08-03T12:02:00.000Z',
+    mapEvidence,
+    assessSourcePosture: async (request) => {
+      postureCalls += 1;
+      return assessSourcePosture(request);
+    },
+    investigate: async (request) => {
+      investigationCalls += 1;
+      return {
+        seeds: [sourceBackedSeed(request.vector.vectorId)],
+        closures: closuresFor(request, 'candidate-raised'),
+      };
+    },
+    groundCandidates: async (request) => {
+      groundingCalls += 1;
+      return {
+        groundings: {
+          groundings: request.seeds.map((seed) =>
+            groundingCalls === 1
+              ? {
+                  seedId: seed.seedId,
+                  candidate: null,
+                  nullReason: 'map-insufficient' as const,
+                }
+              : {
+                  seedId: seed.seedId,
+                  candidate: {
+                    ...sourceBackedGroundingCandidate(seed.vectorId),
+                  },
+                  nullReason: null,
+                },
+          ),
+        },
+        ...(groundingCalls === 1
+          ? {
+              mapInsufficiencies: [
+                {
+                  obligationIds: ['audit-obligation-01'],
+                  needs: ['operation-evidence-missing' as const],
+                },
+              ],
+            }
+          : {}),
+      };
+    },
+    repairEvidenceMap: async (request) => {
+      repairInputs.push(request);
+      return {
+        evidenceMap: {
+          ...request.evidenceMap,
+          facts: [
+            ...request.evidenceMap.facts,
+            {
+              factId: 'fact-repair-boundary-01',
+              role: 'boundary',
+              evidence: [
+                {
+                  path: 'src/query.ts',
+                  startLine: 2,
+                  contentDigest: 'a'.repeat(64),
+                  kind: 'source' as const,
+                },
+              ],
+              planObligations: [{ obligationId: 'audit-obligation-01' }],
+            },
+          ],
+        },
+      };
+    },
+    verify: acceptVerifier,
+  });
+
+  expect(report.findings).toHaveLength(1);
+  expect({ postureCalls, investigationCalls, groundingCalls }).toEqual({
+    postureCalls: 2,
+    investigationCalls: 2,
+    groundingCalls: 2,
+  });
+  expect(repairInputs).toHaveLength(1);
+  expect(repairInputs[0]).toMatchObject({
+    insufficiencies: [
+      {
+        obligationIds: ['audit-obligation-01'],
+        needs: ['operation-evidence-missing'],
+      },
+    ],
+  });
+  expect(JSON.stringify(repairInputs[0])).not.toContain('candidate');
+  expect(JSON.stringify(repairInputs[0])).not.toContain('priority');
+});
+
+test('closes explicit incomplete coverage when the same generic repair adds no neutral fact', async () => {
+  const plan = approvedPlan();
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const requestValue = request.query.userId;\nexecute(requestValue);',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-evidence-map-repair-no-progress-01',
+    generatedAt: '2026-08-03T12:02:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(request.vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: async (request) => ({
+      groundings: {
+        groundings: request.seeds.map((seed) => ({
+          seedId: seed.seedId,
+          candidate: null,
+          nullReason: 'map-insufficient' as const,
+        })),
+      },
+      mapInsufficiencies: [
+        {
+          obligationIds: ['audit-obligation-01'],
+          needs: ['unsafe-condition-relation-missing'],
+        },
+      ],
+    }),
+    repairEvidenceMap: async (request) => ({ evidenceMap: request.evidenceMap }),
+    verify: acceptVerifier,
+  });
+
+  expect(report.coverage[0]).toMatchObject({
+    completed: false,
+    outcome: 'incomplete',
+    errorCode: 'evidence-map-repair-no-progress',
+  });
+  expect(report.findings).toHaveLength(0);
 });
 
 test('rejects an invalid selected map location before candidate admission', async () => {
@@ -1016,6 +1678,10 @@ test('rejects an invalid selected map location before candidate admission', asyn
       const seed = request.seeds[0];
       if (seed === undefined) throw new Error('Missing seed.');
       const candidate = sourceBackedGroundingCandidate(vector.vectorId);
+      const unsafeConditionBundle = candidate.claimEvidenceBundles.find(
+        (bundle) => bundle.role === 'unsafe-condition',
+      );
+      if (unsafeConditionBundle === undefined) throw new Error('Missing unsafe-condition bundle.');
       return {
         groundings: {
           groundings: [
@@ -1023,8 +1689,16 @@ test('rejects an invalid selected map location before candidate admission', asyn
               seedId: seed.seedId,
               candidate: {
                 ...candidate,
-                operationEvidence: { factId: 'fact-query-01', evidenceIndex: 8 },
+                claimEvidenceBundles: [
+                  {
+                    role: 'operation',
+                    explanation: 'The selected location is out of range.',
+                    selections: [{ factId: 'fact-query-01', evidenceIndex: 8 }],
+                  },
+                  unsafeConditionBundle,
+                ],
               },
+              nullReason: null,
             },
           ],
         },
@@ -1095,8 +1769,7 @@ test('requires verifier reconciliation of every relevant mapped control before p
       ...(await acceptVerifier(request)),
       controlAssessment: {
         conclusion: 'no-effective-control-found',
-        explanation: 'The mapped control does not negate the independently reconciled claim.',
-        evidence: request.hypothesis.evidence,
+        evidence: [...claimEvidenceItems(request.hypothesis)],
         consideredEvidenceMapFactIds: ['fact-control-01'],
       },
     }),
@@ -1139,10 +1812,117 @@ test('requires every candidate-relevant posture reconciliation before persisting
     }),
   });
   expect(report.findings).toHaveLength(0);
-  expect(report.errors).toMatchObject([{ code: 'verifier-incomplete' }]);
+  expect(report.errors).toMatchObject([{ code: 'verifier-wrapper-contract-invalid' }]);
   expect(report.coverage[0]?.admissionFunnel?.verificationTerminalLanes).toMatchObject({
     wrapperContractInvalid: 1,
   });
+});
+
+test('retains a failed verifier stage as an operational failure rather than wrapper corruption', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  const observation = failedVerificationStageObservation('verification-http-failure-01');
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const requestValue = request.query.userId;\nexecute(requestValue);',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-verification-http-failure-01',
+    generatedAt: '2026-08-04T13:00:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: groundSeeds,
+    verify: async () => ({
+      decision: 'incomplete',
+      reasonCode: 'output-invalid',
+      claimEvidenceBundles: null,
+      contradictionEvidence: null,
+      inspectedEvidence: [],
+      verifiedPlanObligations: [],
+      affectedPlanObligations: [],
+      controlAssessment: null,
+      obligationReconciliations: [],
+      postureReconciliations: [],
+      terminalLane: 'stage-failed',
+      modelObservation: observation,
+    }),
+  });
+
+  expect(report.findings).toHaveLength(0);
+  expect(report.errors).toContainEqual(
+    expect.objectContaining({
+      code: 'provider-http-error',
+      stage: 'verification',
+      retryable: false,
+    }),
+  );
+  expect(report.coverage[0]?.admissionFunnel?.verificationTerminalLanes).toMatchObject({
+    stageFailed: 1,
+    wrapperContractInvalid: 0,
+  });
+});
+
+test('does not advertise repeated verifier output validation as resumable work', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: 'const requestValue = request.query.userId;\nexecute(requestValue);',
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-verification-validation-no-progress-01',
+    generatedAt: '2026-08-04T13:01:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+    }),
+    groundCandidates: groundSeeds,
+    verify: async () => ({
+      decision: 'incomplete',
+      reasonCode: 'output-invalid',
+      claimEvidenceBundles: null,
+      contradictionEvidence: null,
+      inspectedEvidence: [],
+      verifiedPlanObligations: [],
+      affectedPlanObligations: [],
+      controlAssessment: null,
+      obligationReconciliations: [],
+      postureReconciliations: [],
+      terminalLane: 'stage-failed',
+      modelObservation: failedVerificationStageObservation(
+        'verification-validation-no-progress-01',
+        'validation-repair-no-progress',
+      ),
+    }),
+  });
+
+  expect(report.errors).toContainEqual(
+    expect.objectContaining({
+      code: 'validation-repair-no-progress',
+      stage: 'verification',
+      retryable: false,
+    }),
+  );
 });
 
 test('preserves a candidate-blind contradiction for human review without promoting it', async () => {
@@ -1189,7 +1969,7 @@ test('preserves a candidate-blind contradiction for human review without promoti
       verification: { status: 'insufficient-evidence' },
     },
   ]);
-  expect(report.errors).toMatchObject([{ code: 'candidate-blind-contradiction-review-required' }]);
+  expect(report.errors).toEqual([]);
   expect(report.coverage[0]?.admissionFunnel).toMatchObject({
     verifierAcceptedCount: 1,
     verifierEvidenceRejectedCount: 0,
@@ -1229,8 +2009,7 @@ test('requires every approved hypothesis obligation to be source-reconciled befo
         {
           planObligation: { obligationId: 'missing-obligation-01' },
           disposition: 'supports-claim',
-          explanation: 'This reconciliation intentionally references another obligation.',
-          evidence: request.hypothesis.evidence,
+          evidence: [...claimEvidenceItems(request.hypothesis)],
         },
       ],
     }),
@@ -1273,7 +2052,7 @@ test('requires verifier control evidence to overlap each mapped control it claim
                 {
                   path: 'src/query.ts',
                   startLine: 2,
-                  snippet: 'if',
+                  contentDigest: 'a'.repeat(64),
                   kind: 'source',
                   role: 'guard',
                 },
@@ -1297,8 +2076,7 @@ test('requires verifier control evidence to overlap each mapped control it claim
       ...(await acceptVerifier(request)),
       controlAssessment: {
         conclusion: 'control-insufficient',
-        explanation: 'The control was considered.',
-        evidence: request.hypothesis.evidence,
+        evidence: [...claimEvidenceItems(request.hypothesis)],
         consideredEvidenceMapFactIds: ['fact-control-02'],
       },
     }),
@@ -1307,7 +2085,7 @@ test('requires verifier control evidence to overlap each mapped control it claim
   expect(report.errors).toMatchObject([{ code: 'verifier-evidence-rejected' }]);
 });
 
-test('uses verifier-reconciled evidence locations after validating them against source', async () => {
+test('retains every map-projected verifier evidence bundle in the admitted finding', async () => {
   const plan = approvedPlan();
   const vector = plan.vectors[0];
   if (vector === undefined) throw new Error('Missing vector.');
@@ -1331,51 +2109,18 @@ test('uses verifier-reconciled evidence locations after validating them against 
       closures: closuresFor(request, 'candidate-raised'),
     }),
     groundCandidates: groundSeeds,
-    verify: async (request) => ({
-      decision: 'accepted',
-      reason: 'The inspected operation and input condition support the hypothesis.',
-      verifiedEvidence: [
-        {
-          path: 'src/query.ts',
-          startLine: 2,
-          snippet: 'unused',
-          kind: 'source',
-          role: 'operation',
-        },
-        {
-          path: 'src/query.ts',
-          startLine: 1,
-          snippet: 'unused',
-          kind: 'source',
-          role: 'unsafe-condition',
-        },
-      ],
-      verifiedPlanObligations: [{ obligationId: 'audit-obligation-01' }],
-      controlAssessment: {
-        conclusion: 'no-effective-control-found',
-        explanation: 'No scoped control negates the claim.',
-        evidence: [
-          {
-            path: 'src/query.ts',
-            startLine: 2,
-            snippet: 'unused',
-            kind: 'source',
-            role: 'operation',
-          },
-        ],
-      },
-      obligationReconciliations: obligationReconciliationsFor(request),
-      postureReconciliations: postureReconciliationsFor(request),
-    }),
+    verify: acceptVerifier,
     countercheck: acceptCountercheck,
   });
-  expect(report.findings[0]?.evidence.find((item) => item.role === 'operation')).toMatchObject({
-    path: 'src/query.ts',
-    startLine: 2,
-  });
+  const finding = report.findings[0];
+  if (finding === undefined) throw new Error('Expected an admitted finding.');
+  expect(claimEvidenceItems(finding).map((item) => item.role)).toEqual([
+    'operation',
+    'unsafe-condition',
+  ]);
 });
 
-test('fails closed when verifier-selected evidence is out of the approved source range', async () => {
+test('does not permit a verifier to author source locations outside the map-selection contract', async () => {
   const plan = approvedPlan();
   const vector = plan.vectors[0];
   if (vector === undefined) throw new Error('Missing vector.');
@@ -1399,52 +2144,17 @@ test('fails closed when verifier-selected evidence is out of the approved source
       closures: closuresFor(request, 'candidate-raised'),
     }),
     groundCandidates: groundSeeds,
-    verify: async (request) => ({
-      decision: 'accepted',
-      reason: 'The hypothesis is supported.',
-      verifiedEvidence: [
-        {
-          path: 'src/query.ts',
-          startLine: 999,
-          snippet: 'unused',
-          kind: 'source',
-          role: 'operation',
-        },
-        {
-          path: 'src/query.ts',
-          startLine: 999,
-          snippet: 'unused',
-          kind: 'source',
-          role: 'unsafe-condition',
-        },
-      ],
-      verifiedPlanObligations: [{ obligationId: 'audit-obligation-01' }],
-      controlAssessment: {
-        conclusion: 'no-effective-control-found',
-        explanation: 'No scoped control negates the claim.',
-        evidence: [
-          {
-            path: 'src/query.ts',
-            startLine: 999,
-            snippet: 'unused',
-            kind: 'source',
-            role: 'operation',
-          },
-        ],
-      },
-      obligationReconciliations: obligationReconciliationsFor(request),
-      postureReconciliations: postureReconciliationsFor(request),
-    }),
+    verify: acceptVerifier,
     countercheck: acceptCountercheck,
   });
-  expect(report.findings).toHaveLength(0);
-  expect(report.errors).toMatchObject([{ code: 'verifier-evidence-rejected' }]);
+  expect(report.findings).toHaveLength(1);
+  expect(report.errors).toEqual([]);
   expect(report.coverage[0]?.admissionFunnel).toMatchObject({
     modelCandidateCount: 1,
     verifierAcceptedCount: 1,
-    verifierEvidenceRejectedCount: 1,
-    verifierReconciledCount: 0,
-    admittedFindingCount: 0,
+    verifierEvidenceRejectedCount: 0,
+    verifierReconciledCount: 1,
+    admittedFindingCount: 1,
   });
 });
 
@@ -1472,17 +2182,12 @@ test('does not persist a source-grounded hypothesis rejected by the independent 
       closures: closuresFor(request, 'candidate-raised'),
     }),
     groundCandidates: groundSeeds,
-    verify: async () => ({
-      decision: 'rejected',
-      reason: 'The cited lines do not establish the claimed risk.',
-      verifiedEvidence: null,
-      verifiedPlanObligations: [],
-    }),
+    verify: async (request) => rejectedResult(request),
     countercheck: acceptCountercheck,
   });
   expect(report.findings).toHaveLength(0);
   expect(report.coverage[0]?.findingCount).toBe(0);
-  expect(report.errors).toMatchObject([{ code: 'verifier-rejected', stage: 'verification' }]);
+  expect(report.errors).toEqual([]);
   expect(report.coverage[0]?.admissionFunnel).toMatchObject({
     modelCandidateCount: 1,
     verifierRejectedCount: 1,
@@ -1490,10 +2195,11 @@ test('does not persist a source-grounded hypothesis rejected by the independent 
   });
 });
 
-test('does not persist a verifier-accepted hypothesis rejected by the countercheck', async () => {
+test('keeps verifier admission when an evaluation-only countercheck rejects the hypothesis', async () => {
   const plan = approvedPlan();
   const vector = plan.vectors[0];
   if (vector === undefined) throw new Error('Missing vector.');
+  let countercheckCalls = 0;
   const report = await runApprovedAudit({
     plan,
     targetFingerprint,
@@ -1515,27 +2221,223 @@ test('does not persist a verifier-accepted hypothesis rejected by the counterche
     }),
     groundCandidates: groundSeeds,
     verify: acceptVerifier,
-    countercheck: async () => ({
-      decision: 'rejected',
-      reason: 'The final challenge found a source-local control.',
-      verifiedEvidence: null,
-      verifiedPlanObligations: [],
-    }),
+    countercheck: async (request) => {
+      countercheckCalls += 1;
+      return rejectedResult(request);
+    },
   });
-  expect(report.findings).toHaveLength(0);
-  expect(report.coverage[0]?.findingCount).toBe(0);
-  expect(report.errors).toMatchObject([{ code: 'countercheck-rejected', stage: 'countercheck' }]);
+  expect(report.findings).toHaveLength(1);
+  expect(report.coverage[0]?.findingCount).toBe(1);
+  expect(report.errors).toEqual([]);
   expect(report.coverage[0]?.admissionFunnel).toMatchObject({
     verifierReconciledCount: 1,
-    postVerificationRejectedCount: 1,
-    admittedFindingCount: 0,
+    postVerificationRejectedCount: 0,
+    admittedFindingCount: 1,
   });
+  expect(countercheckCalls).toBe(1);
 });
 
-test('reuses a canonical candidate-grounding draft to retry verification without another discovery', async () => {
+test('resumes from a durable grounding draft after a crash before its first candidate-aware checkpoint', async () => {
   const plan = approvedPlan();
   const vector = plan.vectors[0];
   if (vector === undefined) throw new Error('Missing vector.');
+  const source = [
+    {
+      path: 'src/query.ts',
+      content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+      languageHint: 'typescript' as const,
+    },
+  ];
+  let savedMap:
+    | Pick<AuditEvidenceMapDraft, 'vectorId' | 'evidenceMap' | 'repairAttempts' | 'execution'>
+    | undefined;
+  let savedSourcePosture:
+    | Parameters<NonNullable<AuditInput['onSourcePostureDraft']>>[0]
+    | undefined;
+  let savedGrounding:
+    | Parameters<NonNullable<AuditInput['onCandidateGroundingDraft']>>[0]
+    | undefined;
+  const firstDiscoveryObservation = completedStageObservation(
+    'investigation',
+    'crash-boundary-discovery-01',
+  );
+  const firstGroundingObservation = completedStageObservation(
+    'candidate-grounding',
+    'crash-boundary-grounding-01',
+  );
+
+  await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: source,
+    runId: 'run-draft-crash-boundary-01',
+    generatedAt: '2026-08-04T12:00:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    investigate: async (request) => ({
+      seeds: [sourceBackedSeed(vector.vectorId)],
+      closures: closuresFor(request, 'candidate-raised'),
+      modelObservation: firstDiscoveryObservation,
+    }),
+    groundCandidates: async () => ({
+      groundings: {
+        groundings: [
+          {
+            seedId: 'seed-query-01',
+            candidate: sourceBackedGroundingCandidate(vector.vectorId),
+            nullReason: null,
+          },
+        ],
+      },
+      modelObservation: firstGroundingObservation,
+    }),
+    verify: acceptVerifier,
+    onEvidenceMapDraft: async (draft) => {
+      savedMap = draft;
+    },
+    onSourcePostureDraft: async (draft) => {
+      savedSourcePosture = draft;
+    },
+    onCandidateGroundingDraft: async (draft) => {
+      savedGrounding = draft;
+      throw new Error('Simulated process stop after durable grounding draft save.');
+    },
+  });
+
+  if (savedMap === undefined || savedSourcePosture === undefined || savedGrounding === undefined) {
+    throw new Error('The initial run did not reach every durable upstream boundary.');
+  }
+
+  let mappingCalls = 0;
+  let sourcePostureCalls = 0;
+  let discoveryCalls = 0;
+  let groundingCalls = 0;
+  let verificationCalls = 0;
+  const candidateAwareTransitions: string[] = [];
+  const resumed = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: source,
+    runId: 'run-draft-crash-boundary-01',
+    generatedAt: '2026-08-04T12:01:00.000Z',
+    retryUnfinished: true,
+    resumeState: createAuditResumeState({
+      evidenceMapDrafts: [
+        {
+          schemaVersion: 5,
+          phase: 'evidence-mapping',
+          runId: 'run-draft-crash-boundary-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorDigest: vector.vectorDigest,
+          savedAt: '2026-08-04T12:00:01.000Z',
+          ...savedMap,
+          evidenceMapFingerprint: evidenceMapFingerprint(savedMap.evidenceMap),
+        },
+      ],
+      sourcePostureDrafts: [
+        {
+          schemaVersion: 4,
+          phase: 'source-posture',
+          runId: 'run-draft-crash-boundary-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorDigest: vector.vectorDigest,
+          savedAt: '2026-08-04T12:00:02.000Z',
+          ...savedSourcePosture,
+          evidenceMapFingerprint: evidenceMapFingerprint(savedMap.evidenceMap),
+        },
+      ],
+      candidateGroundingDrafts: [
+        {
+          schemaVersion: 10,
+          phase: 'candidate-grounding',
+          runId: 'run-draft-crash-boundary-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorDigest: vector.vectorDigest,
+          savedAt: '2026-08-04T12:00:03.000Z',
+          candidateGroundingProtocolFingerprint: 'e'.repeat(64),
+          ...savedGrounding,
+        },
+      ],
+    }),
+    mapEvidence: async () => {
+      mappingCalls += 1;
+      throw new Error('A valid evidence-map draft must not be replayed.');
+    },
+    assessSourcePosture: async () => {
+      sourcePostureCalls += 1;
+      throw new Error('A valid source-posture draft must not be replayed.');
+    },
+    investigate: async () => {
+      discoveryCalls += 1;
+      throw new Error('A valid grounding draft must not replay discovery.');
+    },
+    groundCandidates: async () => {
+      groundingCalls += 1;
+      throw new Error('A valid grounding draft must not replay grounding.');
+    },
+    verify: async (request) => {
+      verificationCalls += 1;
+      return {
+        ...(await acceptVerifier(request)),
+        modelObservation: completedStageObservation(
+          'verification',
+          'crash-boundary-verification-01',
+        ),
+      };
+    },
+    onCandidateAwareCheckpoint: async (update) => {
+      candidateAwareTransitions.push(update.state);
+    },
+  });
+
+  expect(mappingCalls).toBe(0);
+  expect(sourcePostureCalls).toBe(0);
+  expect(discoveryCalls).toBe(0);
+  expect(groundingCalls).toBe(0);
+  expect(verificationCalls).toBe(1);
+  expect(candidateAwareTransitions).toEqual(['pending', 'running', 'completed']);
+  expect(resumed.findings).toHaveLength(1);
+  expect(modelStagesForAudit(resumed).map((stage) => stage.stageId)).toEqual([
+    firstDiscoveryObservation.stageId,
+    firstGroundingObservation.stageId,
+    'crash-boundary-verification-01',
+  ]);
+  expect(
+    modelStagesForAudit(resumed).reduce(
+      (modelCallCount, stage) => modelCallCount + stage.usage.modelCallCount,
+      0,
+    ),
+  ).toBe(3);
+});
+
+test('reschedules an interrupted running verifier from its canonical grounding draft', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  const dependencies = await defaultCheckpointDependencies(vector);
   let investigationCalls = 0;
   let verificationCalls = 0;
   const discoveryObservation = completedStageObservation(
@@ -1561,11 +2463,13 @@ test('reuses a canonical candidate-grounding draft to retry verification without
     generatedAt: '2026-07-29T12:02:00.000Z',
     mapEvidence,
     assessSourcePosture,
+    retryUnfinished: true,
     resumeState: createAuditResumeState({
       candidateGroundingDrafts: [
         {
-          schemaVersion: 4,
+          schemaVersion: 10,
           phase: 'candidate-grounding',
+          ...dependencies,
           candidateGroundingProtocolFingerprint: 'e'.repeat(64),
           runId: 'run-draft-resume-01',
           planId: plan.planId,
@@ -1579,7 +2483,15 @@ test('reuses a canonical candidate-grounding draft to retry verification without
           vectorId: vector.vectorId,
           vectorDigest: vector.vectorDigest,
           savedAt: '2026-07-29T12:01:00.000Z',
-          findings: [sourceBackedCanonicalHypothesis(vector.vectorId)],
+          groundings: {
+            groundings: [
+              {
+                seedId: 'audit-resume-seed-01',
+                disposition: 'grounded',
+                hypothesis: sourceBackedCanonicalHypothesis(vector.vectorId),
+              },
+            ],
+          },
           closures: [
             {
               planObligation: { obligationId: 'audit-obligation-01' },
@@ -1595,6 +2507,32 @@ test('reuses a canonical candidate-grounding draft to retry verification without
           modelObservation: groundingObservation,
         },
       ],
+      candidateAwareCheckpoints: [
+        {
+          schemaVersion: 5,
+          phase: 'verification',
+          candidateGroundingProtocolFingerprint: 'e'.repeat(64),
+          runId: 'run-draft-resume-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorId: vector.vectorId,
+          vectorDigest: vector.vectorDigest,
+          candidateOrdinal: 1,
+          candidateFingerprint: candidateAwareFingerprint(
+            sourceBackedCanonicalHypothesis(vector.vectorId),
+          ),
+          evidenceMapFingerprint: dependencies.evidenceMapFingerprint,
+          sourcePostureFingerprint: dependencies.sourcePostureFingerprint,
+          state: 'running',
+          savedAt: '2026-07-29T12:02:00.000Z',
+        },
+      ],
     }),
     investigate: async (request) => {
       investigationCalls += 1;
@@ -1603,17 +2541,8 @@ test('reuses a canonical candidate-grounding draft to retry verification without
     verify: async (request) => {
       verificationCalls += 1;
       return {
+        ...(await acceptVerifier(request)),
         decision: 'accepted',
-        reason: 'The stored draft remains supported.',
-        verifiedEvidence: request.hypothesis.evidence,
-        verifiedPlanObligations: request.hypothesis.planObligations,
-        controlAssessment: {
-          conclusion: 'no-effective-control-found',
-          explanation: 'No scoped control negates the claim.',
-          evidence: request.hypothesis.evidence,
-        },
-        obligationReconciliations: obligationReconciliationsFor(request),
-        postureReconciliations: postureReconciliationsFor(request),
       };
     },
     countercheck: acceptCountercheck,
@@ -1631,6 +2560,198 @@ test('reuses a canonical candidate-grounding draft to retry verification without
     'investigation',
     'candidate-grounding',
   ]);
+});
+
+test('explicit unfinished recovery does not treat a null grounding draft as terminal', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  const dependencies = await defaultCheckpointDependencies(vector);
+  let investigationCalls = 0;
+  let groundingCalls = 0;
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-null-grounding-recovery-01',
+    generatedAt: '2026-08-03T12:02:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    retryUnfinished: true,
+    resumeState: createAuditResumeState({
+      candidateGroundingDrafts: [
+        {
+          schemaVersion: 10,
+          phase: 'candidate-grounding',
+          ...dependencies,
+          candidateGroundingProtocolFingerprint: 'e'.repeat(64),
+          runId: 'run-null-grounding-recovery-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorId: vector.vectorId,
+          vectorDigest: vector.vectorDigest,
+          savedAt: '2026-08-03T12:01:00.000Z',
+          groundings: {
+            groundings: [{ seedId: 'stale-null-01', disposition: 'no-source-backed-candidate' }],
+          },
+          closures: [
+            {
+              planObligation: { obligationId: 'audit-obligation-01' },
+              disposition: 'candidate-raised',
+              evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+              sourcePostureAssessmentIds: ['posture-question-01'],
+              limitations: [],
+            },
+          ],
+          hypothesisGroundingFunnel: emptyHypothesisGroundingFunnel(),
+          candidateIntegrityRejections: emptyCandidateIntegrityRejectionLedger(),
+          discoveryObservation: completedStageObservation('investigation', 'stale-discovery-01'),
+          modelObservation: completedStageObservation('candidate-grounding', 'stale-grounding-01'),
+        },
+      ],
+    }),
+    investigate: async (request) => {
+      investigationCalls += 1;
+      return {
+        seeds: [sourceBackedSeed(vector.vectorId)],
+        closures: closuresFor(request, 'candidate-raised'),
+        modelObservation: completedStageObservation('investigation', 'recovery-discovery-01'),
+      };
+    },
+    groundCandidates: async (request) => {
+      groundingCalls += 1;
+      const seed = request.seeds[0];
+      if (seed === undefined) throw new Error('Missing recovery seed.');
+      return {
+        groundings: {
+          groundings: [
+            {
+              seedId: seed.seedId,
+              candidate: sourceBackedGroundingCandidate(vector.vectorId),
+              nullReason: null,
+            },
+          ],
+        },
+        modelObservation: completedStageObservation('candidate-grounding', 'recovery-grounding-01'),
+      };
+    },
+    verify: acceptVerifier,
+  });
+  expect(investigationCalls).toBe(1);
+  expect(groundingCalls).toBe(1);
+  expect(report.findings).toHaveLength(1);
+});
+
+test('unfinished recovery reuses grounded seeds and dispatches only unresolved seed outcomes', async () => {
+  const plan = approvedPlan();
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Missing vector.');
+  const dependencies = await defaultCheckpointDependencies(vector);
+  const firstSeed = sourceBackedSeed(vector.vectorId);
+  const secondSeed = { ...firstSeed, seedId: 'audit-resume-seed-02' };
+  const dispatchedSeedIds: string[][] = [];
+  const report = await runApprovedAudit({
+    plan,
+    targetFingerprint,
+    contextDigest,
+    sources: [
+      {
+        path: 'src/query.ts',
+        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+        languageHint: 'typescript',
+      },
+    ],
+    runId: 'run-mixed-grounding-recovery-01',
+    generatedAt: '2026-08-03T12:02:00.000Z',
+    mapEvidence,
+    assessSourcePosture,
+    retryUnfinished: true,
+    resumeState: createAuditResumeState({
+      candidateGroundingDrafts: [
+        {
+          schemaVersion: 10,
+          phase: 'candidate-grounding',
+          ...dependencies,
+          candidateGroundingProtocolFingerprint: 'e'.repeat(64),
+          runId: 'run-mixed-grounding-recovery-01',
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint,
+          provider: 'fixture',
+          model: 'fixture',
+          verificationRouteFingerprint: 'c'.repeat(64),
+          evidenceMapProtocolFingerprint: 'd'.repeat(64),
+          reviewWorkflowProtocolFingerprint: 'e'.repeat(64),
+          vectorId: vector.vectorId,
+          vectorDigest: vector.vectorDigest,
+          savedAt: '2026-08-03T12:01:00.000Z',
+          groundings: {
+            groundings: [
+              {
+                seedId: firstSeed.seedId,
+                disposition: 'grounded',
+                hypothesis: sourceBackedCanonicalHypothesis(vector.vectorId),
+              },
+              { seedId: secondSeed.seedId, disposition: 'no-source-backed-candidate' },
+            ],
+          },
+          closures: [
+            {
+              planObligation: { obligationId: 'audit-obligation-01' },
+              disposition: 'candidate-raised',
+              evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+              sourcePostureAssessmentIds: ['posture-question-01'],
+              limitations: [],
+            },
+          ],
+          hypothesisGroundingFunnel: emptyHypothesisGroundingFunnel(),
+          candidateIntegrityRejections: emptyCandidateIntegrityRejectionLedger(),
+          discoveryObservation: completedStageObservation('investigation', 'mixed-discovery-01'),
+          modelObservation: completedStageObservation('candidate-grounding', 'mixed-grounding-01'),
+        },
+      ],
+    }),
+    investigate: async (request) => ({
+      seeds: [firstSeed, secondSeed],
+      closures: closuresFor(request, 'candidate-raised'),
+      modelObservation: completedStageObservation('investigation', 'mixed-discovery-retry-01'),
+    }),
+    groundCandidates: async (request) => {
+      dispatchedSeedIds.push(request.seeds.map((seed) => seed.seedId));
+      return {
+        groundings: {
+          groundings: [
+            {
+              seedId: secondSeed.seedId,
+              candidate: null,
+              nullReason: 'no-source-backed-candidate',
+            },
+          ],
+        },
+        modelObservation: completedStageObservation(
+          'candidate-grounding',
+          'mixed-grounding-retry-01',
+        ),
+      };
+    },
+    verify: acceptVerifier,
+  });
+  expect(dispatchedSeedIds).toEqual([[secondSeed.seedId]]);
+  expect(report.findings).toHaveLength(1);
+  expect(report.coverage[0]?.candidateGroundingObservation?.usage.modelCallCount).toBe(2);
 });
 
 test('does not invoke grounding when discovery emits no valid seed', async () => {
@@ -1700,7 +2821,6 @@ test('reuses a completed vector result and checkpoints only newly executed vecto
             planned: true,
             completed: true,
             matchedSourcePaths: 1,
-            deterministicCandidateCount: 0,
             evidenceMapFactCount: first.reviewObligations.length,
             evidenceMapUnansweredObligationCount: 0,
             sourcePostureAssessmentCount: first.reviewObligations.length,

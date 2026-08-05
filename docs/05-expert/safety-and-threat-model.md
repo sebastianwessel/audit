@@ -13,4 +13,4 @@ The main threat is not only a false positive. It is an agent being persuaded by 
 | Prompt/context persistence | Disabled by default. |
 | Telemetry content | No content. |
 
-The strongest practical deployment is an ephemeral CI runner with minimal credentials, no access to production secrets, and an output directory that is uploaded only after redaction checks.
+The strongest practical deployment is an ephemeral CI runner with minimal credentials, no access to production secrets, local-only private work, and a public artifact directory that is uploaded after the reviewer has produced its source-minimal projection. Redaction is defence in depth, not the boundary that makes an artifact uploadable.

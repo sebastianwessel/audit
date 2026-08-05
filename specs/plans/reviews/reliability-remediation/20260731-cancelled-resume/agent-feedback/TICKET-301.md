@@ -8,7 +8,7 @@
   - Expected: `retryUnfinished: true` excludes `cancelled` as well as `failed` and `incomplete` terminal coverage.
   - Actual: a cancelled result becomes `priorVectorResults` and prevents phase continuation.
   - Fix boundary: checkpoint reuse condition and colocated regression test only.
-  - Required verification: `bun test src/features/audit-execution/checkpoints.test.ts src/features/evaluation/real-world-runner.test.ts`, then `bun run check`.
+  - Required verification: `bun test src/features/audit-execution/checkpoints.test.ts evaluation/src/real-world-runner.test.ts`, then `bun run check`.
 
 ## Advisory Findings
 

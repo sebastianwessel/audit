@@ -1,3 +1,5 @@
+import { auditWorkflowStructuredOutputRegistry } from '../../platform/harness/audit-harness.js';
+import { structuredOutputContractRegistryFingerprint } from '../../platform/harness/structured-output-compatibility.js';
 import { sha256 } from '../../shared/contracts/core.js';
 import { candidateGroundingAgentInstructions } from './agents/candidate-grounding/instructions.js';
 import { countercheckAgentInstructions } from './agents/countercheck/instructions.js';
@@ -14,7 +16,7 @@ import { ReviewRepositoryToolDescriptions, ReviewRepositoryToolIds } from './too
  */
 export const reviewWorkflowPromptProtocolFingerprint = sha256(
   JSON.stringify({
-    version: 8,
+    version: 9,
     agents: {
       planning: planningAgentInstructions,
       evidenceMapping: evidenceMapAgentInstructions,
@@ -28,6 +30,9 @@ export const reviewWorkflowPromptProtocolFingerprint = sha256(
       ids: ReviewRepositoryToolIds,
       descriptions: ReviewRepositoryToolDescriptions,
     },
+    structuredOutputRegistryFingerprint: structuredOutputContractRegistryFingerprint(
+      auditWorkflowStructuredOutputRegistry,
+    ),
   }),
 );
 
@@ -48,6 +53,36 @@ export const verificationProtocolFingerprint = sha256(
   JSON.stringify({
     version: 3,
     instructions: verificationAgentInstructions,
+    repositoryTools: {
+      ids: ReviewRepositoryToolIds,
+      descriptions: ReviewRepositoryToolDescriptions,
+    },
+  }),
+);
+
+/** Exact planning-stage protocol identity for evaluator-only isolated measurements. */
+export const planningProtocolFingerprint = sha256(
+  JSON.stringify({
+    version: 1,
+    instructions: planningAgentInstructions,
+    repositoryTools: {
+      ids: ReviewRepositoryToolIds,
+      descriptions: ReviewRepositoryToolDescriptions,
+    },
+  }),
+);
+
+/**
+ * Both discovery and grounding are required to close this isolated stage, so
+ * its evaluator identity binds their shared repository-tool protocol together.
+ */
+export const investigationGroundingProtocolFingerprint = sha256(
+  JSON.stringify({
+    version: 1,
+    agents: {
+      investigation: investigationAgentInstructions,
+      candidateGrounding: candidateGroundingAgentInstructions,
+    },
     repositoryTools: {
       ids: ReviewRepositoryToolIds,
       descriptions: ReviewRepositoryToolDescriptions,

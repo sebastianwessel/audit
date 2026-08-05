@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "pack": {
+    "schemaVersion": 4,
+    "packId": "decamelize-planning",
+    "stage": "planning",
+    "corpusPackId": "ai-assisted-real-world-development",
+    "corpusPackVersion": "0.1.0",
+    "corpusManifestFingerprint": "e4cc73c3d5732a6d11e9f848fcb0f8c49ff7bc6c79ab479ac9b2664c631316ea",
+    "caseId": "openssf-cve-2017-16023-decamelize",
+    "variant": "vulnerable",
+    "repetition": 1,
+    "planProfile": "planning-generated",
+    "corpusSourceDigest": "f20b47c03c6fea90d45fae57165dc62efa25cf08886087a8b50479df374e4259",
+    "targetFingerprint": "7abe007da35d4fad3a9e1b8be4c53f3614faacb39e389d707f5ceb8f9abe3601",
+    "contextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workflowProtocolFingerprint": "2e283fdd1cd2ba66110fb843715a19510de38b335d3ed54313670a0f5f59f260",
+    "stageProtocolFingerprint": "f792ee1ada6a59dd05116b5dcc5d9b875848d9a151f5ee74f226c91c17893957",
+    "evaluatorProtocolFingerprint": "3259ad968b1621af18b2718c93ef577dd988b072af04ebb9a40a874e1d8aac6a",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "route": "primary",
+    "evaluatorProvider": "openai",
+    "evaluatorModel": "gpt-5.6-terra",
+    "evaluatorRoute": "primary",
+    "productInput": {
+      "stage": "planning",
+      "referenceId": "decamelize-planning-product",
+      "fingerprint": "84a974050f1d65c7bfd46c77caeb9a2a1d6e7c19e651eedfe3acc7ca077ffccb"
+    },
+    "expectedOutcome": {
+      "privateReferenceId": "decamelize-planning-rubric",
+      "fingerprint": "bddb07e0e67de276114d12a416c97da47f5f5f740dc5fae4a619a7ded59bf4d6",
+      "expectedOutcomeCount": 1
+    }
+  },
+  "canonicalInputFingerprint": "84a974050f1d65c7bfd46c77caeb9a2a1d6e7c19e651eedfe3acc7ca077ffccb",
+  "rubric": {
+    "rubricId": "decamelize-planning-rubric",
+    "rubricFingerprint": "bddb07e0e67de276114d12a416c97da47f5f5f740dc5fae4a619a7ded59bf4d6",
+    "stage": "planning",
+    "expectedOutcomes": [
+      {
+        "expectedOutcomeId": "executable-plan-closure",
+        "objective": "Place the required syntax-construction review in an enabled vector.",
+        "requiredRiskCondition": "Adjacent speculative concerns remain observations rather than executable scope.",
+        "evidenceRequirements": [
+          "Close executable review relevance without source text or locations."
+        ],
+        "requiredRoles": []
+      }
+    ]
+  }
+}

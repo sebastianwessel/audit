@@ -1,6 +1,6 @@
 ---
 name: audit-plan-authoring
-description: Create or revise Security Reviewer audit plans through the constrained draft and reseal workflow. Use when a human asks to review, extend, narrow, disable, or clarify an existing audit plan without changing the target binding or corrupting the executable artifact.
+description: Create or revise Audit audit plans through the constrained draft and reseal workflow. Use when a human asks to review, extend, narrow, disable, or clarify an existing audit plan without changing the target binding or corrupting the executable artifact.
 ---
 
 # Audit plan authoring
@@ -9,11 +9,11 @@ Use this skill only for a human-requested plan change. Read `AGENTS.md` first, t
 
 ## Workflow
 
-1. Confirm the request identifies a sealed plan JSON under the configured output root.
-2. Create a new explicit draft path with `bun run start plan-draft --output <output> --plan plans/<plan-id>.json --draft plan-drafts/<review-name>.json`.
+1. Confirm the request identifies a sealed plan JSON under configured private work.
+2. Create a new explicit draft path with `bun run start plan-draft --work <private-work> --plan plans/<plan-id>.json --draft plan-drafts/<review-name>.json`.
 3. Change only `vectors` in the draft. Preserve the draft's base-plan fields exactly. Each vector must retain a specific title, rationale, enabled state, scoped globs, one or more risk-positive obligations, and limitations.
 4. Do not invent source evidence, findings, priorities, attack steps, or approvals. Use the human request and the existing plan's stated scope; the later audit performs source review.
-5. Run `bun run start plan-reseal --output <output> --plan plans/<plan-id>.json --draft plan-drafts/<review-name>.json`.
+5. Run `bun run start plan-reseal --work <private-work> --plan plans/<plan-id>.json --draft plan-drafts/<review-name>.json`.
 6. Report the new JSON and Markdown paths. State that the new JSON is the audit input and the Markdown is review-only.
 
 ## Boundaries

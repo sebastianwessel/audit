@@ -1,4 +1,4 @@
-# Security Reviewer documentation
+# Audit documentation
 
 This documentation is written for people using the tool, not for people implementing it. It moves from the simplest mental model to operational and expert details.
 

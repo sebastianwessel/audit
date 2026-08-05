@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 6,
+  "caseId": "php-image-conversion",
+  "findingCoverage": "targeted",
+  "expectedPlanScenarios": [
+    {
+      "scenarioId": "resource-exhaustion-image-allocation",
+      "objective": "Review caller-controlled image dimensions before allocation.",
+      "sourceOnlyApplicable": true,
+      "requiredRiskCondition": "Caller dimensions can require unbounded resource allocation without source-visible limits.",
+      "evidenceRequirements": ["Inspect dimension origin.", "Inspect allocation and dimension limits."],
+      "relevantPaths": ["web/export.php"],
+      "expectedFindingIds": ["expected-01"]
+    }
+  ],
+  "expectedFindings": [
+    {
+      "findingId": "expected-01",
+      "staticReviewApplicable": true,
+      "evidenceRoles": [
+        {
+          "role": "operation",
+          "notApplicable": false,
+          "ranges": [
+            {
+              "path": "web/export.php",
+              "startLine": 7,
+              "endLine": 7
+            }
+          ]
+        },
+        {
+          "role": "unsafe-condition",
+          "notApplicable": false,
+          "ranges": [
+            {
+              "path": "web/export.php",
+              "startLine": 7,
+              "endLine": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "patchedExpectation": "no-matching-finding",
+  "staticReviewApplicable": true,
+  "adjudicationStatus": "provisional",
+  "reviewers": ["private research corpus author"],
+  "notes": "Locally authored diagnostic case. The vulnerable variant allocates an image from caller-controlled dimensions without a source-visible resource bound; the patched variant validates per-dimension and total-pixel limits. It is not real-world reliability evidence."
+}

@@ -1,0 +1,24 @@
+import { expect, test } from 'bun:test';
+
+import { parseDeterministicCorpusArguments } from './run-deterministic-corpus-integration.js';
+
+test('selects an explicitly requested deterministic corpus', () => {
+  expect(
+    parseDeterministicCorpusArguments(
+      ['--', '--corpus', 'evaluation/data/research-corpora/private-mixed-language-v1'],
+      'evaluation/data/corpora',
+    ),
+  ).toBe('evaluation/data/research-corpora/private-mixed-language-v1');
+});
+
+test('uses the configured corpus only when no explicit corpus is supplied', () => {
+  expect(parseDeterministicCorpusArguments([], 'evaluation/data/corpora')).toBe(
+    'evaluation/data/corpora',
+  );
+});
+
+test('rejects unsupported deterministic corpus options', () => {
+  expect(() => parseDeterministicCorpusArguments(['--split', 'test'])).toThrow(
+    'Invalid deterministic corpus integration options',
+  );
+});

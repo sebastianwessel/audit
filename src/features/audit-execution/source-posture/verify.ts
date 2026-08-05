@@ -1,6 +1,5 @@
 import type { AttackVector } from '../../attack-planning/plan.schema.js';
 import { type EvidenceMap, mappedControlFactIdsForObligation } from '../evidence-map/contract.js';
-import { redactArtifactText } from '../investigation/redaction.js';
 import {
   type SourcePosture,
   SourcePostureSchema,
@@ -14,14 +13,15 @@ export type SourcePostureVerificationResult = Readonly<{
 }>;
 
 /**
- * Checks only question/map provenance. Conclusions remain model judgments and
- * are never inferred from source text or language-specific logic.
+ * Validates one recovery fragment against only the map facts available to that
+ * child. Complete obligation and control coverage is intentionally deferred to
+ * {@link verifySourcePosture} after all children have been reduced.
  */
-export function verifySourcePosture(
+export function verifySourcePostureFragment(
   vector: AttackVector,
   sourcePosture: UnverifiedSourcePosture,
   evidenceMap: EvidenceMap,
-): SourcePostureVerificationResult {
+): Readonly<{ sourcePosture: SourcePosture; rejectedAssessmentCount: number }> {
   const facts = new Map(evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
   const assessments = sourcePosture.assessments.filter((assessment) => {
     if (!vector.reviewObligations.some((item) => item.obligationId === assessment.obligationId))
@@ -38,29 +38,52 @@ export function verifySourcePosture(
     ).every((factId) => assessment.evidenceMapFactIds.includes(factId));
     return allBound && controlsAreConsidered;
   });
+  return Object.freeze({
+    sourcePosture: SourcePostureSchema.parse({
+      assessments: assessments.map((assessment) => ({
+        assessmentId: assessment.assessmentId,
+        obligationId: assessment.obligationId,
+        conclusion: assessment.conclusion,
+        summary: assessment.summary,
+        evidenceMapFactIds: assessment.evidenceMapFactIds,
+        ...(assessment.notApplicableReason === null || assessment.notApplicableReason === undefined
+          ? {}
+          : { notApplicableReason: assessment.notApplicableReason }),
+        limitations:
+          assessment.limitations.length > 0 ? ['model-declared-limitation' as const] : [],
+      })),
+      limitations:
+        sourcePosture.limitations.length > 0 ? ['model-declared-limitation' as const] : [],
+    }),
+    rejectedAssessmentCount: sourcePosture.assessments.length - assessments.length,
+  });
+}
+
+/**
+ * Checks only question/map provenance. Conclusions remain model judgments and
+ * are never inferred from source text or language-specific logic.
+ */
+export function verifySourcePosture(
+  vector: AttackVector,
+  sourcePosture: UnverifiedSourcePosture,
+  evidenceMap: EvidenceMap,
+): SourcePostureVerificationResult {
+  const fragment = verifySourcePostureFragment(vector, sourcePosture, evidenceMap);
+  const assessments = fragment.sourcePosture.assessments;
   const complete =
     assessments.length === vector.reviewObligations.length &&
     vector.reviewObligations.every((obligation) =>
       assessments.some((assessment) => assessment.obligationId === obligation.obligationId),
     );
   const limitations = complete
-    ? sourcePosture.limitations
-    : uniqueSorted([
-        ...sourcePosture.limitations,
-        'The candidate-blind source posture did not establish every approved review obligation.',
-      ]);
+    ? fragment.sourcePosture.limitations
+    : uniqueSorted([...fragment.sourcePosture.limitations, 'obligation-assessment-missing']);
   return Object.freeze({
     sourcePosture: SourcePostureSchema.parse({
-      assessments: assessments.map((assessment) => ({
-        ...assessment,
-        ...(assessment.notApplicableReason === null || assessment.notApplicableReason === undefined
-          ? {}
-          : { notApplicableReason: redactArtifactText(assessment.notApplicableReason) }),
-        limitations: assessment.limitations.map(redactArtifactText),
-      })),
-      limitations: limitations.map(redactArtifactText),
+      assessments,
+      limitations,
     }),
-    rejectedAssessmentCount: sourcePosture.assessments.length - assessments.length,
+    rejectedAssessmentCount: fragment.rejectedAssessmentCount,
     complete,
   });
 }
@@ -76,15 +99,9 @@ export function downgradeUninspectedSourcePosture(sourcePosture: SourcePosture):
     assessments: sourcePosture.assessments.map((assessment) => ({
       ...assessment,
       conclusion: 'inconclusive',
-      limitations: uniqueSorted([
-        ...assessment.limitations,
-        'This posture conclusion was downgraded because the posture stage did not inspect scoped source with a read-only tool.',
-      ]),
+      limitations: uniqueSorted([...assessment.limitations, 'source-inspection-missing']),
     })),
-    limitations: uniqueSorted([
-      ...sourcePosture.limitations,
-      'The posture stage made no scoped read-only tool call; directional posture conclusions were downgraded to inconclusive before discovery.',
-    ]),
+    limitations: uniqueSorted([...sourcePosture.limitations, 'source-inspection-missing']),
   });
 }
 

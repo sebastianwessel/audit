@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
-import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
+import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/audit-harness.js';
 import { PlanModelInputSchema, PlanModelRequestSchema } from '../agents/planning/contract.js';
 import { runPlanningStage } from './planning.js';
 
 test('creates a source-inspected business-level draft for an unknown-language source file', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-planning-stage-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-planning-stage-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   provider.enqueueObject({

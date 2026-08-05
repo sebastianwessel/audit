@@ -1,14 +1,14 @@
-import type { AttackVector } from '../../attack-planning/plan.schema.js';
-import { hasExactPlanObligations } from '../../attack-planning/plan.schema.js';
+import type { AttackVector, ClaimEvidenceRole } from '../../attack-planning/plan.schema.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import type { HypothesisSeed, UnverifiedAuditCandidate } from '../investigation/contract.js';
 import { verifyModelFindings } from '../investigation/verify.js';
 import type { SourceDocument } from '../phase-input/contract.js';
 import type { SourcePosture } from '../source-posture/contract.js';
+import type { VerifiableHypothesis } from '../verification/contract.js';
 import type {
+  CandidateGroundingModelCandidate,
   CandidateGroundingOutput,
   CanonicalCandidateGroundingOutput,
-  UnverifiedGroundedCandidate,
 } from './contract.js';
 
 /** Selects one complete, identity-bound grounding per discovery seed. */
@@ -97,7 +97,12 @@ export function canonicalizeCandidateGroundingOutput(input: {
     groundings: input.seeds.map((seed) => {
       if (malformedOutput) return { seedId: seed.seedId, disposition: 'binding-rejected' as const };
       const raw = rawBySeedId.get(seed.seedId);
-      if (raw?.candidate === null) return { seedId: seed.seedId, disposition: 'null' as const };
+      if (raw?.candidate === null) {
+        return {
+          seedId: seed.seedId,
+          disposition: raw.nullReason,
+        };
+      }
       const candidate = candidateBySeedId.get(seed.seedId);
       if (candidate === undefined) {
         return { seedId: seed.seedId, disposition: 'binding-rejected' as const };
@@ -121,7 +126,7 @@ export function selectCanonicalSeedBoundGroundings(
   seeds: readonly HypothesisSeed[],
   output: CanonicalCandidateGroundingOutput,
 ): Readonly<{
-  candidates: readonly UnverifiedAuditCandidate[];
+  candidates: readonly VerifiableHypothesis[];
   submittedCount: number;
   nullCount: number;
   rejectedCount: number;
@@ -130,14 +135,17 @@ export function selectCanonicalSeedBoundGroundings(
   if (bySeed.size !== output.groundings.length || bySeed.size !== seeds.length) {
     return { candidates: [], submittedCount: 0, nullCount: 0, rejectedCount: seeds.length };
   }
-  const candidates: UnverifiedAuditCandidate[] = [];
+  const candidates: VerifiableHypothesis[] = [];
   let nullCount = 0;
   let rejectedCount = 0;
   for (const seed of seeds) {
     const outcome = bySeed.get(seed.seedId);
     if (outcome === undefined || outcome.disposition === 'binding-rejected') {
       rejectedCount += 1;
-    } else if (outcome.disposition === 'null') {
+    } else if (
+      outcome.disposition === 'no-source-backed-candidate' ||
+      outcome.disposition === 'map-insufficient'
+    ) {
       nullCount += 1;
     } else {
       candidates.push(outcome.hypothesis);
@@ -146,64 +154,87 @@ export function selectCanonicalSeedBoundGroundings(
   return { candidates, submittedCount: candidates.length, nullCount, rejectedCount };
 }
 
+/** Extracts the only reportable candidates from durable per-seed outcomes. */
+export function groundedHypotheses(
+  output: CanonicalCandidateGroundingOutput,
+): readonly VerifiableHypothesis[] {
+  return output.groundings.flatMap((outcome) =>
+    outcome.disposition === 'grounded' ? [outcome.hypothesis] : [],
+  );
+}
+
 function materializeCandidate(
   seed: HypothesisSeed,
-  candidate: UnverifiedGroundedCandidate,
+  candidate: CandidateGroundingModelCandidate,
   evidenceMap: EvidenceMap,
 ): UnverifiedAuditCandidate | undefined {
-  if (!preservesSeedBinding(seed, candidate)) return undefined;
   const facts = new Map(evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
-  const operation = selectedEvidence(candidate.operationEvidence, candidate, facts, 'operation');
-  const unsafeCondition = selectedEvidence(
-    candidate.unsafeConditionEvidence,
-    candidate,
-    facts,
-    'unsafe-condition',
-  );
-  if (operation === undefined || unsafeCondition === undefined) return undefined;
-  const {
-    operationEvidence: _operationEvidence,
-    unsafeConditionEvidence: _unsafeConditionEvidence,
-    ...rest
-  } = candidate;
+  const evidenceMapFactIds = candidateEvidenceMapFactIds(seed, candidate);
+  if (!hasSameObligationFactBasis(seed, evidenceMapFactIds, facts)) return undefined;
+  const claimEvidenceBundles = candidate.claimEvidenceBundles.map((bundle) => {
+    const evidence = bundle.selections.map((selection) =>
+      selectedEvidence(selection, facts, bundle.role),
+    );
+    if (evidence.some((item) => item === undefined)) return undefined;
+    return {
+      role: bundle.role,
+      explanation: bundle.explanation,
+      evidence: evidence.filter((item): item is NonNullable<typeof item> => item !== undefined),
+    };
+  });
+  if (claimEvidenceBundles.some((bundle) => bundle === undefined)) return undefined;
   return {
-    ...rest,
+    vectorId: seed.vectorId,
+    statement: candidate.statement,
+    planObligations: seed.planObligations,
+    evidenceMapFactIds,
+    limitations: [],
+    claimEvidenceSelections: candidate.claimEvidenceBundles.map(({ role, selections }) => ({
+      role,
+      selections,
+    })),
     sourcePostureAssessmentIds: seed.sourcePostureAssessmentIds,
-    evidence: [operation, unsafeCondition],
+    claimEvidenceBundles: claimEvidenceBundles.filter(
+      (bundle): bundle is NonNullable<typeof bundle> => bundle !== undefined,
+    ),
   };
 }
 
 function selectedEvidence(
-  selection: UnverifiedGroundedCandidate['operationEvidence'],
-  candidate: UnverifiedGroundedCandidate,
+  selection: CandidateGroundingModelCandidate['claimEvidenceBundles'][number]['selections'][number],
   facts: ReadonlyMap<string, EvidenceMap['facts'][number]>,
-  role: 'operation' | 'unsafe-condition',
+  role: ClaimEvidenceRole,
 ) {
-  if (!candidate.evidenceMapFactIds.includes(selection.factId)) return undefined;
   const evidence = facts.get(selection.factId)?.evidence[selection.evidenceIndex];
   return evidence === undefined ? undefined : { ...evidence, role };
 }
 
-function preservesSeedBinding(
+function candidateEvidenceMapFactIds(
   seed: HypothesisSeed,
-  candidate: UnverifiedGroundedCandidate,
-): boolean {
-  return (
-    candidate.vectorId === seed.vectorId &&
-    candidate.planObligations !== undefined &&
-    hasExactPlanObligations(candidate.planObligations, seed.planObligations) &&
-    hasExactIdentifiers(candidate.evidenceMapFactIds, seed.evidenceMapFactIds)
-  );
+  candidate: CandidateGroundingModelCandidate,
+): string[] {
+  return [
+    ...new Set([
+      ...seed.evidenceMapFactIds,
+      ...candidate.claimEvidenceBundles.flatMap((bundle) =>
+        bundle.selections.map((selection) => selection.factId),
+      ),
+    ]),
+  ];
 }
 
-/** Keeps a seed-owned identifier basis single-valued across the grounding boundary. */
-function hasExactIdentifiers(actual: readonly string[], expected: readonly string[]): boolean {
-  const actualIdentifiers = new Set(actual);
-  const expectedIdentifiers = new Set(expected);
+/** The seed owns provenance; model-added selections may only extend it within an approved obligation. */
+function hasSameObligationFactBasis(
+  seed: HypothesisSeed,
+  evidenceMapFactIds: readonly string[],
+  facts: ReadonlyMap<string, EvidenceMap['facts'][number]>,
+): boolean {
+  const obligationIds = new Set(seed.planObligations.map((obligation) => obligation.obligationId));
   return (
-    actualIdentifiers.size === actual.length &&
-    expectedIdentifiers.size === expected.length &&
-    actualIdentifiers.size === expectedIdentifiers.size &&
-    [...actualIdentifiers].every((identifier) => expectedIdentifiers.has(identifier))
+    seed.evidenceMapFactIds.every((identifier) => evidenceMapFactIds.includes(identifier)) &&
+    evidenceMapFactIds.every((identifier) => {
+      const fact = facts.get(identifier);
+      return fact?.planObligations.some((obligation) => obligationIds.has(obligation.obligationId));
+    })
   );
 }

@@ -1,7 +1,7 @@
 import { expect, test } from 'bun:test';
 import { ModelError } from '@purista/harness';
 import { sha256 } from '../../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import {
   type ContextOverflowTopologyEvent,
@@ -17,6 +17,8 @@ const contextOverflow = () =>
     method: 'object',
     reason: 'context_length_exceeded',
   });
+
+const phaseInputFingerprint = '0'.repeat(64);
 
 function contextDocument(body: string): ContextDocument {
   return {
@@ -48,6 +50,7 @@ test('runs the full scope first and splits only after a context-window rejection
   const calls: string[][] = [];
   const recovered: string[] = [];
   const result = await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['z.unknown', 'a.unknown', 'm.unknown', 'b.unknown'],
     invoke: async (scope) => {
       calls.push([...scope.sourcePaths]);
@@ -70,6 +73,7 @@ test('runs the full scope first and splits only after a context-window rejection
 test('recovers one oversized source only after provider rejection by splitting line ranges', async () => {
   const calls: string[] = [];
   const result = await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['large.unknown'],
     invoke: async (scope) => {
       const range = scope.lineRanges[0];
@@ -99,6 +103,7 @@ test('recovers one oversized source only after provider rejection by splitting l
 test('reuses only a provider-confirmed overflow parent topology after an explicit restart', async () => {
   const events: ContextOverflowTopologyEvent[] = [];
   await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['a.unknown', 'b.unknown'],
     invoke: async (scope) => {
       if (scope.sourcePaths.length === 2) throw contextOverflow();
@@ -113,8 +118,10 @@ test('reuses only a provider-confirmed overflow parent topology after an explici
   if (rootScopeFingerprint === undefined) throw new Error('Expected root recovery topology.');
   const resumedCalls: string[][] = [];
   const result = await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['a.unknown', 'b.unknown'],
     priorTopology: {
+      phaseInputFingerprint,
       recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
       rootScopeFingerprint,
       events,
@@ -134,6 +141,7 @@ test('reuses a completed child only when its exact validated artifact and topolo
   const events: ContextOverflowTopologyEvent[] = [];
   const leaves: Array<{ childKey: string; scopeFingerprint: string; output: string }> = [];
   await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['a.unknown', 'b.unknown'],
     invoke: async (scope) => {
       if (scope.sourcePaths.length === 2) throw contextOverflow();
@@ -155,8 +163,10 @@ test('reuses a completed child only when its exact validated artifact and topolo
   if (rootScopeFingerprint === undefined) throw new Error('Expected root recovery topology.');
   const calls: string[][] = [];
   const result = await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['a.unknown', 'b.unknown'],
     priorTopology: {
+      phaseInputFingerprint,
       recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
       rootScopeFingerprint,
       events,
@@ -177,8 +187,32 @@ test('rejects a mismatched persisted overflow topology before another provider c
   let invoked = false;
   await expect(
     recoverFromContextOverflow({
+      phaseInputFingerprint,
       sourcePaths: ['a.unknown'],
       priorTopology: {
+        phaseInputFingerprint,
+        recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
+        rootScopeFingerprint: 'a'.repeat(64),
+        events: [],
+      },
+      invoke: async () => {
+        invoked = true;
+        return 'unreachable';
+      },
+      reduce: () => 'unreachable',
+    }),
+  ).rejects.toMatchObject({ code: 'artifact-invalid' });
+  expect(invoked).toBe(false);
+});
+
+test('rejects a topology from a different phase input before another provider call', async () => {
+  let invoked = false;
+  await expect(
+    recoverFromContextOverflow({
+      phaseInputFingerprint,
+      sourcePaths: ['a.unknown'],
+      priorTopology: {
+        phaseInputFingerprint: '1'.repeat(64),
         recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
         rootScopeFingerprint: 'a'.repeat(64),
         events: [],
@@ -197,6 +231,7 @@ test('recovers a provider-rejected optional context without dropping its content
   const calls: string[] = [];
   const body = '\n  alpha\r\nbeta\n\ngamma\r\n';
   const result = await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['single-line.unknown'],
     context: [contextDocument(body)],
     splitSingleton: async () => undefined,
@@ -218,6 +253,7 @@ test('recovers CR-only optional context without changing its physical bytes', as
   const body = 'alpha\rbeta\rgamma\r';
   const calls: string[] = [];
   const result = await recoverFromContextOverflow({
+    phaseInputFingerprint,
     sourcePaths: ['single-line.unknown'],
     context: [contextDocument(body)],
     splitSingleton: async () => undefined,
@@ -237,12 +273,13 @@ test('recovers CR-only optional context without changing its physical bytes', as
 test('fails visibly when an indivisible single-line scope exceeds the provider context', async () => {
   await expect(
     recoverFromContextOverflow({
+      phaseInputFingerprint,
       sourcePaths: ['large.unknown'],
       invoke: async () => {
         throw contextOverflow();
       },
       splitSingleton: async () => {
-        throw new SecurityReviewerError(
+        throw new AuditRuntimeError(
           'provider-context-overflow',
           'The provider context window was exceeded for an indivisible approved source and context scope.',
         );
@@ -250,7 +287,7 @@ test('fails visibly when an indivisible single-line scope exceeds the provider c
       reduce: () => 'unreachable',
     }),
   ).rejects.toEqual(
-    new SecurityReviewerError(
+    new AuditRuntimeError(
       'provider-context-overflow',
       'The provider context window was exceeded for an indivisible approved source and context scope.',
     ),

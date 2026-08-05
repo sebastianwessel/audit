@@ -76,6 +76,14 @@ export function deriveObligationClosureMatrix(input: {
         evidenceMapFactCount: factCount,
         sourcePostureConclusion: postureAssessment?.conclusion ?? null,
         notApplicableReason: postureAssessment?.notApplicableReason ?? null,
+        ...(postureAssessment?.conclusion !== 'not-applicable' || map === undefined
+          ? {}
+          : {
+              notApplicableEvidence: selectedPostureEvidence(
+                map,
+                postureAssessment.evidenceMapFactIds,
+              ),
+            }),
         investigationState,
         candidateCount,
         admittedFindingCount,
@@ -83,6 +91,18 @@ export function deriveObligationClosureMatrix(input: {
       };
     }),
   );
+}
+
+function selectedPostureEvidence(evidenceMap: EvidenceMap, factIds: readonly string[]) {
+  const selected = new Set(factIds);
+  return evidenceMap.facts
+    .filter((fact) => selected.has(fact.factId))
+    .flatMap((fact) => fact.evidence)
+    .sort((left, right) => {
+      const leftKey = `${left.path}\0${left.startLine}\0${left.endLine ?? ''}\0${left.contentDigest}`;
+      const rightKey = `${right.path}\0${right.startLine}\0${right.endLine ?? ''}\0${right.contentDigest}`;
+      return leftKey.localeCompare(rightKey);
+    });
 }
 
 export function hasCompleteObligationClosure(matrix: ObligationClosureMatrix): boolean {
@@ -146,6 +166,7 @@ function deriveTerminalDisposition(input: {
   if (input.reviewRequiredCount > 0) return 'review-required';
   if (input.rejectedCandidateCount > 0) return 'candidate-rejected';
   if (input.candidateCount > 0) return 'incomplete';
+  if (input.postureConclusion === 'inconclusive') return 'incomplete';
   return 'no-source-backed-candidate';
 }
 

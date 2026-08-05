@@ -1,4 +1,4 @@
-import { redactArtifactText } from '../audit-execution/investigation/redaction.js';
+import { redactArtifactText } from '../../shared/contracts/artifact-text.js';
 
 import { assertPlanIsSealed } from './plan.js';
 import { type AttackPlan, AttackPlanSchema } from './plan.schema.js';
@@ -29,6 +29,12 @@ export function renderAttackPlanMarkdown(plan: AttackPlan): string {
     `- Context: ${code(sealedPlan.contextDigest)}`,
     `- Target label: ${text(sealedPlan.targetDisplayName)}`,
     `- Created: ${sealedPlan.createdAt}`,
+    ...(sealedPlan.resealedFromPlanId === undefined
+      ? []
+      : [
+          `- Resealed from: ${code(sealedPlan.resealedFromPlanId)}`,
+          `- Resealed: ${sealedPlan.resealedAt}`,
+        ]),
     `- Inventoried files: ${sealedPlan.inventorySummary.fileCount}`,
     `- Inventoried bytes: ${sealedPlan.inventorySummary.totalBytes}`,
     '',
@@ -72,6 +78,7 @@ export function renderAttackPlanMarkdown(plan: AttackPlan): string {
       '',
       `- Observation: ${code(observation.observationId)}`,
       '- Status: human review recommended; not part of this executable audit plan',
+      '- Execution: not dispatched; cannot produce a finding, pass, or incomplete coverage result',
       `- Rationale: ${text(observation.rationale)}`,
       '- Suggested scope:',
       ...observation.scopeGlobs.map((scopeGlob) => `  - ${code(scopeGlob)}`),

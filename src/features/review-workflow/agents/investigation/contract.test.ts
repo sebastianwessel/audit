@@ -44,5 +44,19 @@ test('keeps the discovery boundary closed and non-reportable', () => {
       closures: [],
     }),
   ).toThrow();
+  expect(() =>
+    AuditModelOutputSchema.parse({
+      seeds: [
+        {
+          ...seed,
+          claimEvidenceSelections: {
+            operation: { factId: 'fact-source-01', evidenceIndex: 0 },
+            unsafeCondition: { factId: 'fact-source-01', evidenceIndex: 0 },
+          },
+        },
+      ],
+      closures: [],
+    }),
+  ).toThrow();
   expect(() => AuditModelOutputSchema.parse({ findings: [], closures: [] })).toThrow();
 });

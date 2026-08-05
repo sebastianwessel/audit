@@ -1,16 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import {
-  link,
-  lstat,
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { link, lstat, mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { z } from 'zod';
 
@@ -27,7 +16,8 @@ export type ArtifactStoreErrorCode =
   | 'artifact-read-failed'
   | 'artifact-write-failed'
   | 'artifact-already-exists'
-  | 'artifact-lease-unavailable';
+  | 'artifact-lease-unavailable'
+  | 'artifact-lease-mismatch';
 
 export class ArtifactStoreError extends Error {
   public constructor(
@@ -39,35 +29,44 @@ export class ArtifactStoreError extends Error {
   }
 }
 
+export type ArtifactLeaseMetadata = z.output<ReturnType<typeof z.json>>;
+
 export type ArtifactLease = Readonly<{ release: () => Promise<void> }>;
+
+export type ArtifactLeaseOptions = Readonly<{
+  /** Caller-owned, source-free metadata retained for inspection and exact release confirmation. */
+  metadata?: ArtifactLeaseMetadata;
+}>;
 
 /**
  * Acquires one output-jail lock.
  *
- * A pre-existing lock always fails closed. A PID-file lease has no portable,
- * race-free compare-and-delete operation, so application code must never
- * infer that a lease is stale and unlink it. Operators may resolve an
- * abandoned lease outside a running reviewer process, then resume from the
- * retained immutable snapshot and checkpoints.
+ * A pre-existing lock always fails closed. The lease is a directory whose
+ * metadata is immutable for its lifetime. Releasing first atomically moves
+ * that exact directory aside, so a later acquisition at the original path is
+ * never removed by the former owner.
  */
 export async function acquireArtifactLease(
   outputRoot: string,
   artifactPath: string,
+  options: ArtifactLeaseOptions = {},
 ): Promise<ArtifactLease> {
   const lockPath = await resolveArtifactWritePath(outputRoot, artifactPath, '.lock');
+  const metadata = z.json().parse(options.metadata ?? null);
   try {
-    const handle = await open(lockPath, 'wx', 0o600);
+    await mkdir(lockPath, { mode: 0o700 });
     try {
-      await handle.writeFile('security-reviewer-artifact-lease\n', 'utf8');
-    } finally {
-      await handle.close();
+      await writeFile(join(lockPath, '.lease.json'), stableJsonStringify(metadata), {
+        encoding: 'utf8',
+        flag: 'wx',
+        mode: 0o600,
+      });
+    } catch (error) {
+      await rm(lockPath, { force: true, recursive: true }).catch(() => undefined);
+      throw error;
     }
     return Object.freeze({
-      release: async () => {
-        await unlink(lockPath).catch((error: NodeJS.ErrnoException) => {
-          if (error.code !== 'ENOENT') throw error;
-        });
-      },
+      release: () => releaseArtifactLease(outputRoot, artifactPath, metadata),
     });
   } catch (error) {
     if (isExistingFileError(error)) {
@@ -77,6 +76,50 @@ export async function acquireArtifactLease(
       );
     }
     throw error;
+  }
+}
+
+/** Reads one source-free lease metadata value without treating malformed locks as absent. */
+export async function readArtifactLeaseMetadata(
+  outputRoot: string,
+  artifactPath: string,
+): Promise<ArtifactLeaseMetadata | undefined> {
+  return readOptionalJsonArtifact(outputRoot, `${artifactPath}/.lease.json`, z.json());
+}
+
+/**
+ * Removes only a lease whose complete retained metadata exactly matches the
+ * caller's confirmation. It never deletes checkpoints, artifacts, or a lease
+ * acquired after the confirmed directory is atomically moved aside.
+ */
+export async function releaseArtifactLease(
+  outputRoot: string,
+  artifactPath: string,
+  expectedMetadata: ArtifactLeaseMetadata,
+): Promise<void> {
+  const lockPath = await resolveArtifactLeasePath(outputRoot, artifactPath);
+  const actualMetadata = await readArtifactLeaseMetadata(outputRoot, artifactPath);
+  if (
+    actualMetadata === undefined ||
+    stableJsonStringify(actualMetadata) !== stableJsonStringify(expectedMetadata)
+  ) {
+    throw new ArtifactStoreError(
+      'artifact-lease-mismatch',
+      'The artifact lease does not match the supplied release confirmation.',
+    );
+  }
+  const releasedPath = resolve(
+    dirname(lockPath),
+    `.${basename(lockPath)}.${randomUUID()}.released`,
+  );
+  try {
+    await rename(lockPath, releasedPath);
+    await rm(releasedPath, { force: false, recursive: true });
+  } catch (_error) {
+    throw new ArtifactStoreError(
+      'artifact-write-failed',
+      'The artifact lease could not be released.',
+    );
   }
 }
 
@@ -332,6 +375,47 @@ export async function removeArtifactDirectory(
   });
 }
 
+/**
+ * Removes one exact regular JSON artifact beneath the output jail. A caller
+ * must already have established ownership; this adapter never expands a file
+ * path into a directory deletion.
+ */
+export async function removeJsonArtifact(outputRoot: string, artifactPath: string): Promise<void> {
+  const destinationPath = await resolveArtifactReadPath(outputRoot, artifactPath, '.json');
+  const status = await lstat(destinationPath).catch(() => undefined);
+  if (status === undefined) {
+    throw new ArtifactStoreError('artifact-not-found', 'The JSON artifact could not be found.');
+  }
+  if (!status.isFile() || status.isSymbolicLink()) {
+    throw new ArtifactStoreError(
+      'artifact-invalid-output-path',
+      'The artifact to remove must be a regular non-symbolic-link JSON file.',
+    );
+  }
+
+  const removedPath = resolve(
+    dirname(destinationPath),
+    `.${basename(destinationPath)}.${randomUUID()}.removed`,
+  );
+  try {
+    await rename(destinationPath, removedPath);
+    const removedStatus = await lstat(removedPath);
+    if (!removedStatus.isFile() || removedStatus.isSymbolicLink()) {
+      throw new ArtifactStoreError(
+        'artifact-invalid-output-path',
+        'The artifact to remove changed to an unsafe shape.',
+      );
+    }
+    await rm(removedPath, { force: false });
+  } catch (error) {
+    if (error instanceof ArtifactStoreError) throw error;
+    throw new ArtifactStoreError(
+      'artifact-write-failed',
+      'The JSON artifact could not be removed.',
+    );
+  }
+}
+
 function parseJsonArtifact(fileContent: string): JsonArtifactValue {
   try {
     const parsedJson = z.json().safeParse(JSON.parse(fileContent));
@@ -403,6 +487,21 @@ async function resolveArtifactReadPath(
   validateArtifactPath(artifactPath, extension);
   const destinationPath = join(canonicalOutputRoot, ...artifactPath.split('/'));
   await assertExistingArtifactPathIsSafe(canonicalOutputRoot, destinationPath);
+  return destinationPath;
+}
+
+async function resolveArtifactLeasePath(outputRoot: string, artifactPath: string): Promise<string> {
+  const canonicalOutputRoot = await resolveOutputRoot(outputRoot);
+  validateArtifactPath(artifactPath, '.lock');
+  const destinationPath = join(canonicalOutputRoot, ...artifactPath.split('/'));
+  await assertExistingArtifactPathIsSafe(canonicalOutputRoot, destinationPath);
+  const status = await lstat(destinationPath).catch(() => undefined);
+  if (status === undefined || !status.isDirectory() || status.isSymbolicLink()) {
+    throw new ArtifactStoreError(
+      'artifact-lease-mismatch',
+      'The artifact lease is absent or has an unsafe shape.',
+    );
+  }
   return destinationPath;
 }
 

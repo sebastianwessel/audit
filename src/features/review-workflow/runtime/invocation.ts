@@ -1,58 +1,98 @@
 import { AgentLoopBudgetError, isHarnessError, ModelError } from '@purista/harness';
-import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
-import { sha256 } from '../../../shared/contracts/core.js';
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
 import {
-  SecurityReviewerError,
-  type SecurityReviewerErrorCode,
-} from '../../../shared/errors/security-reviewer-error.js';
+  type AuditErrorCode,
+  AuditRuntimeError,
+} from '../../../shared/errors/audit-runtime-error.js';
 import { isContextLengthExceeded } from './context-overflow.js';
+import {
+  errorCauseChain,
+  ModelOutputValidationError,
+  type ModelRetryGuidance,
+  outputValidationRetryGuidance,
+  ValidationRepairNoProgressError,
+} from './retry-guidance.js';
 
-/** Replays one failed model invocation without changing its approved stage scope. */
+export type StageRetryAttempt = Readonly<{
+  ordinal: number;
+  guidance: ModelRetryGuidance;
+}>;
+
+/**
+ * Coordinates exact-scope retry without exposing rejected content. Transport
+ * retry follows the configured normal policy; validation repair continues only
+ * while each static schema signature is new.
+ */
 export async function invokeWithStageRetry<Result>(
   execution: HarnessExecutionConfiguration,
-  invoke: (attempt: number) => Promise<Result>,
+  invoke: (attempt: StageRetryAttempt) => Promise<Result>,
   options: Readonly<{ onRecoverableFailure?: (error: unknown) => void }> = {},
 ): Promise<Result> {
-  const maximumAttempts = execution.modelRetry === 'default' ? 2 : 1;
-  let failure: Error | undefined;
-  for (let attempt = 1; attempt <= maximumAttempts; attempt += 1) {
+  const seenValidationSignatures = new Set<string>();
+  let guidance: ModelRetryGuidance = { kind: 'initial' };
+  let ordinal = 0;
+  let normalRetryUsed = false;
+  for (;;) {
+    ordinal += 1;
     try {
-      return await invoke(attempt);
+      return await invoke({ ordinal, guidance });
     } catch (error) {
-      if (
-        !(error instanceof Error) ||
-        attempt === maximumAttempts ||
-        isContextLengthExceeded(error) ||
-        isProviderStop(error) ||
-        isNonRetryableModelFailure(error)
-      )
+      if (!(error instanceof Error) || isContextLengthExceeded(error) || isProviderStop(error)) {
         throw error;
+      }
+      const validationGuidance = validationRetryGuidance(error);
+      if (validationGuidance !== undefined) {
+        if (execution.modelRetry !== 'default') throw error;
+        if (seenValidationSignatures.has(validationGuidance.signature)) {
+          throw new ValidationRepairNoProgressError(validationGuidance);
+        }
+        seenValidationSignatures.add(validationGuidance.signature);
+        options.onRecoverableFailure?.(error);
+        guidance = validationGuidance;
+        continue;
+      }
+      const inspectionGuidance = sourceInspectionRetryGuidance(error);
+      if (inspectionGuidance !== undefined) {
+        if (execution.modelRetry !== 'default' || normalRetryUsed) throw error;
+        normalRetryUsed = true;
+        options.onRecoverableFailure?.(error);
+        guidance = inspectionGuidance;
+        continue;
+      }
+      if (
+        execution.modelRetry !== 'default' ||
+        normalRetryUsed ||
+        isNonRetryableModelFailure(error)
+      ) {
+        throw error;
+      }
       options.onRecoverableFailure?.(error);
-      failure = error;
+      normalRetryUsed = true;
+      guidance = { kind: 'initial' };
     }
   }
-  throw (
-    failure ?? new SecurityReviewerError('provider-failure', 'Agent invocation did not complete.')
-  );
 }
 
 /** Converts an untrusted provider failure into the stable content-free error code. */
-export function stageErrorCode(error: unknown): SecurityReviewerErrorCode | string {
-  if (isContextLengthExceeded(error)) return 'provider-context-overflow';
-  if (isProviderStop(error)) return 'provider-cancelled';
-  if (error instanceof AgentLoopBudgetError) return 'agent-loop-budget-exceeded';
-  if (error instanceof ModelError) return normalizedModelErrorCode(error.meta?.reason);
-  if (isHarnessError(error) && error.code === 'VALIDATION_ERROR') {
-    const paths = validationIssuePathLabels(error.meta);
-    return paths.length === 0
-      ? 'validation-output-shape'
-      : `validation-output-${paths.length}-${sha256(paths.join('\0')).slice(0, 16)}`;
+export function stageErrorCode(error: unknown): AuditErrorCode | string {
+  for (const cause of errorCauseChain(error)) {
+    if (isContextLengthExceeded(cause)) return 'provider-context-overflow';
+    if (isProviderStop(cause)) return 'provider-cancelled';
+    if (cause instanceof AgentLoopBudgetError) return 'agent-loop-budget-exceeded';
+    if (cause instanceof ModelOutputValidationError) return 'provider-response-invalid';
+    if (cause instanceof ModelError) return normalizedModelErrorCode(cause.meta?.reason);
+    if (isHarnessError(cause) && cause.code === 'VALIDATION_ERROR') {
+      const guidance = outputValidationRetryGuidance(cause.meta);
+      return guidance?.kind === 'output-validation'
+        ? `${guidance.signature}-${guidance.schemaPathLabels.length}`
+        : 'validation-output-shape';
+    }
   }
-  return error instanceof SecurityReviewerError ? error.code : 'provider-failure';
+  return error instanceof AuditRuntimeError ? error.code : 'provider-failure';
 }
 
 /** The harness owns provider normalization; this maps only its closed, content-free token. */
-function normalizedModelErrorCode(reason: unknown): SecurityReviewerErrorCode {
+function normalizedModelErrorCode(reason: unknown): AuditErrorCode {
   switch (reason) {
     case 'network':
       return 'provider-network';
@@ -88,18 +128,23 @@ function isNonRetryableModelFailure(error: unknown): boolean {
  * Converts only Zod's static schema path components into a canonical diagnostic
  * basis. Values, messages, source paths, and model content are never retained.
  */
-function validationIssuePathLabels(meta: unknown): string[] {
-  if (!isRecord(meta) || meta.where !== 'agent_output' || !Array.isArray(meta.issues)) return [];
-  const labels = meta.issues.flatMap((issue) => {
-    if (!isRecord(issue) || !Array.isArray(issue.path)) return [];
-    const path = issue.path
-      .filter((segment): segment is string => typeof segment === 'string')
-      .join('.');
-    return path.length === 0 ? [] : [path];
-  });
-  return [...new Set(labels)].sort((left, right) => left.localeCompare(right));
+function validationRetryGuidance(
+  error: unknown,
+): Extract<ModelRetryGuidance, { kind: 'output-validation' }> | undefined {
+  for (const cause of errorCauseChain(error)) {
+    if (cause instanceof ModelOutputValidationError) return cause.retryGuidance;
+    const guidance =
+      isHarnessError(cause) && cause.code === 'VALIDATION_ERROR'
+        ? outputValidationRetryGuidance(cause.meta)
+        : undefined;
+    if (guidance?.kind === 'output-validation') return guidance;
+  }
+  return undefined;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+/** Traverses framework wrappers without retaining or exposing their messages or metadata. */
+function sourceInspectionRetryGuidance(error: unknown): ModelRetryGuidance | undefined {
+  return error instanceof AuditRuntimeError && error.code === 'coverage-incomplete'
+    ? { kind: 'source-inspection' }
+    : undefined;
 }

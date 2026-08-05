@@ -7,6 +7,7 @@ import { createJailedReadOnlyFilesystem } from '../../platform/filesystem/index.
 
 import { captureTargetInventory } from './inventory.js';
 import {
+  discardRetainedTargetSnapshot,
   loadRetainedTargetSnapshot,
   releaseTargetSnapshot,
   retainTargetSnapshot,
@@ -20,7 +21,7 @@ afterEach(async () => {
 });
 
 test('reloads the exact admitted source and advisory context without reopening a changed target', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-retained-snapshot-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-retained-snapshot-'));
   roots.push(root);
   const targetRoot = join(root, 'target');
   const contextRoot = join(root, 'context');
@@ -57,7 +58,7 @@ test('reloads the exact admitted source and advisory context without reopening a
 });
 
 test('releases snapshot bytes only after the final resumable run owner finishes', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-snapshot-retention-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-snapshot-retention-'));
   roots.push(root);
   const targetRoot = join(root, 'target');
   const outputRoot = join(root, 'output');
@@ -94,8 +95,46 @@ test('releases snapshot bytes only after the final resumable run owner finishes'
   ).rejects.toThrow('does not retain');
 });
 
+test('rejects discarding a run that owns a shared retained snapshot', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-shared-discard-'));
+  roots.push(root);
+  const targetRoot = join(root, 'target');
+  const outputRoot = join(root, 'output');
+  await Promise.all([mkdir(targetRoot), mkdir(outputRoot)]);
+  await writeFile(join(targetRoot, 'service.custom'), 'source\n', 'utf8');
+  const capture = await captureTargetInventory(
+    await createJailedReadOnlyFilesystem({ targetRoot }),
+  );
+  await retainTargetSnapshot({ outputRoot, runId: 'audit-run-01', capture });
+  await retainTargetSnapshot({ outputRoot, runId: 'audit-run-02', capture });
+
+  await expect(
+    discardRetainedTargetSnapshot({
+      outputRoot,
+      runId: 'audit-run-01',
+      targetFingerprint: capture.inventory.targetFingerprint,
+    }),
+  ).rejects.toMatchObject({ code: 'artifact-invalid' });
+  await expect(
+    loadRetainedTargetSnapshot({
+      outputRoot,
+      runId: 'audit-run-01',
+      targetFingerprint: capture.inventory.targetFingerprint,
+      contextDigest: capture.inventory.contextDigest,
+    }),
+  ).resolves.toBeDefined();
+  await expect(
+    loadRetainedTargetSnapshot({
+      outputRoot,
+      runId: 'audit-run-02',
+      targetFingerprint: capture.inventory.targetFingerprint,
+      contextDigest: capture.inventory.contextDigest,
+    }),
+  ).resolves.toBeDefined();
+});
+
 test('keeps independently retained advisory context versions for the same source snapshot', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-context-retention-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-context-retention-'));
   roots.push(root);
   const targetRoot = join(root, 'target');
   const contextRoot = join(root, 'context');

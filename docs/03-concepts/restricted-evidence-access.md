@@ -4,16 +4,16 @@ The auditor has three kinds of read-only tools:
 
 | Tool | Simple explanation |
 | --- | --- |
-| repo_list | Show which allowed files exist. |
+| repo_list | Show which allowed files exist. With no filters, it shows every file already allowed for that review step. |
 | repo_read | Read an allowed regular UTF-8 file, or an exact requested line range. |
-| repo_grep | Search allowed files and return matching lines. It supports literal text, identifier search, and safe regular expressions with explicit casing. |
+| repo_grep | Search allowed files and return matching lines. It supports literal text, identifier search, safe regular expressions with explicit casing, and optional surrounding-line context. |
 
 The auditor does not receive a shell. It cannot run a target test, install a package, follow a URL, or write a patch.
 
 ## What “allowed” means
 
 1. The operator selects a target root.
-2. Security Reviewer resolves that root to a real directory.
+2. Audit resolves that root to a real directory.
 3. Every requested path is treated as relative to that root.
 4. Traversal, absolute paths, NUL bytes, and symlink escapes are rejected.
 5. Eligible regular UTF-8 files are not excluded because of their language, extension, size, line count, or number of matches.

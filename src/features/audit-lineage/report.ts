@@ -3,7 +3,7 @@ import type { AuditReportLineage } from './contract.js';
 /** Renders only opaque identifiers and source-free status metadata for human review. */
 export function renderAuditReportLineageMarkdown(lineage: AuditReportLineage): string {
   const lines = [
-    '# Security review lineage',
+    '# Audit lineage',
     '',
     `- Lineage: \`${lineage.lineageId}\``,
     `- Previous report: \`${lineage.previous.reportId}\``,

@@ -1,6 +1,7 @@
 import { basename } from 'node:path';
 import type { ModelProvider } from '@purista/harness';
 import type { z } from 'zod';
+import { assertPlanIsSealed } from '../features/attack-planning/plan.js';
 import { AttackPlanSchema } from '../features/attack-planning/plan.schema.js';
 import {
   createAttackPlanDraft,
@@ -8,75 +9,52 @@ import {
 } from '../features/attack-planning/plan-authoring.js';
 import { AttackPlanDraftSchema } from '../features/attack-planning/plan-authoring.schema.js';
 import { renderAttackPlanMarkdown } from '../features/attack-planning/plan-markdown.js';
-import type { CandidateAwareCheckpointUpdate } from '../features/audit-execution/audit.js';
 import {
-  AuditCandidateAwareCheckpointSchema,
-  AuditCandidateGroundingDraftSchema,
-  AuditCandidateGroundingRecoveryLeafSchema,
-  AuditContextOverflowLedgerSchema,
-  AuditEvidenceMapDraftSchema,
-  AuditEvidenceMapRecoveryLeafSchema,
-  type AuditReport,
-  AuditReportSchema,
   type AuditRunAttempt,
   AuditRunAttemptSchema,
   type AuditRunManifest,
   AuditRunManifestSchema,
-  AuditSourcePostureDraftSchema,
-  AuditSourcePostureRecoveryLeafSchema,
-  AuditVectorCheckpointSchema,
-  type AuditVectorResult,
+  materializeVectorCoverageLimitations,
 } from '../features/audit-execution/audit.schema.js';
 import {
-  auditCandidateAwareCheckpointPath,
-  auditCandidateGroundingDraftPath,
-  auditCandidateGroundingRecoveryLeafPath,
-  auditCheckpointPath,
-  auditContextOverflowLedgerPath,
-  auditEvidenceMapDraftPath,
-  auditEvidenceMapRecoveryLeafPath,
-  auditSourcePostureDraftPath,
-  auditSourcePostureRecoveryLeafPath,
-  createAuditCandidateAwareCheckpoint,
-  createAuditCandidateGroundingDraft,
-  createAuditCandidateGroundingRecoveryLeaf,
-  createAuditCheckpointBinding,
-  createAuditContextOverflowLedger,
-  createAuditEvidenceMapDraft,
-  createAuditEvidenceMapRecoveryLeaf,
-  createAuditResumeState,
-  createAuditSourcePostureDraft,
-  createAuditSourcePostureRecoveryLeaf,
-  createAuditVectorCheckpoint,
-  loadObservedAuditVectorResults,
-  loadReusableAuditCandidateAwareCheckpoints,
-  loadReusableAuditCandidateGroundingDrafts,
-  loadReusableAuditCandidateGroundingRecoveryLeaves,
-  loadReusableAuditContextOverflowLedgers,
-  loadReusableAuditEvidenceMapDrafts,
-  loadReusableAuditEvidenceMapRecoveryLeaves,
-  loadReusableAuditSourcePostureDrafts,
-  loadReusableAuditSourcePostureRecoveryLeaves,
-  loadReusableAuditVectorResults,
-  reusableContextOverflowModelStages,
-} from '../features/audit-execution/checkpoints.js';
+  createAuditPersistenceAdapter,
+  writeAuditReportArtifacts,
+} from '../features/audit-execution/cli-persistence.js';
 import { classifyAuditTerminal } from '../features/audit-execution/terminal-classification.js';
 import {
   AuditReportLineageSchema,
   createAuditReportLineage,
   renderAuditReportLineageMarkdown,
 } from '../features/audit-lineage/index.js';
+import {
+  createPublicAuditReport,
+  type PublicAuditReport,
+  PublicAuditReportSchema,
+} from '../features/audit-report/public-contract.js';
 import { renderAuditReportMarkdown } from '../features/audit-report/report.js';
-import type { ModelStageObservation } from '../features/model-operations/model-operations.js';
-import { ModelCostCeilingUsdSchema } from '../features/model-operations/model-operations.schema.js';
-import { catalogueModelPricing } from '../features/model-operations/model-pricing-catalogue.js';
+import {
+  DeveloperGuidanceCheckpointSchema,
+  DeveloperGuidanceReportSchema,
+} from '../features/developer-guidance/guidance.schema.js';
+import {
+  createDeveloperGuidanceCheckpointBinding,
+  createDeveloperGuidanceId,
+  developerGuidanceModelStages,
+  hasExactDeveloperGuidanceCheckpointBinding,
+} from '../features/developer-guidance/identity.js';
+import { renderDeveloperGuidanceMarkdown } from '../features/developer-guidance/report.js';
+import { developerGuidanceProtocolFingerprint } from '../features/review-workflow/agents/developer-guidance/instructions.js';
 import {
   evidenceMapProtocolFingerprint,
   reviewWorkflowPromptProtocolFingerprint,
 } from '../features/review-workflow/prompt-protocol.js';
 import { createVerificationRouteFingerprint } from '../features/review-workflow/runtime/verification-route.js';
-import { createReviewService, modelStagesForAudit } from '../features/review-workflow/service.js';
 import {
+  createReviewService,
+  prepareDeveloperGuidanceTarget,
+} from '../features/review-workflow/service.js';
+import {
+  discardRetainedTargetSnapshot,
   loadRetainedTargetSnapshot,
   releaseTargetSnapshot,
   retainTargetSnapshot,
@@ -85,6 +63,8 @@ import {
   acquireArtifactLease,
   readJsonArtifact,
   readOptionalJsonArtifact,
+  removeArtifactDirectory,
+  removeJsonArtifact,
   writeJsonArtifact,
   writeNewJsonArtifact,
   writeNewMarkdownArtifact,
@@ -95,32 +75,40 @@ import {
   validateRootTopology,
 } from '../platform/artifact-store/root-topology.js';
 import {
+  type LoadedRuntimeConfiguration,
   loadRuntimeConfiguration,
-  MaxParallelVectorsSchema,
   type RuntimeConfiguration,
 } from '../platform/configuration/environment.js';
+import { assertAuditWorkflowStructuredOutputCompatibility } from '../platform/harness/audit-harness.js';
 import {
   createConfiguredProvider,
   ProviderNameSchema,
   providerCacheRoutingKey,
 } from '../platform/harness/provider.js';
+import { canonicalJson, IdentifierSchema, sha256 } from '../shared/contracts/core.js';
 import {
-  isRetryableSecurityReviewerErrorCode,
-  SecurityReviewerError,
-} from '../shared/errors/security-reviewer-error.js';
-import { assertValidCommandOptions } from './command-options.js';
-
-const commandNames = new Set(['plan', 'plan-draft', 'plan-reseal', 'audit', 'report', 'lineage']);
+  AuditRuntimeError,
+  isRetryableAuditRuntimeErrorCode,
+} from '../shared/errors/audit-runtime-error.js';
+import { isProductCliCommand, parseHelpRequest, renderCliHelp } from './command-catalog.js';
+import { assertValidCommandOptions, type ProductCliCommand } from './command-options.js';
+import { commandExitMeaning, writeCliCommandResult } from './command-result.js';
 
 export type CliCommand = Readonly<{
-  command: 'plan' | 'plan-draft' | 'plan-reseal' | 'audit' | 'report' | 'lineage';
+  command: ProductCliCommand;
   options: Readonly<Record<string, string>>;
+}>;
+
+type CliRuntimeDependencies = Readonly<{
+  loadRuntimeConfiguration?: () => Promise<LoadedRuntimeConfiguration>;
 }>;
 
 export function parseCliArguments(argv: readonly string[]): CliCommand {
   const command = argv[0];
-  if (command === undefined || !commandNames.has(command))
-    throw usage('Expected one of: plan, plan-draft, plan-reseal, audit, report, lineage.');
+  if (command === undefined || !isProductCliCommand(command))
+    throw usage(
+      'Expected one of: plan, plan-draft, plan-reseal, audit, guidance, discard, report, lineage.',
+    );
   const options: Record<string, string> = {};
   for (let index = 1; index < argv.length; index += 2) {
     const key = argv[index];
@@ -135,31 +123,296 @@ export function parseCliArguments(argv: readonly string[]): CliCommand {
       throw usage('Options must be unique --key value pairs.');
     options[key.slice(2)] = value;
   }
-  return { command: command as CliCommand['command'], options };
+  return { command, options };
 }
 
-export async function runCli(argv: readonly string[]): Promise<number> {
+export async function runCli(
+  argv: readonly string[],
+  dependencies: CliRuntimeDependencies = {},
+): Promise<number> {
+  const help = parseHelpRequest(argv);
+  if (help !== undefined) {
+    process.stdout.write(renderCliHelp(help));
+    return 0;
+  }
   const parsed = parseCliArguments(argv);
   assertValidCommandOptions(parsed.command, parsed.options);
-  const runtime = await loadRuntimeConfiguration();
-  if (parsed.command === 'report') return runReport(parsed.options, runtime.configuration);
-  if (parsed.command === 'lineage') return runLineage(parsed.options, runtime.configuration);
-  if (parsed.command === 'plan-draft') return runPlanDraft(parsed.options, runtime.configuration);
-  if (parsed.command === 'plan-reseal') return runPlanReseal(parsed.options, runtime.configuration);
+  if (parsed.command === 'discard') {
+    return runDiscard(parsed.options, await ensureSafeOutputRoot(required(parsed.options, 'work')));
+  }
+  if (parsed.command === 'plan-draft') return runPlanDraft(parsed.options);
+  if (parsed.command === 'plan-reseal') return runPlanReseal(parsed.options);
+  if (parsed.command === 'report') return runReport(parsed.options);
+  if (parsed.command === 'lineage') return runLineage(parsed.options);
+  const runtime = await (dependencies.loadRuntimeConfiguration ?? loadRuntimeConfiguration)();
   if (runtime.configuration.verificationMode === 'independent-route') {
     throw usage(
       'The independent verifier route is evaluation-only and cannot run product commands.',
     );
   }
+  assertAuditWorkflowStructuredOutputCompatibility(
+    ProviderNameSchema.parse(providerName(runtime.configuration)),
+  );
   const roots = await prepareProductRoots({
     targetRoot: required(parsed.options, 'target'),
     contextRoot: parsed.options.context,
-    outputRoot: parsed.options.output ?? runtime.configuration.artifactDirectory,
+    publicArtifactRoot:
+      parsed.options['public-output'] ?? runtime.configuration.publicArtifactDirectory,
+    privateWorkRoot: parsed.options.work ?? runtime.configuration.privateWorkDirectory,
   });
-  const provider = createProvider(parsed.options, runtime.configuration, runtime.environment);
-  return parsed.command === 'plan'
-    ? runPlan(parsed.options, runtime.configuration, provider, roots)
-    : runAudit(parsed.options, runtime.configuration, provider, roots);
+  if (parsed.command === 'plan')
+    return runPlan(
+      parsed.options,
+      runtime.configuration,
+      createProvider(runtime.configuration, runtime.environment),
+      roots,
+    );
+  if (parsed.command === 'guidance') {
+    return runGuidance(parsed.options, runtime, roots);
+  }
+  return runAudit(
+    parsed.options,
+    runtime.configuration,
+    createProvider(runtime.configuration, runtime.environment),
+    roots,
+  );
+}
+
+/** Discards only an exact stopped run after exclusive ownership and binding checks. */
+async function runDiscard(
+  options: Readonly<Record<string, string>>,
+  privateWork: string,
+): Promise<number> {
+  const runId = discardRunId(options);
+  const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
+  assertPlanIsSealed(plan);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`, {
+    metadata: {
+      operation: 'audit-private-work-discard',
+      runId,
+      planId: plan.planId,
+      planDigest: plan.planDigest,
+      targetFingerprint: plan.targetFingerprint,
+    },
+  });
+  try {
+    const attempt = await readOptionalAuditRunAttempt(privateWork, runId);
+    assertAuditRunDiscardBinding({ runId, plan, attempt });
+    await discardRetainedTargetSnapshot({
+      outputRoot: privateWork,
+      runId,
+      targetFingerprint: plan.targetFingerprint,
+    });
+    await removeArtifactDirectory(privateWork, `checkpoints/${runId}`);
+    await removeJsonArtifact(privateWork, `runs/${runId}.attempt.json`);
+  } finally {
+    await lease.release();
+  }
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'discard',
+      status: 'discarded',
+      exitCode: 0,
+      exitMeaning: commandExitMeaning('discard', 0),
+      identifiers: { runId, planId: plan.planId },
+      artifacts: [],
+    },
+    `Discarded private work for audit run ${runId}.\n`,
+  );
+  return 0;
+}
+
+function discardRunId(options: Readonly<Record<string, string>>): string {
+  const parsed = IdentifierSchema.safeParse(required(options, 'run-id'));
+  if (!parsed.success) throw usage('run-id must be a stable identifier.');
+  return parsed.data;
+}
+
+async function runGuidance(
+  options: Readonly<Record<string, string>>,
+  runtime: LoadedRuntimeConfiguration,
+  roots: RootTopology,
+): Promise<number> {
+  const resume = booleanOption(options, 'resume', false);
+  const retryUnfinished = booleanOption(options, 'retry-unfinished', false);
+  if (resume && options['run-id'] === undefined) {
+    throw usage('Resuming developer guidance requires an explicit --run-id.');
+  }
+  if (!resume && retryUnfinished) {
+    throw usage('Retrying unfinished developer guidance requires --resume true.');
+  }
+  const privateWork = roots.privateWorkRoot;
+  const publicArtifacts = roots.publicArtifactRoot;
+  const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
+  const report = await readJsonArtifact(
+    publicArtifacts,
+    required(options, 'report'),
+    PublicAuditReportSchema,
+  );
+  const targetDisplayName = options['target-name'] ?? basename(roots.targetRoot);
+  const retainedTarget = await prepareDeveloperGuidanceTarget({
+    targetRoot: roots.targetRoot,
+    contextRoot: roots.contextRoot,
+    targetDisplayName,
+    plan,
+    report,
+  });
+  const runId = options['run-id'] ?? `guidance-${crypto.randomUUID()}`;
+  const selectedModel = model(runtime.configuration);
+  const selectedProvider = providerName(runtime.configuration);
+  const checkpointBinding = createDeveloperGuidanceCheckpointBinding({
+    runId,
+    plan,
+    report,
+    contextDigest: retainedTarget.inventory.contextDigest,
+    provider: selectedProvider,
+    model: selectedModel,
+    protocolFingerprint: developerGuidanceProtocolFingerprint,
+  });
+  const checkpointPath = `guidance-checkpoints/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
+  const recoveredCheckpoint = await readOptionalJsonArtifact(
+    privateWork,
+    checkpointPath,
+    DeveloperGuidanceCheckpointSchema,
+  );
+  if (!resume && recoveredCheckpoint !== undefined) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'A developer-guidance checkpoint already exists; resume the exact run explicitly.',
+    );
+  }
+  if (resume && recoveredCheckpoint === undefined) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'Developer guidance resume requires an existing exact-run checkpoint.',
+    );
+  }
+  if (
+    recoveredCheckpoint !== undefined &&
+    !hasExactDeveloperGuidanceCheckpointBinding(recoveredCheckpoint.binding, checkpointBinding)
+  ) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'The developer-guidance checkpoint does not match the requested run identity.',
+    );
+  }
+  const guidanceArtifactPath = `guidance/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
+  const existingGuidance = await readOptionalJsonArtifact(
+    privateWork,
+    guidanceArtifactPath,
+    DeveloperGuidanceReportSchema,
+  );
+  if (existingGuidance !== undefined) {
+    if (
+      !resume ||
+      existingGuidance.runId !== runId ||
+      existingGuidance.reportId !== report.reportId ||
+      existingGuidance.reportDigest !== checkpointBinding.reportDigest ||
+      existingGuidance.planId !== plan.planId ||
+      existingGuidance.planDigest !== plan.planDigest ||
+      existingGuidance.targetFingerprint !== retainedTarget.inventory.targetFingerprint ||
+      existingGuidance.contextDigest !== retainedTarget.inventory.contextDigest ||
+      existingGuidance.items.some((item) => item.status !== 'completed')
+    ) {
+      throw new AuditRuntimeError(
+        'artifact-invalid',
+        'The developer-guidance artifact is not a completed result for the exact resumed run.',
+      );
+    }
+    writeCliCommandResult(
+      options,
+      {
+        schemaVersion: 1,
+        command: 'guidance',
+        status: 'completed',
+        exitCode: 0,
+        exitMeaning: commandExitMeaning('guidance', 0),
+        identifiers: {
+          runId,
+          planId: plan.planId,
+          reportId: report.reportId,
+          guidanceId: existingGuidance.guidanceId,
+        },
+        artifacts: [
+          { kind: 'guidance-json', path: guidanceArtifactPath },
+          { kind: 'guidance-markdown', path: `guidance/${existingGuidance.guidanceId}.md` },
+        ],
+      },
+      `Reused completed non-gating developer guidance ${guidanceArtifactPath}.\n`,
+    );
+    return 0;
+  }
+  const provider = createProvider(runtime.configuration, runtime.environment);
+  const service = createReviewService(provider, selectedModel, {
+    modelPricing: selectedModelPricing(runtime.configuration),
+    maxEstimatedCostUsd: maxEstimatedCostUsd(runtime.configuration),
+    priorModelStages: developerGuidanceModelStages(recoveredCheckpoint),
+    modelCacheRoutingKey: providerCacheRoutingKey({
+      provider: ProviderNameSchema.parse(selectedProvider),
+      model: selectedModel,
+    }),
+  });
+  const created = await service.createDeveloperGuidance({
+    targetRoot: roots.targetRoot,
+    contextRoot: roots.contextRoot,
+    targetDisplayName,
+    plan,
+    report,
+    retainedTarget,
+    recoveredCheckpoint,
+    retryUnfinished,
+    onCheckpoint: async (state) =>
+      writeJsonArtifact(privateWork, checkpointPath, DeveloperGuidanceCheckpointSchema, {
+        schemaVersion: 3,
+        binding: checkpointBinding,
+        generatedAt: new Date().toISOString(),
+        attempts: [...state.attempts],
+      }),
+    runId,
+    generatedAt: new Date().toISOString(),
+    sessionId: runId,
+  });
+  if (created.guidance.items.some((item) => item.status !== 'completed')) {
+    process.stdout.write(
+      `Developer guidance for run ${runId} remains incomplete. Resume with --run-id ${runId} --resume true --retry-unfinished true.\n`,
+    );
+    return 0;
+  }
+  await writeNewJsonArtifact(
+    privateWork,
+    guidanceArtifactPath,
+    DeveloperGuidanceReportSchema,
+    created.guidance,
+  );
+  await writeNewMarkdownArtifact(
+    privateWork,
+    `guidance/${created.guidance.guidanceId}.md`,
+    renderDeveloperGuidanceMarkdown(created.guidance),
+  );
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'guidance',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: commandExitMeaning('guidance', 0),
+      identifiers: {
+        runId,
+        planId: plan.planId,
+        reportId: report.reportId,
+        guidanceId: created.guidance.guidanceId,
+      },
+      artifacts: [
+        { kind: 'guidance-json', path: guidanceArtifactPath },
+        { kind: 'guidance-markdown', path: `guidance/${created.guidance.guidanceId}.md` },
+      ],
+    },
+    `Created non-gating developer guidance guidance/${created.guidance.guidanceId}.json and guidance/${created.guidance.guidanceId}.md for ${created.guidance.items.length} accepted findings.\n`,
+  );
+  return 0;
 }
 
 async function runPlan(
@@ -171,14 +424,14 @@ async function runPlan(
   const startedAt = new Date().toISOString();
   const runId = `plan-${crypto.randomUUID()}`;
   const targetRoot = roots.targetRoot;
-  const output = roots.outputRoot;
-  const selectedModel = model(options, runtime);
+  const privateWork = roots.privateWorkRoot;
+  const selectedModel = model(runtime);
   const service = createReviewService(provider, selectedModel, {
-    maxParallelVectors: maxParallelVectors(options, runtime),
-    modelPricing: selectedModelPricing(options, runtime),
-    maxEstimatedCostUsd: maxEstimatedCostUsd(options, runtime),
+    maxParallelVectors: maxParallelVectors(runtime),
+    modelPricing: selectedModelPricing(runtime),
+    maxEstimatedCostUsd: maxEstimatedCostUsd(runtime),
     modelCacheRoutingKey: providerCacheRoutingKey({
-      provider: ProviderNameSchema.parse(providerName(options, runtime)),
+      provider: ProviderNameSchema.parse(providerName(runtime)),
       model: selectedModel,
     }),
   });
@@ -190,17 +443,17 @@ async function runPlan(
     sessionId: runId,
   });
   await writeNewJsonArtifact(
-    output,
+    privateWork,
     `plans/${created.plan.planId}.json`,
     AttackPlanSchema,
     created.plan,
   );
   await writeNewMarkdownArtifact(
-    output,
+    privateWork,
     `plans/${created.plan.planId}.md`,
     renderAttackPlanMarkdown(created.plan),
   );
-  await writeRunManifest(output, {
+  await writeRunManifest(privateWork, {
     schemaVersion: 2,
     runId,
     command: 'plan',
@@ -208,7 +461,7 @@ async function runPlan(
     finishedAt: new Date().toISOString(),
     targetFingerprint: created.inventory.targetFingerprint,
     planId: created.plan.planId,
-    provider: providerName(options, runtime),
+    provider: providerName(runtime),
     model: selectedModel,
     outcome: 'completed',
     counters: {
@@ -222,38 +475,79 @@ async function runPlan(
       ? {}
       : { modelCostCeilingState: created.modelCostCeilingState }),
   });
-  process.stdout.write(
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'plan',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: commandExitMeaning('plan', 0),
+      identifiers: { runId, planId: created.plan.planId },
+      artifacts: [
+        { kind: 'plan-json', path: `plans/${created.plan.planId}.json` },
+        { kind: 'plan-markdown', path: `plans/${created.plan.planId}.md` },
+        { kind: 'run-manifest', path: `runs/${runId}.json` },
+      ],
+    },
     `Created executable plan plans/${created.plan.planId}.json and review projection plans/${created.plan.planId}.md for ${created.inventory.summary.fileCount} files.\n`,
   );
   return 0;
 }
 
 /** Creates a constrained editable draft without opening a target or calling a provider. */
-async function runPlanDraft(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): Promise<number> {
-  const output = await outputDirectory(options, runtime);
-  const plan = await readJsonArtifact(output, required(options, 'plan'), AttackPlanSchema);
+async function runPlanDraft(options: Readonly<Record<string, string>>): Promise<number> {
+  const privateWork = await ensureSafeOutputRoot(required(options, 'work'));
+  const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
   const draft = createAttackPlanDraft(plan);
   const draftPath = required(options, 'draft');
-  await writeNewJsonArtifact(output, draftPath, AttackPlanDraftSchema, draft);
-  process.stdout.write(`Created editable plan draft ${draftPath} from ${plan.planId}.\n`);
+  await writeNewJsonArtifact(privateWork, draftPath, AttackPlanDraftSchema, draft);
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'plan-draft',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: commandExitMeaning('plan-draft', 0),
+      identifiers: { planId: plan.planId },
+      artifacts: [{ kind: 'plan-draft', path: draftPath }],
+    },
+    `Created editable plan draft ${draftPath} from ${plan.planId}.\n`,
+  );
   return 0;
 }
 
 /** Validates a constrained edit and publishes a new immutable executable plan pair. */
-async function runPlanReseal(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): Promise<number> {
-  const output = await outputDirectory(options, runtime);
-  const basePlan = await readJsonArtifact(output, required(options, 'plan'), AttackPlanSchema);
-  const draft = await readJsonArtifact(output, required(options, 'draft'), AttackPlanDraftSchema);
-  const plan = resealAttackPlanDraft({ basePlan, draft });
-  await writeNewJsonArtifact(output, `plans/${plan.planId}.json`, AttackPlanSchema, plan);
-  await writeNewMarkdownArtifact(output, `plans/${plan.planId}.md`, renderAttackPlanMarkdown(plan));
-  process.stdout.write(
+async function runPlanReseal(options: Readonly<Record<string, string>>): Promise<number> {
+  const privateWork = await ensureSafeOutputRoot(required(options, 'work'));
+  const basePlan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
+  const draft = await readJsonArtifact(
+    privateWork,
+    required(options, 'draft'),
+    AttackPlanDraftSchema,
+  );
+  const plan = resealAttackPlanDraft({ basePlan, draft, resealedAt: new Date().toISOString() });
+  await writeNewJsonArtifact(privateWork, `plans/${plan.planId}.json`, AttackPlanSchema, plan);
+  await writeNewMarkdownArtifact(
+    privateWork,
+    `plans/${plan.planId}.md`,
+    renderAttackPlanMarkdown(plan),
+  );
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'plan-reseal',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: commandExitMeaning('plan-reseal', 0),
+      identifiers: { planId: plan.planId },
+      artifacts: [
+        { kind: 'plan-json', path: `plans/${plan.planId}.json` },
+        { kind: 'plan-markdown', path: `plans/${plan.planId}.md` },
+      ],
+    },
     `Resealed executable plan plans/${plan.planId}.json and review projection plans/${plan.planId}.md.\n`,
   );
   return 0;
@@ -273,15 +567,38 @@ export async function runAudit(
     throw usage('Resuming an audit requires an explicit --run-id.');
   }
   const targetRoot = roots.targetRoot;
-  const output = roots.outputRoot;
-  const plan = await readJsonArtifact(output, required(options, 'plan'), AttackPlanSchema);
-  const lease = await acquireArtifactLease(output, `work/leases/${runId}.lock`);
+  const privateWork = roots.privateWorkRoot;
+  const publicArtifacts = roots.publicArtifactRoot;
+  const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
+  const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
   const attemptStartedAt = startedAt;
+  let terminalAttemptCommitted = false;
+  let publicationIntentCommitted = false;
+  let snapshotRetained = false;
+  let preparedPublication: AuditRunAttempt['publicReport'] = null;
   try {
-    const priorAttempt = await readOptionalAuditRunAttempt(output, runId);
+    const priorAttempt = await readOptionalAuditRunAttempt(privateWork, runId);
+    if (resume && priorAttempt?.status === 'completed') {
+      return resumeCompletedAuditAttempt({
+        privateWork,
+        publicArtifacts,
+        attempt: priorAttempt,
+        options,
+      });
+    }
     assertAuditRunReuse({ resume, plan, priorAttempt });
-    await writeAuditRunAttempt(output, {
-      schemaVersion: 1,
+    if (
+      resume &&
+      priorAttempt?.publicationState === 'published' &&
+      priorAttempt.publicReport !== null
+    ) {
+      await assertPublishedAuditAttemptBinding({
+        publicArtifacts,
+        publicReport: priorAttempt.publicReport,
+      });
+    }
+    await writeAuditRunAttempt(privateWork, {
+      schemaVersion: 3,
       runId,
       planId: plan.planId,
       planDigest: plan.planDigest,
@@ -289,222 +606,42 @@ export async function runAudit(
       startedAt: attemptStartedAt,
       finishedAt: null,
       status: 'starting',
+      publicReport: null,
+      publicationState: 'not-prepared',
+      snapshotState: priorAttempt?.snapshotState === 'retained' ? 'retained' : 'not-retained',
     });
-    const selectedModel = model(options, runtime);
-    const selectedProvider = providerName(options, runtime);
+    snapshotRetained = priorAttempt?.snapshotState === 'retained';
+    const selectedModel = model(runtime);
+    const selectedProvider = providerName(runtime);
     const verificationRouteFingerprint = createVerificationRouteFingerprint({
       route: 'primary',
       provider: selectedProvider,
       model: selectedModel,
     });
+    const persistence = createAuditPersistenceAdapter({
+      privateWork,
+      runId,
+      plan,
+      provider: selectedProvider,
+      model: selectedModel,
+      verificationRouteFingerprint,
+      evidenceMapProtocolFingerprint,
+      reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
+    });
     const retainedSnapshot = resume
       ? await loadRetainedTargetSnapshot({
-          outputRoot: output,
+          outputRoot: privateWork,
           runId,
           targetFingerprint: plan.targetFingerprint,
           contextDigest: plan.contextDigest,
         })
       : undefined;
-    const priorVectorResults = resume
-      ? await loadReusableAuditVectorResults({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          retryUnfinished,
-          reader: async (artifactPath) => readOptionalAuditVectorCheckpoint(output, artifactPath),
-        })
-      : [];
-    const observedVectorResults = resume
-      ? await loadObservedAuditVectorResults({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          reader: async (artifactPath) => readOptionalAuditVectorCheckpoint(output, artifactPath),
-        })
-      : [];
-    const priorCandidateGroundingDrafts = resume
-      ? await loadReusableAuditCandidateGroundingDrafts({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          candidateGroundingProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          plan,
-          reader: async (artifactPath) =>
-            readOptionalAuditCandidateGroundingDraft(output, artifactPath),
-        })
-      : [];
-    const priorCandidateAwareCheckpoints = resume
-      ? await loadReusableAuditCandidateAwareCheckpoints({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          candidateGroundingProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          plan,
-          drafts: priorCandidateGroundingDrafts,
-          reader: async (artifactPath) =>
-            readOptionalAuditCandidateAwareCheckpoint(output, artifactPath),
-          retryUnfinished,
-        })
-      : [];
-    const priorEvidenceMapDrafts = resume
-      ? await loadReusableAuditEvidenceMapDrafts({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          reader: async (artifactPath) => readOptionalAuditEvidenceMapDraft(output, artifactPath),
-        })
-      : [];
-    const priorSourcePostureDrafts = resume
-      ? await loadReusableAuditSourcePostureDrafts({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          reader: async (artifactPath) => readOptionalAuditSourcePostureDraft(output, artifactPath),
-        })
-      : [];
-    const priorContextOverflowLedgers = resume
-      ? await loadReusableAuditContextOverflowLedgers({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          reader: async (artifactPath) =>
-            readOptionalAuditContextOverflowLedger(output, artifactPath),
-        })
-      : [];
-    const contextOverflowLedgersByStage = new Map(
-      priorContextOverflowLedgers.map((ledger) => [`${ledger.vectorId}\0${ledger.phase}`, ledger]),
-    );
-    const priorEvidenceMapRecoveryLeaves = resume
-      ? await loadReusableAuditEvidenceMapRecoveryLeaves({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          ledgers: priorContextOverflowLedgers,
-          reader: async (artifactPath) =>
-            readOptionalAuditEvidenceMapRecoveryLeaf(output, artifactPath),
-        })
-      : [];
-    const priorSourcePostureRecoveryLeaves = resume
-      ? await loadReusableAuditSourcePostureRecoveryLeaves({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          ledgers: priorContextOverflowLedgers,
-          reader: async (artifactPath) =>
-            readOptionalAuditSourcePostureRecoveryLeaf(output, artifactPath),
-        })
-      : [];
-    const priorCandidateGroundingRecoveryLeaves = resume
-      ? await loadReusableAuditCandidateGroundingRecoveryLeaves({
-          binding: {
-            runId,
-            planId: plan.planId,
-            targetFingerprint: plan.targetFingerprint,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          },
-          plan,
-          ledgers: priorContextOverflowLedgers,
-          reader: async (artifactPath) =>
-            readOptionalAuditCandidateGroundingRecoveryLeaf(output, artifactPath),
-        })
-      : [];
-    const resumeState = createAuditResumeState({
-      vectorResults: priorVectorResults,
-      candidateGroundingDrafts: priorCandidateGroundingDrafts,
-      candidateAwareCheckpoints: priorCandidateAwareCheckpoints,
-      evidenceMapDrafts: priorEvidenceMapDrafts,
-      sourcePostureDrafts: priorSourcePostureDrafts,
-      contextOverflowLedgers: priorContextOverflowLedgers,
-      evidenceMapRecoveryLeaves: priorEvidenceMapRecoveryLeaves,
-      sourcePostureRecoveryLeaves: priorSourcePostureRecoveryLeaves,
-      candidateGroundingRecoveryLeaves: priorCandidateGroundingRecoveryLeaves,
-    });
+    const persistenceSession = await persistence.loadSession({ resume, retryUnfinished });
     const service = createReviewService(provider, selectedModel, {
-      maxParallelVectors: maxParallelVectors(options, runtime),
-      modelPricing: selectedModelPricing(options, runtime),
-      maxEstimatedCostUsd: maxEstimatedCostUsd(options, runtime),
-      priorModelStages: resumedModelStages({
-        priorVectorResults: observedVectorResults,
-        priorCandidateGroundingDrafts,
-        priorCandidateAwareCheckpoints,
-        priorEvidenceMapDrafts,
-        priorSourcePostureDrafts,
-        priorContextOverflowLedgers,
-      }),
+      maxParallelVectors: maxParallelVectors(runtime),
+      modelPricing: selectedModelPricing(runtime),
+      maxEstimatedCostUsd: maxEstimatedCostUsd(runtime),
+      priorModelStages: persistenceSession.priorModelStages,
       modelCacheRoutingKey: providerCacheRoutingKey({
         provider: ProviderNameSchema.parse(selectedProvider),
         model: selectedModel,
@@ -518,218 +655,60 @@ export async function runAudit(
       runId,
       generatedAt: startedAt,
       sessionId: runId,
-      resumeState,
+      resumeState: persistenceSession.resumeState,
       retryUnfinished,
       retainedSnapshot,
-      onSnapshotCaptured: async (capture) =>
-        retainTargetSnapshot({ outputRoot: output, runId, capture }),
-      onEvidenceMapDraft: async (draft) =>
-        writeAuditEvidenceMapDraft({
-          output,
+      onSnapshotCaptured: async (capture) => {
+        await retainTargetSnapshot({ outputRoot: privateWork, runId, capture });
+        snapshotRetained = true;
+        await writeAuditRunAttempt(privateWork, {
+          schemaVersion: 3,
           runId,
-          plan,
-          provider: selectedProvider,
-          model: selectedModel,
-          verificationRouteFingerprint,
-          evidenceMapProtocolFingerprint,
-          reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          draft,
-        }),
-      onCandidateGroundingDraft: async (draft) =>
-        writeAuditCandidateGroundingDraft({
-          output,
-          runId,
-          plan,
-          provider: selectedProvider,
-          model: selectedModel,
-          verificationRouteFingerprint,
-          evidenceMapProtocolFingerprint,
-          reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          candidateGroundingProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          draft,
-        }),
-      onCandidateAwareCheckpoint: async (update) =>
-        writeAuditCandidateAwareCheckpoint({
-          output,
-          runId,
-          plan,
-          provider: selectedProvider,
-          model: selectedModel,
-          verificationRouteFingerprint,
-          evidenceMapProtocolFingerprint,
-          reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          candidateGroundingProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          update,
-        }),
-      onSourcePostureDraft: async (draft) =>
-        writeAuditSourcePostureDraft({
-          output,
-          runId,
-          plan,
-          provider: selectedProvider,
-          model: selectedModel,
-          verificationRouteFingerprint,
-          evidenceMapProtocolFingerprint,
-          reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          draft,
-        }),
-      onContextOverflowTransition: async (update) => {
-        const key = `${update.vectorId}\0${update.phase}`;
-        const current = contextOverflowLedgersByStage.get(key);
-        const events = [
-          ...(current?.events ?? []),
-          {
-            ordinal: (current?.events.length ?? 0) + 1,
-            ...update.event,
-            savedAt: new Date().toISOString(),
-          },
-        ];
-        const ledger = createAuditContextOverflowLedger({
-          binding: auditCheckpointBinding({
-            runId,
-            plan,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-            vectorId: update.vectorId,
-          }),
-          plan,
-          phase: update.phase,
-          parentStageId: update.parentStageId,
-          recoveryProtocolFingerprint: update.recoveryProtocolFingerprint,
-          rootScopeFingerprint: update.rootScopeFingerprint,
-          events,
+          planId: plan.planId,
+          planDigest: plan.planDigest,
+          targetFingerprint: plan.targetFingerprint,
+          startedAt: attemptStartedAt,
+          finishedAt: null,
+          status: 'starting',
+          publicReport: null,
+          publicationState: 'not-prepared',
+          snapshotState: 'retained',
         });
-        contextOverflowLedgersByStage.set(key, ledger);
-        await writeJsonArtifact(
-          output,
-          auditContextOverflowLedgerPath({
-            runId,
-            vectorId: update.vectorId,
-            phase: update.phase,
-          }),
-          AuditContextOverflowLedgerSchema,
-          ledger,
-        );
       },
-      onEvidenceMapRecoveryLeaf: async (update) => {
-        const leaf = createAuditEvidenceMapRecoveryLeaf({
-          binding: auditCheckpointBinding({
-            runId,
-            plan,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-            vectorId: update.vectorId,
-          }),
-          plan,
-          parentStageId: update.parentStageId,
-          recoveryProtocolFingerprint: update.recoveryProtocolFingerprint,
-          rootScopeFingerprint: update.rootScopeFingerprint,
-          childKey: update.childKey,
-          scopeFingerprint: update.scopeFingerprint,
-          evidenceMap: update.evidenceMap,
-          savedAt: new Date().toISOString(),
-        });
-        await writeJsonArtifact(
-          output,
-          auditEvidenceMapRecoveryLeafPath({
-            runId,
-            vectorId: update.vectorId,
-            scopeFingerprint: update.scopeFingerprint,
-          }),
-          AuditEvidenceMapRecoveryLeafSchema,
-          leaf,
-        );
-      },
-      onSourcePostureRecoveryLeaf: async (update) => {
-        const leaf = createAuditSourcePostureRecoveryLeaf({
-          binding: auditCheckpointBinding({
-            runId,
-            plan,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-            vectorId: update.vectorId,
-          }),
-          plan,
-          parentStageId: update.parentStageId,
-          recoveryProtocolFingerprint: update.recoveryProtocolFingerprint,
-          rootScopeFingerprint: update.rootScopeFingerprint,
-          childKey: update.childKey,
-          scopeFingerprint: update.scopeFingerprint,
-          sourcePosture: update.sourcePosture,
-          savedAt: new Date().toISOString(),
-        });
-        await writeJsonArtifact(
-          output,
-          auditSourcePostureRecoveryLeafPath({
-            runId,
-            vectorId: update.vectorId,
-            scopeFingerprint: update.scopeFingerprint,
-          }),
-          AuditSourcePostureRecoveryLeafSchema,
-          leaf,
-        );
-      },
-      onCandidateGroundingRecoveryLeaf: async (update) => {
-        const leaf = createAuditCandidateGroundingRecoveryLeaf({
-          binding: auditCheckpointBinding({
-            runId,
-            plan,
-            provider: selectedProvider,
-            model: selectedModel,
-            verificationRouteFingerprint,
-            evidenceMapProtocolFingerprint,
-            reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-            vectorId: update.vectorId,
-          }),
-          plan,
-          parentStageId: update.parentStageId,
-          recoveryProtocolFingerprint: update.recoveryProtocolFingerprint,
-          rootScopeFingerprint: update.rootScopeFingerprint,
-          childKey: update.childKey,
-          scopeFingerprint: update.scopeFingerprint,
-          groundings: update.groundings,
-          savedAt: new Date().toISOString(),
-        });
-        await writeJsonArtifact(
-          output,
-          auditCandidateGroundingRecoveryLeafPath({
-            runId,
-            vectorId: update.vectorId,
-            scopeFingerprint: update.scopeFingerprint,
-          }),
-          AuditCandidateGroundingRecoveryLeafSchema,
-          leaf,
-        );
-      },
-      onVectorResult: async (result) =>
-        writeAuditVectorCheckpoint({
-          output,
-          runId,
-          plan,
-          provider: selectedProvider,
-          model: selectedModel,
-          verificationRouteFingerprint,
-          evidenceMapProtocolFingerprint,
-          reviewWorkflowProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
-          result,
-        }),
+      ...persistenceSession.callbacks,
     });
-    await writeJsonArtifact(
-      output,
-      `reports/${audited.report.reportId}.json`,
-      AuditReportSchema,
-      audited.report,
-    );
-    await writeRunManifest(output, {
+    const durableReport = {
+      ...audited.report,
+      coverage: audited.report.coverage.map((coverage) => ({
+        ...coverage,
+        limitations: materializeVectorCoverageLimitations(coverage.limitations),
+      })),
+    };
+    const publicReport = createPublicAuditReport(durableReport, plan);
+    preparedPublication = {
+      reportId: publicReport.reportId,
+      reportDigest: sha256(canonicalJson(publicReport)),
+    };
+    await writeAuditRunAttempt(privateWork, {
+      schemaVersion: 3,
+      runId,
+      planId: plan.planId,
+      planDigest: plan.planDigest,
+      targetFingerprint: plan.targetFingerprint,
+      startedAt: attemptStartedAt,
+      finishedAt: null,
+      status: 'starting',
+      publicReport: preparedPublication,
+      publicationState: 'prepared',
+      snapshotState: 'retained',
+    });
+    publicationIntentCommitted = true;
+    await writeAuditReportArtifacts({
+      publicArtifacts,
+      report: publicReport,
+      markdown: renderAuditReportMarkdown(publicReport),
+    });
+    await writeRunManifest(publicArtifacts, {
       schemaVersion: 2,
       runId,
       command: 'audit',
@@ -739,26 +718,16 @@ export async function runAudit(
       planId: audited.report.planId,
       provider: selectedProvider,
       model: selectedModel,
-      outcome: auditRunOutcome(audited.report),
-      counters: reportCounters(audited.report),
+      outcome: auditRunOutcome(publicReport),
+      counters: reportCounters(publicReport),
       modelObservation: audited.modelObservation,
       ...(audited.modelCostCeilingState === undefined
         ? {}
         : { modelCostCeilingState: audited.modelCostCeilingState }),
     });
-    process.stdout.write(
-      `Created report reports/${audited.report.reportId}.json with ${audited.report.findings.length} findings.\n`,
-    );
-    const terminal = classifyAuditTerminal(audited.report);
-    if (terminal.outcome === 'completed') {
-      await releaseTargetSnapshot({
-        outputRoot: output,
-        runId,
-        targetFingerprint: plan.targetFingerprint,
-      });
-    }
-    await writeAuditRunAttempt(output, {
-      schemaVersion: 1,
+    const terminal = classifyAuditTerminal(durableReport);
+    const terminalAttempt: AuditRunAttempt = {
+      schemaVersion: 3,
       runId,
       planId: plan.planId,
       planDigest: plan.planDigest,
@@ -766,35 +735,81 @@ export async function runAudit(
       startedAt: attemptStartedAt,
       finishedAt: new Date().toISOString(),
       status: terminal.outcome === 'completed' ? 'completed' : 'partial',
-    });
+      publicReport: preparedPublication,
+      publicationState: 'published',
+      snapshotState: terminal.outcome === 'completed' ? 'release-pending' : 'retained',
+    };
+    await writeAuditRunAttempt(privateWork, terminalAttempt);
+    terminalAttemptCommitted = true;
+    if (terminal.outcome === 'completed') {
+      try {
+        await releaseTargetSnapshot({
+          outputRoot: privateWork,
+          runId,
+          targetFingerprint: plan.targetFingerprint,
+        });
+        await writeAuditRunAttempt(privateWork, {
+          ...terminalAttempt,
+          snapshotState: 'released',
+        });
+      } catch {
+        await writeAuditRunAttempt(privateWork, {
+          ...terminalAttempt,
+          snapshotState: 'release-failed',
+        });
+      }
+    }
+    writeCliCommandResult(
+      options,
+      {
+        schemaVersion: 1,
+        command: 'audit',
+        status: terminal.outcome === 'completed' ? 'completed' : 'partial',
+        exitCode: terminal.exitCode,
+        exitMeaning: commandExitMeaning('audit', terminal.exitCode),
+        identifiers: { runId, planId: plan.planId, reportId: publicReport.reportId },
+        artifacts: [
+          { kind: 'report-json', path: `reports/${publicReport.reportId}.json` },
+          { kind: 'report-markdown', path: `reports/${publicReport.reportId}.md` },
+          { kind: 'run-manifest', path: `runs/${runId}.json` },
+        ],
+      },
+      `Created report reports/${publicReport.reportId}.json and reports/${publicReport.reportId}.md with ${publicReport.findings.length} accepted findings.\n`,
+    );
     return terminal.exitCode;
   } catch (error) {
-    await writeAuditRunAttempt(output, {
-      schemaVersion: 1,
-      runId,
-      planId: plan.planId,
-      planDigest: plan.planDigest,
-      targetFingerprint: plan.targetFingerprint,
-      startedAt: attemptStartedAt,
-      finishedAt: new Date().toISOString(),
-      status: 'failed',
-    });
+    if (!terminalAttemptCommitted) {
+      await writeAuditRunAttempt(privateWork, {
+        schemaVersion: 3,
+        runId,
+        planId: plan.planId,
+        planDigest: plan.planDigest,
+        targetFingerprint: plan.targetFingerprint,
+        startedAt: attemptStartedAt,
+        finishedAt: new Date().toISOString(),
+        status: 'failed',
+        publicReport: preparedPublication,
+        publicationState: publicationIntentCommitted ? 'prepared' : 'not-prepared',
+        snapshotState: snapshotRetained ? 'retained' : 'not-retained',
+      });
+    }
     throw error;
   } finally {
     await lease.release();
   }
 }
 
-async function runReport(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): Promise<number> {
+async function runReport(options: Readonly<Record<string, string>>): Promise<number> {
   const startedAt = new Date().toISOString();
-  const output = await outputDirectory(options, runtime);
-  const report = await readJsonArtifact(output, required(options, 'report'), AuditReportSchema);
+  const publicArtifacts = await ensureSafeOutputRoot(required(options, 'public-output'));
+  const report = await readJsonArtifact(
+    publicArtifacts,
+    required(options, 'report'),
+    PublicAuditReportSchema,
+  );
   const terminal = classifyAuditTerminal(report);
   const runId = `report-${crypto.randomUUID()}`;
-  await writeRunManifest(output, {
+  await writeRunManifest(publicArtifacts, {
     schemaVersion: 2,
     runId,
     command: 'report',
@@ -807,177 +822,115 @@ async function runReport(
     outcome: terminal.outcome,
     counters: reportCounters(report),
   });
-  process.stdout.write(renderAuditReportMarkdown(report));
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'report',
+      status: terminal.outcome === 'completed' ? 'completed' : 'partial',
+      exitCode: terminal.exitCode,
+      exitMeaning: commandExitMeaning('report', terminal.exitCode),
+      identifiers: { runId, planId: report.planId, reportId: report.reportId },
+      artifacts: [
+        { kind: 'report-json', path: required(options, 'report') },
+        { kind: 'run-manifest', path: `runs/${runId}.json` },
+      ],
+    },
+    renderAuditReportMarkdown(report),
+  );
   return terminal.exitCode;
 }
 
-async function runLineage(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): Promise<number> {
-  const output = await outputDirectory(options, runtime);
-  const previous = await readJsonArtifact(output, required(options, 'previous'), AuditReportSchema);
-  const current = await readJsonArtifact(output, required(options, 'current'), AuditReportSchema);
+async function runLineage(options: Readonly<Record<string, string>>): Promise<number> {
+  const publicArtifacts = await ensureSafeOutputRoot(required(options, 'public-output'));
+  const previous = await readJsonArtifact(
+    publicArtifacts,
+    required(options, 'previous'),
+    PublicAuditReportSchema,
+  );
+  const current = await readJsonArtifact(
+    publicArtifacts,
+    required(options, 'current'),
+    PublicAuditReportSchema,
+  );
   const lineage = createAuditReportLineage({
     previous,
     current,
     generatedAt: new Date().toISOString(),
   });
   await writeJsonArtifact(
-    output,
+    publicArtifacts,
     `lineage/${lineage.lineageId}.json`,
     AuditReportLineageSchema,
     lineage,
   );
-  process.stdout.write(renderAuditReportLineageMarkdown(lineage));
+  writeCliCommandResult(
+    options,
+    {
+      schemaVersion: 1,
+      command: 'lineage',
+      status: 'completed',
+      exitCode: 0,
+      exitMeaning: commandExitMeaning('lineage', 0),
+      identifiers: { lineageId: lineage.lineageId },
+      artifacts: [{ kind: 'lineage-json', path: `lineage/${lineage.lineageId}.json` }],
+    },
+    renderAuditReportLineageMarkdown(lineage),
+  );
   return 0;
 }
 
 function createProvider(
-  options: Readonly<Record<string, string>>,
   runtime: RuntimeConfiguration,
   environment: Readonly<Record<string, string | undefined>>,
 ): ModelProvider {
-  const provider = providerName(options, runtime);
+  const provider = providerName(runtime);
   return createConfiguredProvider({
     provider: ProviderNameSchema.parse(provider),
-    apiKeyEnvironmentVariable: options['api-key-env'] ?? runtime.apiKeyEnvironmentVariable,
+    apiKeyEnvironmentVariable: runtime.apiKeyEnvironmentVariable,
     environment,
   });
 }
 
-function providerName(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): string {
-  return requiredValue(options.provider ?? runtime.provider, 'provider');
+function providerName(runtime: RuntimeConfiguration): string {
+  return requiredValue(runtime.provider, 'provider');
 }
 
-function model(options: Readonly<Record<string, string>>, runtime: RuntimeConfiguration): string {
-  return requiredValue(options.model ?? runtime.model, 'model');
+function model(runtime: RuntimeConfiguration): string {
+  return requiredValue(runtime.model, 'model');
 }
 
-function selectedModelPricing(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-) {
-  return catalogueModelPricing({
-    provider: providerName(options, runtime),
-    model: model(options, runtime),
-  });
+function selectedModelPricing(runtime: RuntimeConfiguration) {
+  return runtime.modelPricing;
 }
 
-function maxParallelVectors(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): number {
-  const configured = options['max-parallel-vectors'];
-  if (configured === undefined) return runtime.maxParallelVectors;
-  if (!/^\d+$/u.test(configured))
-    throw usage('max-parallel-vectors must be an integer from 1 to 8.');
-  return MaxParallelVectorsSchema.parse(Number(configured));
+function maxParallelVectors(runtime: RuntimeConfiguration): number {
+  return runtime.maxParallelVectors;
 }
 
-function maxEstimatedCostUsd(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): number | undefined {
-  const configured = options['max-estimated-cost-usd'];
-  if (configured === undefined) return runtime.maxEstimatedCostUsd;
-  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/u.test(configured)) {
-    throw usage('max-estimated-cost-usd must be a positive decimal.');
-  }
-  return ModelCostCeilingUsdSchema.parse(Number(configured));
-}
-
-/** Retains each reusable stage exactly once before a resumed cost ceiling dispatches work. */
-function resumedModelStages(input: {
-  priorVectorResults: readonly AuditVectorResult[];
-  priorCandidateGroundingDrafts: readonly z.infer<typeof AuditCandidateGroundingDraftSchema>[];
-  priorCandidateAwareCheckpoints: readonly z.infer<typeof AuditCandidateAwareCheckpointSchema>[];
-  priorEvidenceMapDrafts: readonly z.infer<typeof AuditEvidenceMapDraftSchema>[];
-  priorSourcePostureDrafts: readonly z.infer<typeof AuditSourcePostureDraftSchema>[];
-  priorContextOverflowLedgers: readonly z.infer<typeof AuditContextOverflowLedgerSchema>[];
-}): readonly ModelStageObservation[] {
-  const terminalVectorIds = new Set(
-    input.priorVectorResults.map((result) => result.coverage.vectorId),
-  );
-  const stages = [
-    ...modelStagesForAudit(input.priorVectorResults.map((result) => result.coverage)),
-    ...input.priorEvidenceMapDrafts.flatMap((draft) =>
-      terminalVectorIds.has(draft.vectorId) || draft.modelObservation === undefined
-        ? []
-        : [draft.modelObservation],
-    ),
-    ...input.priorSourcePostureDrafts.flatMap((draft) =>
-      terminalVectorIds.has(draft.vectorId) || draft.modelObservation === undefined
-        ? []
-        : [draft.modelObservation],
-    ),
-    ...input.priorCandidateGroundingDrafts.flatMap((draft) =>
-      terminalVectorIds.has(draft.vectorId)
-        ? []
-        : [draft.discoveryObservation, draft.modelObservation].filter(
-            (stage): stage is ModelStageObservation => stage !== undefined,
-          ),
-    ),
-    ...input.priorCandidateAwareCheckpoints.flatMap((checkpoint) => {
-      if (terminalVectorIds.has(checkpoint.vectorId)) return [];
-      if (checkpoint.result?.modelObservation !== undefined) {
-        return [checkpoint.result.modelObservation];
-      }
-      return (
-        checkpoint.contextOverflowTopology?.events.flatMap((event) =>
-          event.modelObservation === undefined ? [] : [event.modelObservation],
-        ) ?? []
-      );
-    }),
-    ...reusableContextOverflowModelStages({
-      ledgers: input.priorContextOverflowLedgers,
-      terminalVectorResults: input.priorVectorResults,
-      evidenceMapDrafts: input.priorEvidenceMapDrafts,
-      sourcePostureDrafts: input.priorSourcePostureDrafts,
-      candidateGroundingDrafts: input.priorCandidateGroundingDrafts,
-    }),
-  ];
-  const byIdentity = new Map<string, ModelStageObservation>();
-  for (const stage of stages) {
-    const identity = `${stage.route}\0${stage.stage}\0${stage.stageId}`;
-    const existing = byIdentity.get(identity);
-    if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(stage)) {
-      throw new SecurityReviewerError(
-        'artifact-invalid',
-        'Reusable audit artifacts contain conflicting model-stage observations.',
-      );
-    }
-    byIdentity.set(identity, stage);
-  }
-  return [...byIdentity.values()];
-}
-
-async function outputDirectory(
-  options: Readonly<Record<string, string>>,
-  runtime: RuntimeConfiguration,
-): Promise<string> {
-  const output = options.output ?? runtime.artifactDirectory;
-  return ensureSafeOutputRoot(output);
+function maxEstimatedCostUsd(runtime: RuntimeConfiguration): number | undefined {
+  return runtime.maxEstimatedCostUsd;
 }
 
 export async function prepareProductRoots(input: {
   targetRoot: string;
   contextRoot?: string;
-  outputRoot: string;
+  publicArtifactRoot: string;
+  privateWorkRoot: string;
 }): Promise<RootTopology> {
   const initial = await validateRootTopology({
     targetRoot: input.targetRoot,
     contextRoot: input.contextRoot,
-    outputRoot: input.outputRoot,
+    publicArtifactRoot: input.publicArtifactRoot,
+    privateWorkRoot: input.privateWorkRoot,
   });
-  await ensureSafeOutputRoot(initial.outputRoot);
+  await ensureSafeOutputRoot(initial.publicArtifactRoot);
+  await ensureSafeOutputRoot(initial.privateWorkRoot);
   return validateRootTopology({
     targetRoot: initial.targetRoot,
     contextRoot: initial.contextRoot,
-    outputRoot: initial.outputRoot,
+    publicArtifactRoot: initial.publicArtifactRoot,
+    privateWorkRoot: initial.privateWorkRoot,
   });
 }
 
@@ -994,281 +947,17 @@ async function writeAuditRunAttempt(output: string, attempt: AuditRunAttempt): P
   );
 }
 
-function reportCounters(report: AuditReport): AuditRunManifest['counters'] {
+function reportCounters(
+  report: Pick<PublicAuditReport, 'coverage' | 'findings' | 'reviewRequired' | 'errors'>,
+): AuditRunManifest['counters'] {
   return classifyAuditTerminal(report).counters;
 }
 
-function auditCheckpointBinding(input: {
-  runId: string;
-  plan: z.infer<typeof AttackPlanSchema>;
-  provider: string;
-  model: string;
-  verificationRouteFingerprint: string;
-  evidenceMapProtocolFingerprint: string;
-  reviewWorkflowProtocolFingerprint: string;
-  vectorId: string;
-}) {
-  return createAuditCheckpointBinding({
-    binding: {
-      runId: input.runId,
-      planId: input.plan.planId,
-      targetFingerprint: input.plan.targetFingerprint,
-      provider: input.provider,
-      model: input.model,
-      verificationRouteFingerprint: input.verificationRouteFingerprint,
-      evidenceMapProtocolFingerprint: input.evidenceMapProtocolFingerprint,
-      reviewWorkflowProtocolFingerprint: input.reviewWorkflowProtocolFingerprint,
-    },
-    plan: input.plan,
-    vectorId: input.vectorId,
-  });
-}
-
 /** A run is clean only when every planned vector reached a terminal clean coverage state. */
-export function auditRunOutcome(report: AuditReport): AuditRunManifest['outcome'] {
+export function auditRunOutcome(
+  report: Pick<PublicAuditReport, 'coverage' | 'findings' | 'reviewRequired' | 'errors'>,
+): AuditRunManifest['outcome'] {
   return classifyAuditTerminal(report).outcome;
-}
-
-async function writeAuditVectorCheckpoint(input: {
-  output: string;
-  runId: string;
-  plan: z.infer<typeof AttackPlanSchema>;
-  provider: string;
-  model: string;
-  verificationRouteFingerprint: string;
-  evidenceMapProtocolFingerprint: string;
-  reviewWorkflowProtocolFingerprint: string;
-  result: AuditVectorResult;
-}): Promise<void> {
-  await writeJsonArtifact(
-    input.output,
-    auditCheckpointPath(input.runId, input.result.coverage.vectorId),
-    AuditVectorCheckpointSchema,
-    createAuditVectorCheckpoint({
-      binding: {
-        ...auditCheckpointBinding({
-          ...input,
-          vectorId: input.result.coverage.vectorId,
-        }),
-      },
-      plan: input.plan,
-      result: input.result,
-      savedAt: new Date().toISOString(),
-    }),
-  );
-}
-
-async function writeAuditCandidateGroundingDraft(input: {
-  output: string;
-  runId: string;
-  plan: z.infer<typeof AttackPlanSchema>;
-  provider: string;
-  model: string;
-  verificationRouteFingerprint: string;
-  evidenceMapProtocolFingerprint: string;
-  reviewWorkflowProtocolFingerprint: string;
-  candidateGroundingProtocolFingerprint: string;
-  draft: Pick<
-    z.infer<typeof AuditCandidateGroundingDraftSchema>,
-    | 'vectorId'
-    | 'findings'
-    | 'closures'
-    | 'hypothesisGroundingFunnel'
-    | 'candidateIntegrityRejections'
-    | 'discoveryObservation'
-    | 'modelObservation'
-  >;
-}): Promise<void> {
-  await writeJsonArtifact(
-    input.output,
-    auditCandidateGroundingDraftPath(input.runId, input.draft.vectorId),
-    AuditCandidateGroundingDraftSchema,
-    createAuditCandidateGroundingDraft({
-      binding: {
-        ...auditCheckpointBinding({ ...input, vectorId: input.draft.vectorId }),
-      },
-      candidateGroundingProtocolFingerprint: input.candidateGroundingProtocolFingerprint,
-      plan: input.plan,
-      findings: input.draft.findings,
-      closures: input.draft.closures,
-      hypothesisGroundingFunnel: input.draft.hypothesisGroundingFunnel,
-      candidateIntegrityRejections: input.draft.candidateIntegrityRejections,
-      ...(input.draft.discoveryObservation === undefined
-        ? {}
-        : { discoveryObservation: input.draft.discoveryObservation }),
-      ...(input.draft.modelObservation === undefined
-        ? {}
-        : { modelObservation: input.draft.modelObservation }),
-      savedAt: new Date().toISOString(),
-    }),
-  );
-}
-
-async function writeAuditCandidateAwareCheckpoint(input: {
-  output: string;
-  runId: string;
-  plan: z.infer<typeof AttackPlanSchema>;
-  provider: string;
-  model: string;
-  verificationRouteFingerprint: string;
-  evidenceMapProtocolFingerprint: string;
-  reviewWorkflowProtocolFingerprint: string;
-  candidateGroundingProtocolFingerprint: string;
-  update: CandidateAwareCheckpointUpdate;
-}): Promise<void> {
-  await writeJsonArtifact(
-    input.output,
-    auditCandidateAwareCheckpointPath({
-      runId: input.runId,
-      vectorId: input.update.vectorId,
-      phase: input.update.phase,
-      candidateOrdinal: input.update.candidateOrdinal,
-    }),
-    AuditCandidateAwareCheckpointSchema,
-    createAuditCandidateAwareCheckpoint({
-      binding: {
-        ...auditCheckpointBinding({ ...input, vectorId: input.update.vectorId }),
-      },
-      candidateGroundingProtocolFingerprint: input.candidateGroundingProtocolFingerprint,
-      plan: input.plan,
-      phase: input.update.phase,
-      candidateOrdinal: input.update.candidateOrdinal,
-      candidate: input.update.candidate,
-      state: input.update.state,
-      ...(input.update.result === undefined ? {} : { result: input.update.result }),
-      ...(input.update.contextOverflowTopology === undefined
-        ? {}
-        : { contextOverflowTopology: input.update.contextOverflowTopology }),
-      savedAt: new Date().toISOString(),
-    }),
-  );
-}
-
-async function writeAuditEvidenceMapDraft(input: {
-  output: string;
-  runId: string;
-  plan: z.infer<typeof AttackPlanSchema>;
-  provider: string;
-  model: string;
-  verificationRouteFingerprint: string;
-  evidenceMapProtocolFingerprint: string;
-  reviewWorkflowProtocolFingerprint: string;
-  draft: Pick<
-    z.infer<typeof AuditEvidenceMapDraftSchema>,
-    'vectorId' | 'evidenceMap' | 'modelObservation'
-  >;
-}): Promise<void> {
-  await writeJsonArtifact(
-    input.output,
-    auditEvidenceMapDraftPath(input.runId, input.draft.vectorId),
-    AuditEvidenceMapDraftSchema,
-    createAuditEvidenceMapDraft({
-      binding: {
-        ...auditCheckpointBinding({ ...input, vectorId: input.draft.vectorId }),
-      },
-      plan: input.plan,
-      evidenceMap: input.draft.evidenceMap,
-      ...(input.draft.modelObservation === undefined
-        ? {}
-        : { modelObservation: input.draft.modelObservation }),
-      savedAt: new Date().toISOString(),
-    }),
-  );
-}
-
-async function writeAuditSourcePostureDraft(input: {
-  output: string;
-  runId: string;
-  plan: z.infer<typeof AttackPlanSchema>;
-  provider: string;
-  model: string;
-  verificationRouteFingerprint: string;
-  evidenceMapProtocolFingerprint: string;
-  reviewWorkflowProtocolFingerprint: string;
-  draft: Pick<
-    z.infer<typeof AuditSourcePostureDraftSchema>,
-    'vectorId' | 'sourcePosture' | 'modelObservation'
-  >;
-}): Promise<void> {
-  await writeJsonArtifact(
-    input.output,
-    auditSourcePostureDraftPath(input.runId, input.draft.vectorId),
-    AuditSourcePostureDraftSchema,
-    createAuditSourcePostureDraft({
-      binding: {
-        ...auditCheckpointBinding({ ...input, vectorId: input.draft.vectorId }),
-      },
-      plan: input.plan,
-      sourcePosture: input.draft.sourcePosture,
-      ...(input.draft.modelObservation === undefined
-        ? {}
-        : { modelObservation: input.draft.modelObservation }),
-      savedAt: new Date().toISOString(),
-    }),
-  );
-}
-
-async function readOptionalAuditVectorCheckpoint(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditVectorCheckpointSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditVectorCheckpointSchema);
-}
-
-async function readOptionalAuditCandidateGroundingDraft(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditCandidateGroundingDraftSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditCandidateGroundingDraftSchema);
-}
-
-async function readOptionalAuditCandidateAwareCheckpoint(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditCandidateAwareCheckpointSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditCandidateAwareCheckpointSchema);
-}
-
-async function readOptionalAuditEvidenceMapDraft(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditEvidenceMapDraftSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditEvidenceMapDraftSchema);
-}
-
-async function readOptionalAuditSourcePostureDraft(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditSourcePostureDraftSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditSourcePostureDraftSchema);
-}
-
-async function readOptionalAuditContextOverflowLedger(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditContextOverflowLedgerSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditContextOverflowLedgerSchema);
-}
-
-async function readOptionalAuditEvidenceMapRecoveryLeaf(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditEvidenceMapRecoveryLeafSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditEvidenceMapRecoveryLeafSchema);
-}
-
-async function readOptionalAuditSourcePostureRecoveryLeaf(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditSourcePostureRecoveryLeafSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditSourcePostureRecoveryLeafSchema);
-}
-
-async function readOptionalAuditCandidateGroundingRecoveryLeaf(
-  output: string,
-  artifactPath: string,
-): Promise<z.infer<typeof AuditCandidateGroundingRecoveryLeafSchema> | undefined> {
-  return readOptionalJsonArtifact(output, artifactPath, AuditCandidateGroundingRecoveryLeafSchema);
 }
 
 async function readOptionalAuditRunAttempt(
@@ -1276,6 +965,88 @@ async function readOptionalAuditRunAttempt(
   runId: string,
 ): Promise<AuditRunAttempt | undefined> {
   return readOptionalJsonArtifact(output, `runs/${runId}.attempt.json`, AuditRunAttemptSchema);
+}
+
+/** Rejects resume when a private terminal record no longer binds its public report exactly. */
+async function assertPublishedAuditAttemptBinding(input: {
+  publicArtifacts: string;
+  publicReport: NonNullable<AuditRunAttempt['publicReport']>;
+}): Promise<PublicAuditReport> {
+  const report = await readJsonArtifact(
+    input.publicArtifacts,
+    `reports/${input.publicReport.reportId}.json`,
+    PublicAuditReportSchema,
+  );
+  if (sha256(canonicalJson(report)) !== input.publicReport.reportDigest) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'The retained audit attempt does not match its published public report.',
+    );
+  }
+  return report;
+}
+
+/** Reuses an already committed terminal result and retries only operational snapshot cleanup. */
+async function resumeCompletedAuditAttempt(input: {
+  privateWork: string;
+  publicArtifacts: string;
+  attempt: AuditRunAttempt;
+  options: Readonly<Record<string, string>>;
+}): Promise<number> {
+  if (input.attempt.publicReport === null) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'A completed audit attempt is missing its published public report binding.',
+    );
+  }
+  const publicReport = await assertPublishedAuditAttemptBinding({
+    publicArtifacts: input.publicArtifacts,
+    publicReport: input.attempt.publicReport,
+  });
+  if (
+    input.attempt.snapshotState === 'release-pending' ||
+    input.attempt.snapshotState === 'release-failed'
+  ) {
+    try {
+      await releaseTargetSnapshot({
+        outputRoot: input.privateWork,
+        runId: input.attempt.runId,
+        targetFingerprint: input.attempt.targetFingerprint,
+      });
+      await writeAuditRunAttempt(input.privateWork, {
+        ...input.attempt,
+        snapshotState: 'released',
+      });
+    } catch {
+      await writeAuditRunAttempt(input.privateWork, {
+        ...input.attempt,
+        snapshotState: 'release-failed',
+      });
+    }
+  }
+  const exitCode = auditRunOutcome(publicReport) === 'completed' ? 0 : 3;
+  writeCliCommandResult(
+    input.options,
+    {
+      schemaVersion: 1,
+      command: 'audit',
+      status: exitCode === 0 ? 'completed' : 'partial',
+      exitCode,
+      exitMeaning: commandExitMeaning('audit', exitCode),
+      identifiers: {
+        runId: input.attempt.runId,
+        planId: publicReport.planId,
+        reportId: publicReport.reportId,
+      },
+      artifacts: [
+        { kind: 'report-json', path: `reports/${publicReport.reportId}.json` },
+        { kind: 'report-markdown', path: `reports/${publicReport.reportId}.md` },
+        { kind: 'run-manifest', path: `runs/${input.attempt.runId}.json` },
+      ],
+    },
+    `Reused completed report reports/${publicReport.reportId}.json.\n`,
+  );
+  return exitCode;
 }
 
 export function assertAuditRunReuse(input: {
@@ -1289,7 +1060,7 @@ export function assertAuditRunReuse(input: {
     );
   }
   if (input.resume && input.priorAttempt === undefined) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'Resuming an audit requires its retained attempt record.',
     );
@@ -1301,15 +1072,45 @@ export function assertAuditRunReuse(input: {
     prior.planDigest !== input.plan.planDigest ||
     prior.targetFingerprint !== input.plan.targetFingerprint
   ) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'The retained audit attempt does not match the executable plan.',
     );
   }
   if (input.resume && prior.status === 'completed') {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'A completed audit cannot be resumed; start a new run instead.',
+    );
+  }
+}
+
+/** Rejects every incomplete or plan-mismatched identity before private deletion. */
+export function assertAuditRunDiscardBinding(input: {
+  runId: string;
+  plan: z.infer<typeof AttackPlanSchema>;
+  attempt: AuditRunAttempt | undefined;
+}): asserts input is {
+  runId: string;
+  plan: z.infer<typeof AttackPlanSchema>;
+  attempt: AuditRunAttempt;
+} {
+  const attempt = input.attempt;
+  if (attempt === undefined) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'Discarding private audit work requires its retained immutable attempt record.',
+    );
+  }
+  if (
+    attempt.runId !== input.runId ||
+    attempt.planId !== input.plan.planId ||
+    attempt.planDigest !== input.plan.planDigest ||
+    attempt.targetFingerprint !== input.plan.targetFingerprint
+  ) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'The retained audit attempt does not match the supplied exact discard binding.',
     );
   }
 }
@@ -1335,18 +1136,18 @@ function requiredValue(value: string | undefined, key: string): string {
   return value;
 }
 
-function usage(message: string): SecurityReviewerError {
-  return new SecurityReviewerError(
+function usage(message: string): AuditRuntimeError {
+  return new AuditRuntimeError(
     'invalid-input',
-    `${message} Usage: security-reviewer <plan|audit|report|lineage> --key value`,
+    `${message} Run \`audit --help\` to list commands and \`audit help <command>\` for exact usage.`,
   );
 }
 
 /** Maps failures that prevented a report to the documented operational CI class. */
 export function cliFailureExitCode(error: unknown): 2 | 4 {
   if (
-    error instanceof SecurityReviewerError &&
-    (isRetryableSecurityReviewerErrorCode(error.code) ||
+    error instanceof AuditRuntimeError &&
+    (isRetryableAuditRuntimeErrorCode(error.code) ||
       error.code === 'provider-http-error' ||
       error.code === 'provider-response-invalid' ||
       error.code === 'provider-cancelled' ||
@@ -1362,7 +1163,7 @@ if (import.meta.main) {
     process.exitCode = await runCli(Bun.argv.slice(2));
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unexpected error.';
-    process.stderr.write(`security-reviewer: ${message}\n`);
+    process.stderr.write(`audit: ${message}\n`);
     process.exitCode = cliFailureExitCode(error);
   }
 }

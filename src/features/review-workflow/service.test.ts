@@ -2,9 +2,12 @@ import { expect, test } from 'bun:test';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { JsonValue } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createPlan as createDraftPlan } from '../attack-planning/plan.js';
-import { createReviewService, modelStagesForAudit } from './service.js';
+import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
+import { createModelCostCeiling } from '../model-operations/model-operations.js';
+import { createReviewService } from './service.js';
 
 function enqueueEvidenceMap(provider: FakeModelProvider, path: string): void {
   enqueueScopedInspection(provider);
@@ -44,6 +47,7 @@ function enqueueSourcePosture(provider: FakeModelProvider): void {
           assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-supported',
+          summary: 'The scoped source supports later investigation of this obligation.',
           evidenceMapFactIds: ['fact-input-01', 'fact-source-01'],
           limitations: [],
         },
@@ -63,7 +67,7 @@ function enqueueScopedInspection(provider: FakeModelProvider): void {
         id: 'test-scoped-inspection',
         name: 'repo_grep',
         arguments: {
-          pattern: '__security_reviewer_test_no_match__',
+          pattern: '__audit_test_no_match__',
           mode: 'literal',
           caseSensitive: true,
         },
@@ -96,8 +100,12 @@ function discoverySeed(vectorId: string) {
   };
 }
 
+function wrappedVerificationResult(result: JsonValue): JsonValue {
+  return { result };
+}
+
 test('review service creates an executable plan and audits it directly', async () => {
-  const target = await mkdtemp(join(tmpdir(), 'security-reviewer-service-'));
+  const target = await mkdtemp(join(tmpdir(), 'audit-service-'));
   await writeFile(
     join(target, 'query.ts'),
     String.raw`const query = \`SELECT * FROM users WHERE id = '\${userId}'\`;
@@ -206,7 +214,7 @@ test('review service creates an executable plan and audits it directly', async (
 });
 
 test('retries one failed agent invocation without expanding the approved audit scope', async () => {
-  const target = await mkdtemp(join(tmpdir(), 'security-reviewer-retry-service-'));
+  const target = await mkdtemp(join(tmpdir(), 'audit-retry-service-'));
   await writeFile(join(target, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   enqueueScopedInspection(provider);
@@ -267,7 +275,7 @@ test('retries one failed agent invocation without expanding the approved audit s
 test('rejects a plan whose fingerprint does not match before provider dispatch', async () => {
   const provider = new FakeModelProvider();
   const service = createReviewService(provider);
-  const target = await mkdtemp(join(tmpdir(), 'security-reviewer-plan-mismatch-'));
+  const target = await mkdtemp(join(tmpdir(), 'audit-plan-mismatch-'));
   await writeFile(join(target, 'fixture.ts'), 'export const fixture = true;\n', 'utf8');
   const draft = createDraftPlan({
     targetFingerprint: 'a'.repeat(64),
@@ -340,7 +348,7 @@ test('rejects an edited plan before opening the target root or dispatching a pro
 
   await expect(
     service.audit({
-      targetRoot: join(tmpdir(), 'security-reviewer-missing-target'),
+      targetRoot: join(tmpdir(), 'audit-missing-target'),
       targetDisplayName: 'fixture',
       plan: edited,
       runId: 'service-audit-edited',
@@ -351,8 +359,50 @@ test('rejects an edited plan before opening the target root or dispatching a pro
   expect(provider.requests).toHaveLength(0);
 });
 
+test('rejects a plan with no enabled vectors before opening the target root or dispatching a provider', async () => {
+  const provider = new FakeModelProvider();
+  const service = createReviewService(provider);
+  const sealed = createDraftPlan({
+    targetFingerprint: 'a'.repeat(64),
+    contextDigest: 'b'.repeat(64),
+    targetDisplayName: 'fixture',
+    createdAt: '2026-07-27T12:00:00.000Z',
+    inventorySummary: { fileCount: 1, totalBytes: 1, languageHints: [] },
+    vectors: [
+      {
+        title: 'Review injection',
+        rationale: 'Review source.',
+        enabled: true,
+        scopeGlobs: ['**/*'],
+        reviewObligations: [
+          {
+            obligationId: 'service-obligation-01',
+            riskStatement: 'The source could expose a security concern.',
+            evidenceRequirement: 'Inspect source evidence inside the approved scope.',
+          },
+        ],
+        limitations: [],
+      },
+    ],
+  });
+  const vector = sealed.vectors[0];
+  if (vector === undefined) throw new Error('Fixture requires one vector.');
+
+  await expect(
+    service.audit({
+      targetRoot: join(tmpdir(), 'audit-missing-target'),
+      targetDisplayName: 'fixture',
+      plan: { ...sealed, vectors: [{ ...vector, enabled: false }] },
+      runId: 'service-audit-disabled',
+      generatedAt: '2026-07-27T12:02:00.000Z',
+      sessionId: 'service-audit-disabled',
+    }),
+  ).rejects.toThrow('requires at least one enabled vector');
+  expect(provider.requests).toHaveLength(0);
+});
+
 test('does not persist a model claim outside the approved vector scope', async () => {
-  const target = await mkdtemp(join(tmpdir(), 'security-reviewer-scoped-service-'));
+  const target = await mkdtemp(join(tmpdir(), 'audit-scoped-service-'));
   await writeFile(join(target, 'allowed.ts'), 'export const safe = true;\n', 'utf8');
   await writeFile(join(target, 'private.ts'), "const token = 'super-secret-value';\n", 'utf8');
   const provider = new FakeModelProvider();
@@ -408,12 +458,23 @@ test('does not persist a model claim outside the approved vector scope', async (
           candidate: {
             vectorId: vector.vectorId,
             statement: 'Private secret',
-            operationEvidence: { factId: 'fact-source-01', evidenceIndex: 0 },
-            unsafeConditionEvidence: { factId: 'fact-input-01', evidenceIndex: 0 },
+            claimEvidenceBundles: [
+              {
+                role: 'operation',
+                explanation: 'The selected source fact establishes the operation.',
+                selections: [{ factId: 'fact-source-01', evidenceIndex: 0 }],
+              },
+              {
+                role: 'unsafe-condition',
+                explanation: 'The selected input fact establishes the unsafe condition.',
+                selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+              },
+            ],
             planObligations: [{ obligationId: 'test-obligation-01' }],
             evidenceMapFactIds: ['fact-input-01', 'fact-source-01'],
             limitations: [],
           },
+          nullReason: null,
         },
       ],
     },
@@ -433,7 +494,7 @@ test('does not persist a model claim outside the approved vector scope', async (
 });
 
 test('routes a map-bound candidate through scoped inspection to an independent verifier', async () => {
-  const target = await mkdtemp(join(tmpdir(), 'security-reviewer-verifier-service-'));
+  const target = await mkdtemp(join(tmpdir(), 'audit-verifier-service-'));
   await writeFile(
     join(target, 'query.ts'),
     String.raw`const query = \`SELECT * FROM users WHERE id = '\${userId}'\`;
@@ -502,14 +563,21 @@ test('routes a map-bound candidate through scoped inspection to an independent v
         {
           seedId: 'seed-review-01',
           candidate: {
-            vectorId: vector.vectorId,
             statement: 'Query includes a request-controlled value',
-            operationEvidence: { factId: 'fact-source-01', evidenceIndex: 0 },
-            unsafeConditionEvidence: { factId: 'fact-input-01', evidenceIndex: 0 },
-            planObligations: [{ obligationId: 'test-obligation-01' }],
-            evidenceMapFactIds: ['fact-input-01', 'fact-source-01'],
-            limitations: [],
+            claimEvidenceBundles: [
+              {
+                role: 'operation',
+                explanation: 'The selected source fact establishes the query operation.',
+                selections: [{ factId: 'fact-source-01', evidenceIndex: 0 }],
+              },
+              {
+                role: 'unsafe-condition',
+                explanation: 'The selected input fact establishes the unsafe condition.',
+                selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+              },
+            ],
           },
+          nullReason: null,
         },
       ],
     },
@@ -518,11 +586,22 @@ test('routes a map-bound candidate through scoped inspection to an independent v
   });
   enqueueScopedInspection(verifierProvider);
   verifierProvider.enqueueObject({
-    object: {
+    object: wrappedVerificationResult({
       decision: 'accepted',
+      reasonCode: 'claim-supported',
       reason: 'The source supports the stated risk.',
-      operationEvidence: { factId: 'fact-source-01', evidenceIndex: 0 },
-      unsafeConditionEvidence: { factId: 'fact-input-01', evidenceIndex: 0 },
+      claimEvidenceBundles: [
+        {
+          role: 'operation',
+          explanation: 'The selected source fact establishes the query operation.',
+          selections: [{ factId: 'fact-source-01', evidenceIndex: 0 }],
+        },
+        {
+          role: 'unsafe-condition',
+          explanation: 'The selected input fact establishes the unsafe condition.',
+          selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+        },
+      ],
       controlAssessment: {
         conclusion: 'no-effective-control-found',
         explanation: 'No scoped control negates the hypothesis.',
@@ -544,7 +623,7 @@ test('routes a map-bound candidate through scoped inspection to an independent v
           evidenceSelections: [{ factId: 'fact-source-01', evidenceIndex: 0 }],
         },
       ],
-    },
+    }),
     usage: { inputTokens: 2, outputTokens: 1, totalTokens: 3 },
     finishReason: 'stop',
   });
@@ -573,4 +652,23 @@ test('routes a map-bound candidate through scoped inspection to an independent v
   );
   expect(provider.requests).toHaveLength(10);
   expect(verifierProvider.requests).toHaveLength(2);
+});
+
+test('uses a caller-owned cost guard with any positive queue capacity and rejects competing configuration', () => {
+  const ceiling = createModelCostCeiling({
+    configuredUsd: 1,
+    pricing: { inputPerMillion: 1, outputPerMillion: 1, source: 'catalogue' },
+  });
+  const service = createReviewService(new FakeModelProvider(), undefined, {
+    modelCostCeiling: ceiling,
+    maxParallelVectors: 128,
+  });
+  expect(service.modelCostCeiling()).toBe(ceiling);
+  expect(service.modelCostCeilingState()).toEqual(ceiling.state());
+  expect(() =>
+    createReviewService(new FakeModelProvider(), undefined, {
+      modelCostCeiling: ceiling,
+      maxEstimatedCostUsd: 1,
+    }),
+  ).toThrow('either a shared model-cost ceiling or a configured ceiling');
 });

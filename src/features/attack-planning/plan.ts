@@ -1,12 +1,16 @@
 import { canonicalJson, createStableId, sha256 } from '../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 
 import {
   type AdditionalObservation,
+  AdditionalObservationSchema,
   type AttackPlan,
   AttackPlanSchema,
   type AttackVector,
+  type DraftAttackVector,
+  DraftAttackVectorSchema,
   type InventorySummary,
+  PersistedPlanTextSchema,
 } from './plan.schema.js';
 
 export type DraftVectorInput = Omit<AttackVector, 'vectorId' | 'vectorDigest'>;
@@ -26,8 +30,17 @@ export function createPlan(input: {
   vectors: readonly DraftVectorInput[];
   additionalObservations?: readonly AdditionalObservation[];
   createdAt: string;
+  resealedFromPlanId?: string;
+  resealedAt?: string;
 }): AttackPlan {
-  const vectors = input.vectors.map((vector) => {
+  const draftVectors: DraftAttackVector[] = input.vectors.map((vector) =>
+    DraftAttackVectorSchema.parse(vector),
+  );
+  const additionalObservations: AdditionalObservation[] = (input.additionalObservations ?? []).map(
+    (observation) => AdditionalObservationSchema.parse(observation),
+  );
+  const targetDisplayName = PersistedPlanTextSchema.parse(input.targetDisplayName);
+  const vectors = draftVectors.map((vector) => {
     const vectorDigest = digestVector(vector);
     return {
       ...vector,
@@ -39,20 +52,26 @@ export function createPlan(input: {
     targetFingerprint: input.targetFingerprint,
     contextDigest: input.contextDigest,
     vectors,
-    additionalObservations: [...(input.additionalObservations ?? [])],
+    additionalObservations,
   };
   const planDigest = digestPlan(content);
   return AttackPlanSchema.parse({
-    schemaVersion: 3,
+    schemaVersion: 4,
     planId: createStableId('plan', planDigest),
     planDigest,
     targetFingerprint: input.targetFingerprint,
     contextDigest: input.contextDigest,
-    targetDisplayName: input.targetDisplayName,
+    targetDisplayName,
     createdAt: input.createdAt,
+    ...(input.resealedFromPlanId === undefined
+      ? {}
+      : {
+          resealedFromPlanId: input.resealedFromPlanId,
+          resealedAt: input.resealedAt,
+        }),
     inventorySummary: input.inventorySummary,
     vectors,
-    additionalObservations: input.additionalObservations ?? [],
+    additionalObservations,
   });
 }
 
@@ -64,6 +83,12 @@ export function resealPlan(plan: AttackPlan): AttackPlan {
     targetDisplayName: plan.targetDisplayName,
     inventorySummary: plan.inventorySummary,
     createdAt: plan.createdAt,
+    ...(plan.resealedFromPlanId === undefined
+      ? {}
+      : {
+          resealedFromPlanId: plan.resealedFromPlanId,
+          resealedAt: plan.resealedAt,
+        }),
     vectors: plan.vectors.map(toDraftVector),
     additionalObservations: plan.additionalObservations,
   });
@@ -85,7 +110,7 @@ export function assertPlanIsSealed(plan: AttackPlan): void {
       );
     })
   ) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'The supplied plan has been edited without being resealed.',
     );
@@ -99,7 +124,7 @@ export function assertPlanMatchesTarget(
 ): void {
   assertPlanIsSealed(plan);
   if (plan.targetFingerprint !== targetFingerprint || plan.contextDigest !== contextDigest) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'plan-target-mismatch',
       'The supplied plan does not match the current target or context.',
     );
@@ -113,7 +138,7 @@ function digestVector(vector: DraftVectorInput): string {
 function digestPlan(content: PlanContent): string {
   return sha256(
     canonicalJson({
-      schemaVersion: 3,
+      schemaVersion: 4,
       targetFingerprint: content.targetFingerprint,
       contextDigest: content.contextDigest,
       vectors: content.vectors,

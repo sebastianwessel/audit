@@ -1,6 +1,7 @@
 import { expect, test } from 'bun:test';
 
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import { FilesystemBoundaryError } from '../../../platform/filesystem/filesystem-error.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { ReviewRepositoryToolset } from './contract.js';
 import { createObservedReviewToolset } from './operations.js';
 
@@ -12,7 +13,7 @@ const toolset: ReviewRepositoryToolset = {
     path: 'src/a.ts',
     startLine: 1,
     endLine: 1,
-    text: 'x',
+    lines: [{ line: 1, text: 'x' }],
   }),
   grepFiles: async () => ({ matches: [] }),
 };
@@ -34,8 +35,7 @@ test('records aggregate-only tool use without applying a fixed call budget', asy
     successfulReadFileCallCount: 1,
     successfulGrepFilesCallCount: 1,
     rejectedCallCount: 0,
-    returnedBytes: 145,
-    budgetExhausted: false,
+    returnedBytes: 166,
   });
 });
 
@@ -50,7 +50,7 @@ test('records an ordered, content-free trace including rejected tool calls', asy
     {
       ...toolset,
       grepFiles: async () => {
-        throw new SecurityReviewerError('unsafe-path', 'The raw path must not be persisted.');
+        throw new AuditRuntimeError('unsafe-path', 'The raw path must not be persisted.');
       },
     },
     {
@@ -88,14 +88,29 @@ test('records an ordered, content-free trace including rejected tool calls', asy
   ]);
 });
 
+test('retains the stable jailed-filesystem reason for a rejected tool call', async () => {
+  const trace: Array<{ errorCode: string | null }> = [];
+  const bounded = createObservedReviewToolset(
+    {
+      ...toolset,
+      readFile: async () => {
+        throw new FilesystemBoundaryError('UNSAFE_SYMLINK', 'The source path is unsafe.');
+      },
+    },
+    { recordToolCall: (event) => trace.push(event) },
+  );
+  await expect(bounded.toolset.readFile({ path: 'src/a.ts' })).rejects.toThrow('unsafe');
+  expect(trace).toEqual([expect.objectContaining({ errorCode: 'filesystem-unsafe-symlink' })]);
+});
+
 test('does not count a rejected read or search as successful source inspection', async () => {
   const bounded = createObservedReviewToolset({
     ...toolset,
     readFile: async () => {
-      throw new SecurityReviewerError('unsafe-path', 'The raw path must not be persisted.');
+      throw new AuditRuntimeError('unsafe-path', 'The raw path must not be persisted.');
     },
     grepFiles: async () => {
-      throw new SecurityReviewerError('unsafe-path', 'The raw path must not be persisted.');
+      throw new AuditRuntimeError('unsafe-path', 'The raw path must not be persisted.');
     },
   });
   await expect(bounded.toolset.readFile({ path: 'src/a.ts' })).rejects.toThrow('raw path');

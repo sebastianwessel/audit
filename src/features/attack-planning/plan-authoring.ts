@@ -1,4 +1,4 @@
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 
 import { assertPlanIsSealed, createPlan } from './plan.js';
 import {
@@ -31,12 +31,13 @@ export function createAttackPlanDraft(plan: AttackPlan): AttackPlanDraft {
 export function resealAttackPlanDraft(input: {
   basePlan: AttackPlan;
   draft: AttackPlanDraft;
+  resealedAt: string;
 }): AttackPlan {
   const basePlan = AttackPlanSchema.parse(input.basePlan);
   const draft = AttackPlanDraftSchema.parse(input.draft);
   assertPlanIsSealed(basePlan);
   if (draft.basePlanId !== basePlan.planId || draft.basePlanDigest !== basePlan.planDigest) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'The editable draft is not bound to the supplied sealed base plan.',
     );
@@ -46,19 +47,19 @@ export function resealAttackPlanDraft(input: {
     basePlan.additionalObservations.map((observation) => [observation.observationId, observation]),
   );
   if (new Set(draft.promotedObservationIds).size !== draft.promotedObservationIds.length) {
-    throw new SecurityReviewerError('artifact-invalid', 'A plan observation can be promoted once.');
+    throw new AuditRuntimeError('artifact-invalid', 'A plan observation can be promoted once.');
   }
   const promoted = draft.promotedObservationIds.map((observationId) => {
     const observation = observationsById.get(observationId);
     if (observation === undefined) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'artifact-invalid',
         'The editable draft references an observation outside its sealed base plan.',
       );
     }
     return observationToDraftVector(observation);
   });
-  const resealed = createPlan({
+  const resealInput = {
     targetFingerprint: basePlan.targetFingerprint,
     contextDigest: basePlan.contextDigest,
     targetDisplayName: basePlan.targetDisplayName,
@@ -68,14 +69,18 @@ export function resealAttackPlanDraft(input: {
     additionalObservations: draft.additionalObservations.filter(
       (observation) => !draft.promotedObservationIds.includes(observation.observationId),
     ),
-  });
-  if (resealed.planId === basePlan.planId) {
-    throw new SecurityReviewerError(
+  };
+  if (createPlan(resealInput).planId === basePlan.planId) {
+    throw new AuditRuntimeError(
       'invalid-input',
       'The editable draft does not change the executable plan.',
     );
   }
-  return resealed;
+  return createPlan({
+    ...resealInput,
+    resealedFromPlanId: basePlan.planId,
+    resealedAt: input.resealedAt,
+  });
 }
 
 function observationToDraftVector(observation: AdditionalObservation): DraftAttackVector {

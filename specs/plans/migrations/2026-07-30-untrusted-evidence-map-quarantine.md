@@ -31,7 +31,7 @@ Provider diagnostics retain only counts and normalized validation error codes. T
 
 ## Measurement record
 
-The repaired protocol was measured on `security-reviewer-real-world-seed@0.2.1`, development split, reviewed-plan profile, tool-assisted evidence, same-route verification, serial vectors, default retry, and five repetitions per variant. Both runs completed all 30 trials with no model-stage contract failure.
+The repaired protocol was measured on `audit-real-world-seed@0.2.1`, development split, reviewed-plan profile, tool-assisted evidence, same-route verification, serial vectors, default retry, and five repetitions per variant. Both runs completed all 30 trials with no model-stage contract failure.
 
 | Model | Estimated cost | True positives | False positives | False negatives | Recall median | p95 latency |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |

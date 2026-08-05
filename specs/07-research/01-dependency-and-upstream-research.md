@@ -1,6 +1,6 @@
 # Dependency and upstream research
 
-Research date: 2026-07-27. Recheck versions and Purista exports before implementation.
+Research date: 2026-08-04. Recheck versions and Purista exports before implementation.
 
 | Choice | Version/source | Rationale |
 | --- | --- | --- |
@@ -9,6 +9,8 @@ Research date: 2026-07-27. Recheck versions and Purista exports before implement
 | Providers | @purista/harness-openai and @purista/harness-anthropic 1.7.1 optional | Provider portability and optional dependency behavior. |
 | Zod | 4.4.3 | Runtime validation, inferred types, and JSON Schema. [Basics](https://zod.dev/basics), [JSON Schema](https://zod.dev/json-schema). |
 | TypeScript/Biome | 7.0.2 / 2.5.5 | Strict compile-time checks and one formatter/linter. |
+
+The installed Purista Anthropic adapter forwards cached-input and cache-creation usage, but its typed application-facing interface does not expose an Anthropic cache-control boundary for structured tool-guided messages. The reviewer therefore keeps Anthropic cache routing disabled. The underlying SDK capability is not sufficient evidence to add a provider-specific prompt rewrite or bypass the harness abstraction.
 
 ## Upstream lessons
 

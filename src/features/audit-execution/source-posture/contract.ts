@@ -10,20 +10,35 @@ import {
   EvidenceMapFactIdsSchema,
   UnverifiedEvidenceMapFactIdsSchema,
 } from '../evidence-map/contract.js';
+import { AuditNarrativeTextSchema } from '../narrative/contract.js';
 
 /** A candidate-blind model judgment about one approved risk-positive obligation. */
 export const SourcePostureConclusionSchema = modelTokenSchema(
   z.enum(['risk-supported', 'risk-contradicted', 'inconclusive', 'not-applicable']),
 );
 
+/** Closed durable replacement for model-authored applicability prose. */
+export const SourcePostureNotApplicableReasonSchema = modelTokenSchema(
+  z.enum(['no-relevant-operation-in-scope', 'external-component-not-represented-in-scope']),
+);
+
+/** Closed durable signals derived from posture prose or lifecycle state. */
+export const SourcePostureLimitationCodeSchema = z.enum([
+  'model-declared-limitation',
+  'obligation-assessment-missing',
+  'source-inspection-missing',
+]);
+
 export const SourcePostureAssessmentSchema = z
   .strictObject({
     assessmentId: IdentifierSchema,
     obligationId: PlanObligationReferenceSchema.shape.obligationId,
     conclusion: SourcePostureConclusionSchema,
+    /** Validated/redacted context for later bounded model stages; it is not evidence or proof. */
+    summary: AuditNarrativeTextSchema.optional(),
     evidenceMapFactIds: EvidenceMapFactIdsSchema,
-    notApplicableReason: BoundedTextSchema.min(1).nullable().optional(),
-    limitations: z.array(BoundedTextSchema.min(1)),
+    notApplicableReason: SourcePostureNotApplicableReasonSchema.nullable().optional(),
+    limitations: z.array(SourcePostureLimitationCodeSchema),
   })
   .superRefine((assessment, context) => {
     const requiresReason = assessment.conclusion === 'not-applicable';
@@ -39,14 +54,29 @@ export const SourcePostureAssessmentSchema = z
     }
   });
 
-export const UnverifiedSourcePostureAssessmentSchema = SourcePostureAssessmentSchema.safeExtend({
-  assessmentId: z.string().trim().min(1).max(160),
-  evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
-});
-
-const SourcePostureEnvelopeFields = {
-  limitations: z.array(BoundedTextSchema.min(1)),
-};
+export const UnverifiedSourcePostureAssessmentSchema = z
+  .strictObject({
+    assessmentId: z.string().trim().min(1).max(160),
+    obligationId: PlanObligationReferenceSchema.shape.obligationId,
+    conclusion: SourcePostureConclusionSchema,
+    summary: AuditNarrativeTextSchema.optional(),
+    evidenceMapFactIds: UnverifiedEvidenceMapFactIdsSchema,
+    notApplicableReason: SourcePostureNotApplicableReasonSchema.nullable().optional(),
+    limitations: z.array(BoundedTextSchema.min(1)),
+  })
+  .superRefine((assessment, context) => {
+    const requiresReason = assessment.conclusion === 'not-applicable';
+    if (
+      requiresReason !==
+      (assessment.notApplicableReason !== undefined && assessment.notApplicableReason !== null)
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['notApplicableReason'],
+        message: 'Only a not-applicable assessment carries a required reason.',
+      });
+    }
+  });
 
 function uniqueAssessments(
   assessments: readonly { assessmentId: string; obligationId: string }[],
@@ -73,14 +103,14 @@ function uniqueAssessments(
 export const SourcePostureSchema = z
   .strictObject({
     assessments: z.array(SourcePostureAssessmentSchema),
-    ...SourcePostureEnvelopeFields,
+    limitations: z.array(SourcePostureLimitationCodeSchema),
   })
   .superRefine((value, context) => uniqueAssessments(value.assessments, context));
 
 export const UnverifiedSourcePostureSchema = z
   .strictObject({
     assessments: z.array(UnverifiedSourcePostureAssessmentSchema),
-    ...SourcePostureEnvelopeFields,
+    limitations: z.array(BoundedTextSchema.min(1)),
   })
   .superRefine((value, context) => uniqueAssessments(value.assessments, context));
 

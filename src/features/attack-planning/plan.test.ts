@@ -91,6 +91,40 @@ describe('plan lifecycle', () => {
     expect(changedMetadata.planDigest).toBe(original.planDigest);
   });
 
+  test('normalizes persistable plan text before deriving a sealed identity', () => {
+    const withSensitiveLiteral = createExecutablePlan({
+      targetFingerprint: fingerprint,
+      contextDigest: digest,
+      targetDisplayName: 'demo',
+      inventorySummary: { fileCount: 1, totalBytes: 4, languageHints: ['typescript'] },
+      createdAt: '2026-07-27T12:00:00.000Z',
+      vectors: [
+        {
+          ...draftVector(['src/**']),
+          rationale: 'password = "fixture-secret"',
+        },
+      ],
+    });
+    const withRedactedLiteral = createExecutablePlan({
+      targetFingerprint: fingerprint,
+      contextDigest: digest,
+      targetDisplayName: 'demo',
+      inventorySummary: { fileCount: 1, totalBytes: 4, languageHints: ['typescript'] },
+      createdAt: '2026-07-27T12:00:00.000Z',
+      vectors: [
+        {
+          ...draftVector(['src/**']),
+          rationale: 'password = [REDACTED_SECRET]',
+        },
+      ],
+    });
+
+    expect(JSON.stringify(withSensitiveLiteral)).not.toContain('fixture-secret');
+    expect(withSensitiveLiteral.vectors[0]?.rationale).toBe('password = [REDACTED_SECRET]');
+    expect(withSensitiveLiteral.planId).toBe(withRedactedLiteral.planId);
+    expect(() => assertPlanIsSealed(withSensitiveLiteral)).not.toThrow();
+  });
+
   test('requires a matching target and context', () => {
     const plan = createPlan();
     expect(() => assertPlanMatchesTarget(plan, fingerprint, digest)).not.toThrow();

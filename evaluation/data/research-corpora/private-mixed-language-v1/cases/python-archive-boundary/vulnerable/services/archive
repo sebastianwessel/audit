@@ -1,0 +1,6 @@
+from pathlib import Path
+
+
+def extract_entry(root: Path, entry_name: str, content: bytes) -> None:
+    destination = root / entry_name
+    destination.write_bytes(content)

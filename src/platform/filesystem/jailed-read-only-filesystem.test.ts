@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FilesystemErrorCode } from './index.ts';
@@ -8,7 +8,7 @@ import { createJailedReadOnlyFilesystem, FilesystemBoundaryError } from './index
 let workspace = '';
 
 beforeEach(async () => {
-  workspace = await mkdtemp(join(tmpdir(), 'security-reviewer-filesystem-'));
+  workspace = await mkdtemp(join(tmpdir(), 'audit-filesystem-'));
 });
 
 afterEach(async () => {
@@ -95,6 +95,23 @@ describe('createJailedReadOnlyFilesystem', () => {
       filesystem.listFiles({ includeGlobs: ['**/*'], excludeGlobs: [] }),
     ).rejects.toMatchObject({
       code: 'SYMLINK_ESCAPE',
+    });
+  });
+
+  test('fails closed when a bound root is replaced after jail construction', async () => {
+    const { targetRoot } = await createRoots();
+    const originalRoot = join(workspace, 'target-original');
+    const outsideRoot = join(workspace, 'outside-root');
+    await writeFile(join(targetRoot, 'safe.ts'), 'inside\n');
+    await mkdir(outsideRoot);
+    await writeFile(join(outsideRoot, 'safe.ts'), 'outside\n');
+    const filesystem = await createJailedReadOnlyFilesystem({ targetRoot });
+
+    await rename(targetRoot, originalRoot);
+    await symlink(outsideRoot, targetRoot);
+
+    await expect(filesystem.readFile({ relativePath: 'safe.ts' })).rejects.toMatchObject({
+      code: 'UNSAFE_TRANSACTION',
     });
   });
 

@@ -1,4 +1,4 @@
-import type { Dirent, Stats } from 'node:fs';
+import { constants, type Dirent, type Stats } from 'node:fs';
 import type { FileHandle } from 'node:fs/promises';
 import { lstat, open, readdir, realpath } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve } from 'node:path';
@@ -32,6 +32,25 @@ export type JailedReadOnlyFilesystem = Readonly<{
   grepFiles: (input: GrepFilesInput) => Promise<GrepFilesResult>;
 }>;
 
+type FileIdentity = Readonly<{
+  device: number;
+  inode: number;
+  sizeBytes: number;
+  modifiedAtMs: number;
+  changedAtMs: number;
+}>;
+
+type RootBinding = Readonly<{
+  path: string;
+  identity: FileIdentity;
+}>;
+
+type ResolvedFile = Readonly<{
+  candidatePath: string;
+  canonicalPath: string;
+  identity: FileIdentity;
+}>;
+
 export const createJailedReadOnlyFilesystem = async (
   options: JailedReadOnlyFilesystemOptions,
 ): Promise<JailedReadOnlyFilesystem> => {
@@ -42,8 +61,8 @@ export const createJailedReadOnlyFilesystem = async (
     : undefined;
 
   return Object.freeze({
-    targetRoot,
-    contextRoot,
+    targetRoot: targetRoot.path,
+    contextRoot: contextRoot?.path,
     listFiles: async (input: ListFilesInput): Promise<ListFilesResult> => {
       const parsedInput = parseListInput(input);
       const root = selectRoot(parsedInput.root, targetRoot, contextRoot);
@@ -149,7 +168,7 @@ const parseGrepInput = (input: GrepFilesInput) => {
   return result.data;
 };
 
-const canonicalizeRoot = async (root: string): Promise<string> => {
+const canonicalizeRoot = async (root: string): Promise<RootBinding> => {
   const configuredRoot = resolve(root);
   let rootStat: Stats;
   try {
@@ -166,7 +185,15 @@ const canonicalizeRoot = async (root: string): Promise<string> => {
   }
 
   try {
-    return await realpath(configuredRoot);
+    const canonicalPath = await realpath(configuredRoot);
+    const canonicalStat = await lstat(canonicalPath);
+    if (canonicalStat.isSymbolicLink() || !canonicalStat.isDirectory()) {
+      throw new FilesystemBoundaryError(
+        'INVALID_ROOT',
+        'The configured root changed while it was being canonicalized.',
+      );
+    }
+    return { path: canonicalPath, identity: fileIdentity(canonicalStat) };
   } catch {
     throw new FilesystemBoundaryError(
       'INVALID_ROOT',
@@ -177,9 +204,9 @@ const canonicalizeRoot = async (root: string): Promise<string> => {
 
 const selectRoot = (
   kind: FilesystemRoot,
-  targetRoot: string,
-  contextRoot: string | undefined,
-): string => {
+  targetRoot: RootBinding,
+  contextRoot: RootBinding | undefined,
+): RootBinding => {
   if (kind === 'target') {
     return targetRoot;
   }
@@ -190,13 +217,14 @@ const selectRoot = (
 };
 
 const collectFiles = async (
-  root: string,
+  root: RootBinding,
   includeGlobs: readonly string[],
   excludeGlobs: readonly string[],
 ): Promise<FileEntry[]> => {
   const entries: FileEntry[] = [];
 
   const visit = async (directory: string, directoryRelativePath: string): Promise<void> => {
+    await assertRootIdentity(root);
     let directoryEntries: Dirent[];
     try {
       directoryEntries = await readdir(directory, { withFileTypes: true });
@@ -225,7 +253,7 @@ const collectFiles = async (
       }
 
       if (entryStat.isSymbolicLink()) {
-        await assertSymlinkStaysInsideRoot(root, absolutePath);
+        await assertSymlinkStaysInsideRoot(root.path, absolutePath);
         continue;
       }
       if (entryStat.isDirectory()) {
@@ -239,20 +267,114 @@ const collectFiles = async (
     }
   };
 
-  await visit(root, '');
+  await visit(root.path, '');
   return entries.sort((left, right) => compareStrings(left.relativePath, right.relativePath));
 };
 
-const readUtf8File = async (root: string, relativePath: string): Promise<string> => {
-  const canonicalPath = await resolveFilePath(root, relativePath);
+const openNoFollow = async (path: string): Promise<FileHandle> => {
+  const noFollow = constants.O_NOFOLLOW;
+  if (!Number.isInteger(noFollow)) {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The runtime does not provide the required no-follow file-open primitive.',
+    );
+  }
+  try {
+    return await open(path, constants.O_RDONLY | noFollow);
+  } catch {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The requested file cannot be opened without following a path replacement.',
+    );
+  }
+};
+
+const fileIdentity = (stat: Stats): FileIdentity => ({
+  device: stat.dev,
+  inode: stat.ino,
+  sizeBytes: stat.size,
+  modifiedAtMs: stat.mtimeMs,
+  changedAtMs: stat.ctimeMs,
+});
+
+const sameFileIdentity = (left: FileIdentity, right: FileIdentity): boolean =>
+  left.device === right.device &&
+  left.inode === right.inode &&
+  left.sizeBytes === right.sizeBytes &&
+  left.modifiedAtMs === right.modifiedAtMs &&
+  left.changedAtMs === right.changedAtMs;
+
+const assertRootIdentity = async (root: RootBinding): Promise<void> => {
+  let current: Stats;
+  try {
+    current = await lstat(root.path);
+  } catch {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The configured root changed during use.',
+    );
+  }
+  if (
+    current.isSymbolicLink() ||
+    !current.isDirectory() ||
+    !sameFileIdentity(root.identity, fileIdentity(current))
+  ) {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The configured root changed during use.',
+    );
+  }
+};
+
+const assertExpectedFileIdentity = (expected: FileIdentity, current: Stats): void => {
+  if (!current.isFile() || !sameFileIdentity(expected, fileIdentity(current))) {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The requested file changed while it was being read.',
+    );
+  }
+};
+
+const assertResolvedFileStillMatches = async (
+  root: RootBinding,
+  resolved: ResolvedFile,
+): Promise<void> => {
+  await assertRootIdentity(root);
+  let canonicalPath: string;
+  let current: Stats;
+  try {
+    canonicalPath = await realpath(resolved.candidatePath);
+    current = await lstat(canonicalPath);
+  } catch {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The requested file changed while it was being read.',
+    );
+  }
+  if (
+    canonicalPath !== resolved.canonicalPath ||
+    !isPathInsideRoot(root.path, canonicalPath) ||
+    !current.isFile() ||
+    !sameFileIdentity(resolved.identity, fileIdentity(current))
+  ) {
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The requested file changed while it was being read.',
+    );
+  }
+};
+
+const readUtf8File = async (root: RootBinding, relativePath: string): Promise<string> => {
+  const resolved = await resolveFilePath(root, relativePath);
   let fileHandle: FileHandle | undefined;
   try {
-    fileHandle = await open(canonicalPath, 'r');
+    fileHandle = await openNoFollow(resolved.canonicalPath);
     const fileStat = await fileHandle.stat();
-    if (!fileStat.isFile()) {
-      throw new FilesystemBoundaryError('NOT_A_FILE', 'The requested path is not a regular file.');
-    }
+    assertExpectedFileIdentity(resolved.identity, fileStat);
     const bytes = await fileHandle.readFile();
+    const finalFileStat = await fileHandle.stat();
+    assertExpectedFileIdentity(resolved.identity, finalFileStat);
+    await assertResolvedFileStillMatches(root, resolved);
     try {
       return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
     } catch {
@@ -265,7 +387,10 @@ const readUtf8File = async (root: string, relativePath: string): Promise<string>
     if (error instanceof FilesystemBoundaryError) {
       throw error;
     }
-    throw new FilesystemBoundaryError('FILE_NOT_FOUND', 'The requested file cannot be opened.');
+    throw new FilesystemBoundaryError(
+      'UNSAFE_TRANSACTION',
+      'The requested file could not be read as one safe transaction.',
+    );
   } finally {
     if (fileHandle !== undefined) {
       await fileHandle.close();
@@ -273,9 +398,10 @@ const readUtf8File = async (root: string, relativePath: string): Promise<string>
   }
 };
 
-const resolveFilePath = async (root: string, relativePath: string): Promise<string> => {
-  const candidatePath = join(root, ...relativePath.split('/'));
-  if (!isPathInsideRoot(root, candidatePath)) {
+const resolveFilePath = async (root: RootBinding, relativePath: string): Promise<ResolvedFile> => {
+  await assertRootIdentity(root);
+  const candidatePath = join(root.path, ...relativePath.split('/'));
+  if (!isPathInsideRoot(root.path, candidatePath)) {
     throw new FilesystemBoundaryError(
       'INVALID_INPUT',
       'The requested path is outside the configured root.',
@@ -288,13 +414,22 @@ const resolveFilePath = async (root: string, relativePath: string): Promise<stri
   } catch {
     throw new FilesystemBoundaryError('FILE_NOT_FOUND', 'The requested file does not exist.');
   }
-  if (!isPathInsideRoot(root, canonicalPath)) {
+  if (!isPathInsideRoot(root.path, canonicalPath)) {
     throw new FilesystemBoundaryError(
       'SYMLINK_ESCAPE',
       'The requested path resolves outside the configured root.',
     );
   }
-  return canonicalPath;
+  let fileStat: Stats;
+  try {
+    fileStat = await lstat(canonicalPath);
+  } catch {
+    throw new FilesystemBoundaryError('FILE_NOT_FOUND', 'The requested file does not exist.');
+  }
+  if (!fileStat.isFile()) {
+    throw new FilesystemBoundaryError('NOT_A_FILE', 'The requested path is not a regular file.');
+  }
+  return { candidatePath, canonicalPath, identity: fileIdentity(fileStat) };
 };
 
 const assertSymlinkStaysInsideRoot = async (root: string, symlinkPath: string): Promise<void> => {

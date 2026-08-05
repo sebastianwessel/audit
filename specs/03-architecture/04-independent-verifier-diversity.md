@@ -31,12 +31,12 @@ The configuration adapter owns all environment loading with existing precedence.
 
 | Value | Meaning | Validation |
 | --- | --- | --- |
-| `SECURITY_REVIEWER_VERIFICATION_MODE` | `same-route` or `independent-route` | Default `same-route`; closed enum. |
-| `SECURITY_REVIEWER_VERIFIER_PROVIDER` | Verifier adapter name | Required only for `independent-route`; supported optional adapter. |
-| `SECURITY_REVIEWER_VERIFIER_MODEL` | Verifier model identifier | Required only for `independent-route`; normalized pair must differ. |
-| `SECURITY_REVIEWER_VERIFIER_API_KEY_ENV` | Name of the environment variable holding the secret | Required only for `independent-route`; the secret value never enters the configuration shape, artifacts, or logs. |
+| `AUDIT_VERIFICATION_MODE` | `same-route` or `independent-route` | Default `same-route`; closed enum. |
+| `AUDIT_VERIFIER_PROVIDER` | Verifier adapter name | Required only for `independent-route`; supported optional adapter. |
+| `AUDIT_VERIFIER_MODEL` | Verifier model identifier | Required only for `independent-route`; normalized pair must differ. |
+| `AUDIT_VERIFIER_API_KEY_ENV` | Name of the environment variable holding the secret | Required only for `independent-route`; the secret value never enters the configuration shape, artifacts, or logs. |
 
-CLI flags, if later exposed, override the matching verification-route values after `.env`. Incomplete verifier-route configuration, unavailable adapter packages, same normalized route, unsupported capability, or missing named secret are preflight failures before a target jail, provider call, or checkpoint is opened. The product never reads a secret outside the provider-resolution adapter. Price values are never accepted from `.env` or CLI.
+No CLI flag overrides verification-route configuration. Incomplete verifier-route configuration, unavailable adapter packages, same normalized route, unsupported capability, or missing named secret are preflight failures before a target jail, provider call, or checkpoint is opened. The product never reads a secret outside the provider-resolution adapter. Price values are never accepted from `.env` or CLI.
 
 `RuntimeConfigurationSchema` owns the strict primary and verifier route shapes. `platform/harness/` owns the provider-resolution port and `review-workflow/agents/verification/` remains the only owner of verifier semantics. No provider or route selection logic belongs in prompts, audit execution, target tools, evaluator answer keys, or reports.
 
@@ -54,9 +54,9 @@ Each route resolves its own pricing object from the same versioned bundled catal
 
 `same-route` and `independent-route` runs are non-comparable unless both have the same corpus identity/version/split, reviewed-plan profile, provider and model for the primary route, execution configuration, evidence-delivery mode, prompt/tool fingerprints, repeat count, and pricing-snapshot identity. The verifier-route fingerprint is a mandatory additional comparison key.
 
-Promotion requires a preregistered five-or-more-repeat comparison on a corpus that first passes the independent real-world readiness gate. It must separately report vulnerable recall, patched/benign false positives, agreement, incompletes, safety violations, completion, per-route stages, tokens, cache routing, latency, and cost. It may be promoted from experimental only if it meets the existing safety/completion gates and improves the declared patched-negative precision outcome without a declared vulnerable critical/high recall regression or disproportionate cost/latency breach. A single seed, synthetic fixture, semantic-regression case, benchmark label, model anecdote, or unreviewed candidate registry entry cannot satisfy promotion.
+Promotion requires a preregistered comparison on a corpus that first passes the independent real-world readiness gate. Its selected repeat count is recorded as evaluation configuration, not a product-imposed threshold. It must separately report vulnerable recall, patched/benign false positives, agreement, incompletes, safety violations, completion, per-route stages, tokens, cache routing, latency, and cost. It may be promoted from experimental only if it meets the existing safety/completion gates and improves the declared patched-negative precision outcome without a declared vulnerable critical/high recall regression or disproportionate cost/latency breach. A single seed, synthetic fixture, semantic-regression case, benchmark label, model anecdote, or unreviewed candidate registry entry cannot satisfy promotion.
 
-Until promotion, `independent-route` is opt-in evaluation-only. Product commands must reject it rather than silently enable an experimental mode. The experiment may not alter finding admission, CI thresholds, answer keys, prompts, candidate discovery, or human plan approval.
+Until promotion, `independent-route` is opt-in evaluation-only. Product commands must reject it rather than silently enable an experimental mode. The experiment may not alter finding admission, CI thresholds, answer keys, prompts, candidate discovery, or human plan approval. The optional countercheck follows the same boundary: it can retain a route-labelled, content-free challenge observation for a verifier-reconciled hypothesis, but its accepted, rejected, incomplete, transport, or checkpoint result never creates, removes, reclassifies, or makes incomplete a product finding or vector-coverage outcome.
 
 ## Required implementation structure and acceptance
 
@@ -68,7 +68,10 @@ src/
   platform/harness/                       provider-resolution and route harness mounting
   features/model-operations/              route-aware, numeric-only stage and aggregate accounting
   features/review-workflow/runtime/       route selection and checkpoint binding adaptation
-  features/evaluation/                    route-comparability and preregistered evaluation reporting
+evaluation/
+  src/                                    route-comparability and preregistered evaluation reporting
+  data/                                   checked-in evaluator-only packs, fixtures, and provenance
+  runs/                                   generated evaluator output; ignored by Git
 ~~~
 
 Unit tests remain colocated. No new shared module is permitted unless at least two features need the exact same route invariant. Generated Zod schemas, capability inventory, implementation guidance, agent guidance, public operator documentation, and migration records must change together. The report schema version must advance before adding `mixed` cost source or a persisted route token; readers must reject an incompatible legacy version rather than silently reinterpret it.

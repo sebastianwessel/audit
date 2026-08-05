@@ -40,10 +40,10 @@ When a candidate's Git objects are already available locally, use the acquisitio
 
 ```bash
 bun run eval:acquire -- \
-  --registry evaluation/candidates/cwe-bench-java-candidate-pilot.json \
+  --registry evaluation/data/candidates/cwe-bench-java-candidate-pilot.json \
   --candidate cwe-bench-java-cve-2016-9177 \
   --repository /path/to/already-local/repository \
-  --output evaluation/acquisition-snapshots
+  --output evaluation/data/acquisition/snapshots
 ```
 
 The command reads only the named local Git object store. It confirms both pinned revisions, copies every tracked regular file in each variant, verifies file modes and byte digests, and writes the pair plus a manifest atomically. It rejects unsafe paths, symlinks, submodules, missing revisions, and later tampering. It does not fetch from a network, execute a build or test, infer a vulnerability, create labels, or expose the pair to a model.

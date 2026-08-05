@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "pack": {
+    "schemaVersion": 4,
+    "packId": "codeql-grounding",
+    "stage": "investigation-grounding",
+    "corpusPackId": "audit-real-world-seed",
+    "corpusPackVersion": "0.3.0",
+    "corpusManifestFingerprint": "4bbad8420bf70452425c1d5936155a2a54f25ee30b3fc47ee71e1d1d971d0952",
+    "caseId": "codeql-prototype-polluting-assignment-001",
+    "variant": "vulnerable",
+    "repetition": 1,
+    "planProfile": "audit-reviewed-plan",
+    "corpusSourceDigest": "c3a16d764af8600e76b734c1864f8025812d11e00267c58073c247a02398e1ec",
+    "targetFingerprint": "e5bdb17b6edde9c90aa6a7971870cd5452099ca660812848bddc6ac0d5c604ba",
+    "contextDigest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "workflowProtocolFingerprint": "2e283fdd1cd2ba66110fb843715a19510de38b335d3ed54313670a0f5f59f260",
+    "stageProtocolFingerprint": "02b3e83b85e457cda85371211aed2e9f5d6b992fb939c1e86e8dbdf79e225bc4",
+    "evaluatorProtocolFingerprint": "3259ad968b1621af18b2718c93ef577dd988b072af04ebb9a40a874e1d8aac6a",
+    "provider": "openai",
+    "model": "gpt-5.6-terra",
+    "route": "primary",
+    "evaluatorProvider": "openai",
+    "evaluatorModel": "gpt-5.6-terra",
+    "evaluatorRoute": "primary",
+    "productInput": {
+      "stage": "investigation-grounding",
+      "referenceId": "codeql-grounding-product",
+      "fingerprint": "5eb645834d0a72ea8854a30049c10b8d57cca66cb512cabceb1cfbbe2cb17e43"
+    },
+    "expectedOutcome": {
+      "privateReferenceId": "codeql-grounding-rubric",
+      "fingerprint": "46daa829199edebc787693b40863377555493a0ace9c3b28a6166a69647ce9df",
+      "expectedOutcomeCount": 1
+    }
+  },
+  "canonicalInputFingerprint": "5eb645834d0a72ea8854a30049c10b8d57cca66cb512cabceb1cfbbe2cb17e43",
+  "rubric": {
+    "rubricId": "codeql-grounding-rubric",
+    "rubricFingerprint": "46daa829199edebc787693b40863377555493a0ace9c3b28a6166a69647ce9df",
+    "stage": "investigation-grounding",
+    "expectedOutcomes": [
+      {
+        "expectedOutcomeId": "grounding-closure",
+        "objective": "Close each investigation seed with a map-bound grounding outcome.",
+        "requiredRiskCondition": "The result declares a candidate, null outcome, or map insufficiency for every seed.",
+        "evidenceRequirements": [
+          "Preserve seed closure without source text or locations."
+        ],
+        "requiredRoles": [
+          "operation",
+          "unsafe-condition"
+        ]
+      }
+    ]
+  }
+}

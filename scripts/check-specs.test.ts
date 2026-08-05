@@ -2,19 +2,36 @@ import { expect, test } from 'bun:test';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import {
+  CanonicalPersistedArtifactVersionMarker,
+  CanonicalPersistedArtifactVersions,
+  CanonicalSpecReadingOrderSections,
+  canonicalPersistedArtifactVersionRow,
+  duplicateNumberedSpecPrefixes,
+  duplicateTableSpecificationIdentifiers,
+  strictContractDeclaresVersion,
+} from './spec-checks.js';
+
 const required = [
   'docs/README.md',
   'docs/01-overview/README.md',
   'src/features/attack-planning/README.md',
-  'src/features/evaluation/README.md',
+  'evaluation/src/README.md',
   'src/platform/filesystem/README.md',
   'tests/integration/README.md',
-  'evaluation/fixtures/cases/ts-unsafe-query/case.json',
+  'evaluation/data/fixtures/cases/ts-unsafe-query/case.json',
 ];
 
 test('bootstrap keeps public docs and the vertical-slice structure', async () => {
   for (const path of required) {
     expect(await Bun.file(path).exists()).toBe(true);
+  }
+});
+
+test('the specification reading order exposes every canonical top-level area', async () => {
+  const readingOrder = await Bun.file('specs/README.md').text();
+  for (const section of CanonicalSpecReadingOrderSections) {
+    expect(readingOrder).toContain(section);
   }
 });
 
@@ -51,7 +68,7 @@ test('acquisition specifications preserve single-owner state boundaries', async 
       'observed upstream source-license status, single-owner state isolation',
     ],
     [
-      'specs/08-evaluation/05-control-and-state-corpus-expansion.md',
+      'specs/08-evaluation/06-control-and-state-corpus-expansion.md',
       'contains no source-snapshot state, human-adjudication state',
     ],
     [
@@ -76,4 +93,82 @@ test('public documentation does not link to internal repository guidance', async
     const path = join('docs', entry);
     expect(await Bun.file(path).text()).not.toMatch(internalPublicDocLink);
   }
+});
+
+test('numbered specifications have one unambiguous position per directory', async () => {
+  const entries = await readdir('specs', { recursive: true });
+  const collisions = duplicateNumberedSpecPrefixes(
+    entries.filter((entry) => entry.endsWith('.md')).map((entry) => `specs/${entry}`),
+  );
+  expect(collisions).toEqual([]);
+});
+
+test('numbered-spec collision detection ignores different directories and unnumbered files', () => {
+  expect(
+    duplicateNumberedSpecPrefixes([
+      'specs/03-architecture/01-one.md',
+      'specs/03-architecture/01-two.md',
+      'specs/03-architecture/02-three.md',
+      'specs/04-contracts/01-four.md',
+      'specs/README.md',
+    ]),
+  ).toEqual([
+    'specs/03-architecture/01: specs/03-architecture/01-one.md, specs/03-architecture/01-two.md',
+  ]);
+});
+
+test('canonical capability and requirement owner tables reject duplicate definitions', async () => {
+  expect(
+    duplicateTableSpecificationIdentifiers('| CAP-001 | One |\n| CAP-001 | Two |', 'CAP'),
+  ).toEqual(['CAP-001 (2)']);
+  expect(
+    duplicateTableSpecificationIdentifiers('| REQ-001 | One |\n| REQ-002 | Two |', 'REQ'),
+  ).toEqual([]);
+  expect(
+    duplicateTableSpecificationIdentifiers(
+      await Bun.file('specs/02-capabilities/capability-inventory.md').text(),
+      'CAP',
+    ),
+  ).toEqual([]);
+  expect(
+    duplicateTableSpecificationIdentifiers(
+      await Bun.file('specs/06-quality/01-verification-and-operations.md').text(),
+      'REQ',
+    ),
+  ).toEqual([]);
+});
+
+test('cost-ceiling guidance preserves shared concurrent queue semantics', async () => {
+  expect(
+    await Bun.file('specs/03-architecture/11-resumable-model-cost-ceiling.md').text(),
+  ).toContain('Several in-flight requests can cross the value');
+  for (const path of [
+    'specs/03-architecture/01-system-architecture.md',
+    'specs/07-research/04-codex-security-reference.md',
+    'docs/05-expert/providers-and-limits.md',
+  ]) {
+    expect(await Bun.file(path).text()).not.toContain('serial vector execution');
+  }
+});
+
+test('the canonical persisted artifact version registry agrees with strict contracts', async () => {
+  const registry = await Bun.file('specs/04-contracts/01-artifact-contracts.md').text();
+  expect(registry).toContain(CanonicalPersistedArtifactVersionMarker);
+  expect(await Bun.file('AGENTS.md').text()).toContain(
+    '`specs/04-contracts/01-artifact-contracts.md`',
+  );
+
+  for (const artifact of CanonicalPersistedArtifactVersions) {
+    expect(registry).toContain(canonicalPersistedArtifactVersionRow(artifact));
+    const source = await Bun.file(artifact.sourcePath).text();
+    expect(strictContractDeclaresVersion(artifact, source)).toBe(true);
+  }
+  expect(
+    strictContractDeclaresVersion(CanonicalPersistedArtifactVersions[0], '{"properties":{}}'),
+  ).toBe(false);
+});
+
+test('retired fact-candidate agent roles are absent', async () => {
+  expect(await Bun.file('.claude/agents/fact-candidate-discovery.md').exists()).toBe(false);
+  expect(await Bun.file('.claude/agents/fact-refuter.md').exists()).toBe(false);
 });

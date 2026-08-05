@@ -95,6 +95,7 @@ export const FilesystemErrorCodeSchema = z.enum([
   'NOT_A_FILE',
   'SYMLINK_ESCAPE',
   'UNSAFE_SYMLINK',
+  'UNSAFE_TRANSACTION',
   'LIMIT_EXCEEDED',
   'INVALID_ENCODING',
   'INVALID_PATTERN',

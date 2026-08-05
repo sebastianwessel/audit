@@ -3,8 +3,30 @@ import { expect, test } from 'bun:test';
 import { createPlan as createDraftPlan } from '../attack-planning/plan.js';
 import { runStaticAudit } from '../audit-execution/audit.js';
 import { AuditReportSchema } from '../audit-execution/audit.schema.js';
+import { createPublicAuditReport } from './public-contract.js';
 
-import { renderAuditReportMarkdown } from './report.js';
+import { auditVectorNextAction, renderAuditReportMarkdown } from './report.js';
+
+test('derives per-vector next actions only from terminal outcome and error code', () => {
+  expect(auditVectorNextAction({ outcome: 'completed', errorCode: null })).toBe(
+    'Audit execution is complete for this vector. Continue with normal report review.',
+  );
+  expect(auditVectorNextAction({ outcome: 'not-applicable', errorCode: null })).toContain(
+    'neutral not-applicable outcome',
+  );
+  expect(auditVectorNextAction({ outcome: 'skipped', errorCode: null })).toContain(
+    'did not execute',
+  );
+  expect(auditVectorNextAction({ outcome: 'incomplete', errorCode: 'coverage-incomplete' })).toBe(
+    'Investigate the recorded terminal state, then explicitly resume the same run before treating this vector as covered. Recorded terminal code: coverage-incomplete.',
+  );
+  expect(auditVectorNextAction({ outcome: 'failed', errorCode: 'provider-failed' })).toContain(
+    'Recorded terminal code: provider-failed.',
+  );
+  expect(
+    auditVectorNextAction({ outcome: 'cancelled', errorCode: 'provider-cancelled' }),
+  ).toContain('not covered');
+});
 
 const approvePlan = <T>(plan: T, ..._reviewMetadata: readonly [string, string, string]): T => plan;
 
@@ -53,15 +75,19 @@ test('renders a stable human-readable projection of a validated report', async (
     runId: 'run-report-01',
     generatedAt: '2026-07-27T12:02:00.000Z',
   });
-  const first = renderAuditReportMarkdown(report);
-  expect(first).toContain('Map facts');
-  expect(first).toContain('No source-backed findings were produced by this static run.');
-  expect(renderAuditReportMarkdown(report)).toBe(first);
+  const publicReport = createPublicAuditReport(report);
+  const first = renderAuditReportMarkdown(publicReport);
+  expect(first).toContain('## Outcome');
+  expect(first).toContain('## Coverage and review state');
+  expect(first).toContain('## What to do next');
+  expect(first).toContain('Each action is derived only from the vector terminal state');
+  expect(first).toContain('No accepted source-backed findings were produced.');
+  expect(renderAuditReportMarkdown(publicReport)).toBe(first);
 });
 
 test('renders every verified evidence role without Markdown table injection', async () => {
   const report = AuditReportSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 21,
     reportId: 'report-evidence-01',
     runId: 'run-evidence-01',
     planId: 'plan-evidence-01',
@@ -73,7 +99,6 @@ test('renders every verified evidence role without Markdown table injection', as
         planned: true,
         completed: true,
         matchedSourcePaths: 1,
-        deterministicCandidateCount: 0,
         evidenceMapFactCount: 2,
         evidenceMapUnansweredObligationCount: 0,
         sourcePostureAssessmentCount: 1,
@@ -103,52 +128,97 @@ test('renders every verified evidence role without Markdown table injection', as
       {
         findingId: 'finding-evidence-01',
         vectorId: 'vector-evidence-01',
-        statement: 'Request input reaches an unsafe operation.',
-        evidence: [
+        narrative: {
+          statement: 'The reviewed operation may be reached with an unsafe condition.',
+          roleExplanations: [
+            { role: 'operation', explanation: 'The operation evidence identifies the action.' },
+            {
+              role: 'unsafe-condition',
+              explanation: 'The condition evidence identifies the unsafe state.',
+            },
+          ],
+          limitations: [],
+        },
+        claimEvidenceBundles: [
           {
-            path: 'src/query.ts',
-            startLine: 8,
-            snippet: 'execute(query)',
-            kind: 'source',
             role: 'operation',
+            evidence: [
+              {
+                path: 'src/query.ts',
+                startLine: 8,
+                contentDigest: 'a'.repeat(64),
+                kind: 'source',
+                role: 'operation',
+              },
+            ],
           },
           {
-            path: 'src/query.ts',
-            startLine: 3,
-            snippet: 'query = input | unsafe',
-            kind: 'source',
             role: 'unsafe-condition',
-          },
-          {
-            path: 'src/query.ts',
-            startLine: 1,
-            snippet: 'authorize(user)',
-            kind: 'source',
-            role: 'guard',
+            evidence: [
+              {
+                path: 'src/query.ts',
+                startLine: 3,
+                contentDigest: 'a'.repeat(64),
+                kind: 'source',
+                role: 'unsafe-condition',
+              },
+            ],
           },
         ],
         planObligations: [{ obligationId: 'report-evidence-obligation-01' }],
-        limitations: [],
         status: 'accepted',
         verification: {
           status: 'verified',
-          reason: 'The verifier reconciled the source evidence.',
-          checks: ['approved-obligation', 'scope', 'source-path', 'line-range', 'source-snippet'],
+          checks: [
+            'approved-obligation',
+            'scope',
+            'source-path',
+            'line-range',
+            'source-content-digest',
+          ],
         },
       },
     ],
     reviewRequired: [],
     errors: [],
   });
-  const markdown = renderAuditReportMarkdown(report);
-  expect(markdown).toContain('| operation | `src/query.ts:8` | execute(query) |');
-  expect(markdown).toContain('| unsafe-condition | `src/query.ts:3` | query = input \\| unsafe |');
-  expect(markdown).toContain('| guard | `src/query.ts:1` | authorize(user) |');
+  const markdown = renderAuditReportMarkdown(createPublicAuditReport(report));
+  expect(markdown).toContain('## Actionable findings');
+  expect(markdown).toContain('Accepted source-backed finding');
+  expect(markdown).toContain('Developer next step:');
+  expect(markdown).toContain(
+    '| operation | `src/query.ts:8` | `sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` |',
+  );
+  expect(markdown).toContain(
+    '| unsafe-condition | `src/query.ts:3` | `sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` |',
+  );
+
+  const reviewRequiredReport = AuditReportSchema.parse({
+    ...report,
+    coverage: [{ ...report.coverage[0], findingCount: 0, reviewRequiredCount: 1 }],
+    findings: [],
+    reviewRequired: report.findings.map((finding) => ({
+      ...finding,
+      status: 'needs-review' as const,
+      verification: {
+        status: 'insufficient-evidence' as const,
+        checks: finding.verification.checks,
+      },
+    })),
+  });
+  const reviewRequiredMarkdown = renderAuditReportMarkdown(
+    createPublicAuditReport(reviewRequiredReport),
+  );
+  expect(reviewRequiredMarkdown).toContain('## Human review required');
+  expect(reviewRequiredMarkdown).toContain(
+    'The reviewed operation may be reached with an unsafe condition.',
+  );
+  expect(reviewRequiredMarkdown).toContain('The operation evidence identifies the action.');
 });
 
 test('renders independent stage token, cost, and tool aggregates without model content', async () => {
   const report = AuditReportSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 21,
     reportId: 'report-ledger-01',
     runId: 'run-ledger-01',
     planId: 'plan-ledger-01',
@@ -160,7 +230,6 @@ test('renders independent stage token, cost, and tool aggregates without model c
         planned: true,
         completed: true,
         matchedSourcePaths: 1,
-        deterministicCandidateCount: 0,
         evidenceMapFactCount: 1,
         evidenceMapUnansweredObligationCount: 0,
         sourcePostureAssessmentCount: 1,
@@ -195,6 +264,7 @@ test('renders independent stage token, cost, and tool aggregates without model c
           verifierEvidenceRejectedCount: 0,
           verifierReconciledCount: 1,
           postVerificationRejectedCount: 1,
+          duplicateCollapsedCount: 0,
           admittedFindingCount: 0,
           verificationTerminalLanes: {
             accepted: 1,
@@ -244,7 +314,6 @@ test('renders independent stage token, cost, and tool aggregates without model c
             successfulGrepFilesCallCount: 1,
             rejectedCallCount: 0,
             returnedBytes: 64,
-            budgetExhausted: false,
           },
           cacheRoutingEnabled: false,
         },
@@ -254,7 +323,7 @@ test('renders independent stage token, cost, and tool aggregates without model c
     reviewRequired: [],
     errors: [],
   });
-  const markdown = renderAuditReportMarkdown(report);
+  const markdown = renderAuditReportMarkdown(createPublicAuditReport(report));
   expect(markdown).toContain('## Finding admission ledger');
   expect(markdown).toContain('### Candidate-aware terminal lanes');
   expect(markdown).toContain('| `vector-ledger-01` | 1 | 0 | 0 | 1/0/0 | 0 | 0 | 1 | 1 | 0 |');

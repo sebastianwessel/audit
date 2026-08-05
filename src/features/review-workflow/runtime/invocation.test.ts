@@ -7,9 +7,14 @@ import {
   OperationTimeoutError,
   ValidationError,
 } from '@purista/harness';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 
 import { invokeWithStageRetry, stageErrorCode } from './invocation.js';
+import {
+  type ModelRetryGuidance,
+  ValidationRepairNoProgressError,
+  validationRetryGuidanceForError,
+} from './retry-guidance.js';
 
 test('retries one failed stage invocation and preserves the successful result', async () => {
   let attempts = 0;
@@ -32,8 +37,8 @@ test('retries one failed stage invocation and preserves the successful result', 
   expect(recovered).toEqual(['failed-attempt']);
 });
 
-test('normalizes only stable security-reviewer errors', () => {
-  expect(stageErrorCode(new SecurityReviewerError('provider-context-overflow', 'overflow'))).toBe(
+test('normalizes only stable audit errors', () => {
+  expect(stageErrorCode(new AuditRuntimeError('provider-context-overflow', 'overflow'))).toBe(
     'provider-context-overflow',
   );
   expect(stageErrorCode(new Error('provider content'))).toBe('provider-failure');
@@ -73,6 +78,18 @@ test('normalizes only stable security-reviewer errors', () => {
   expect(
     stageErrorCode(new OperationTimeoutError('timed out', { scope: 'model', timeout_ms: 1_000 })),
   ).toBe('provider-cancelled');
+  expect(
+    stageErrorCode(
+      new AggregateError([
+        new ModelError('provider message that must not enter telemetry', {
+          provider: 'test-provider',
+          model: 'test-model',
+          method: 'object',
+          reason: 'provider_unavailable',
+        }),
+      ]),
+    ),
+  ).toBe('provider-unavailable');
 });
 
 test('does not blind-retry a harness-declared non-retryable model failure', async () => {
@@ -118,7 +135,7 @@ test('keeps complete model-output validation diagnostics content-free and stable
     ],
   });
   const code = stageErrorCode(error);
-  expect(code).toMatch(/^validation-output-2-[a-f0-9]{16}$/u);
+  expect(code).toMatch(/^validation-output-[a-f0-9]{64}-2$/u);
   expect(code).not.toContain('facts');
   expect(code).not.toContain('source text');
   expect(
@@ -144,4 +161,98 @@ test('keeps complete model-output validation diagnostics content-free and stable
       }),
     ),
   ).not.toBe(code);
+});
+
+test('keeps every distinct schema-path label in validation retry identity', () => {
+  const sharedPaths = [
+    ['result', 'reasonCode'],
+    ['result', 'reason'],
+    ['result', 'claimEvidenceBundles'],
+  ];
+  const first = new ValidationError('Agent output validation failed.', {
+    where: 'agent_output',
+    issues: [
+      ...sharedPaths.map((path) => ({ path, message: 'untrusted response content' })),
+      { path: ['result', 'controlAssessment'], message: 'untrusted response content' },
+    ],
+  });
+  const second = new ValidationError('Agent output validation failed.', {
+    where: 'agent_output',
+    issues: [
+      ...sharedPaths.map((path) => ({ path, message: 'untrusted response content' })),
+      { path: ['result', 'postureReconciliations'], message: 'untrusted response content' },
+    ],
+  });
+
+  const firstGuidance = validationRetryGuidanceForError(first);
+  const secondGuidance = validationRetryGuidanceForError(second);
+  expect(firstGuidance).toMatchObject({
+    kind: 'output-validation',
+    schemaPathLabels: [
+      'result.claimEvidenceBundles',
+      'result.controlAssessment',
+      'result.reason',
+      'result.reasonCode',
+    ],
+  });
+  expect(secondGuidance).toMatchObject({
+    kind: 'output-validation',
+    schemaPathLabels: [
+      'result.claimEvidenceBundles',
+      'result.postureReconciliations',
+      'result.reason',
+      'result.reasonCode',
+    ],
+  });
+  expect(firstGuidance?.signature).not.toBe(secondGuidance?.signature);
+});
+
+test('repairs a new validation signature with safe guidance then stops on a repeat', async () => {
+  let attempts = 0;
+  const guidance: ModelRetryGuidance[] = [];
+  const rejected = invokeWithStageRetry(
+    { runTimeoutMs: 30_000, modelTimeoutMs: 20_000, modelRetry: 'default' },
+    async (attempt) => {
+      attempts += 1;
+      guidance.push(attempt.guidance);
+      throw new ValidationError('Agent output validation failed.', {
+        where: 'agent_output',
+        issues: [{ path: ['groundings', 0, 'candidate'], message: 'private response value' }],
+      });
+    },
+  );
+  await expect(rejected).rejects.toBeInstanceOf(ValidationRepairNoProgressError);
+  const error = await rejected.catch((rejection: unknown) => rejection);
+  expect(validationRetryGuidanceForError(error)).toMatchObject({
+    kind: 'output-validation',
+    schemaPathLabels: ['groundings.candidate'],
+  });
+  expect(JSON.stringify(error)).not.toContain('private response value');
+  expect(attempts).toBe(2);
+  expect(guidance).toEqual([
+    { kind: 'initial' },
+    {
+      kind: 'output-validation',
+      signature: expect.stringMatching(/^validation-output-[a-f0-9]{64}$/u),
+      schemaPathLabels: ['groundings.candidate'],
+    },
+  ]);
+});
+
+test('stops an alternating validation sequence when a prior signature returns', async () => {
+  let attempts = 0;
+  await expect(
+    invokeWithStageRetry(
+      { runTimeoutMs: 30_000, modelTimeoutMs: 20_000, modelRetry: 'default' },
+      async () => {
+        const path = attempts % 2 === 0 ? ['facts', 'evidence'] : ['facts', 'limitations'];
+        attempts += 1;
+        throw new ValidationError('Agent output validation failed.', {
+          where: 'agent_output',
+          issues: [{ path, message: 'untrusted response content' }],
+        });
+      },
+    ),
+  ).rejects.toMatchObject({ code: 'validation-repair-no-progress' });
+  expect(attempts).toBe(3);
 });

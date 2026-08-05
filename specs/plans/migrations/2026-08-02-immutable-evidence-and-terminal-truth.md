@@ -10,4 +10,4 @@ This is intentionally breaking. Plan v1, report v13 and older, checkpoint v12 an
 
 ## Implementation impact
 
-Implement `plans/001-trust-boundaries-terminal-state-and-resume.md` in ticket-sized order. Update contributor guidance and end-user documentation with the implementation; public documentation must explain behavior without linking to this internal migration or another spec.
+The corresponding implementation work is complete and its ephemeral agent plan has been removed. Update contributor guidance and end-user documentation with the implementation; public documentation must explain behavior without linking to this internal migration or another spec.

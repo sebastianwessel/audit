@@ -1,6 +1,16 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import {
+  CanonicalPersistedArtifactVersionMarker,
+  CanonicalPersistedArtifactVersions,
+  CanonicalSpecReadingOrderSections,
+  canonicalPersistedArtifactVersionRow,
+  duplicateNumberedSpecPrefixes,
+  duplicateTableSpecificationIdentifiers,
+  strictContractDeclaresVersion,
+} from './spec-checks.js';
+
 const required = [
   'README.md',
   'AGENTS.md',
@@ -9,7 +19,6 @@ const required = [
   '.claude/agents/audit-planner.md',
   '.claude/agents/audit-executor.md',
   '.claude/agents/report-reviewer.md',
-  'concepts/README.md',
   'docs/README.md',
   'docs/01-overview/README.md',
   'docs/02-getting-started/README.md',
@@ -17,14 +26,14 @@ const required = [
   'package.json',
   'bun.lock',
   'src/features/attack-planning/README.md',
-  'src/features/evaluation/README.md',
+  'evaluation/src/README.md',
   'src/features/audit-execution/README.md',
   'src/features/audit-lineage/README.md',
   'src/platform/filesystem/README.md',
   'tests/integration/README.md',
   'evaluation/README.md',
-  'evaluation/fixtures/README.md',
-  'evaluation/fixtures/cases/ts-unsafe-query/case.json',
+  'evaluation/data/fixtures/README.md',
+  'evaluation/data/fixtures/cases/ts-unsafe-query/case.json',
   'specs/02-capabilities/capability-inventory.md',
   'specs/03-architecture/01-system-architecture.md',
   'specs/03-architecture/04-independent-verifier-diversity.md',
@@ -37,24 +46,35 @@ const required = [
   'specs/08-evaluation/02-test-data-and-fixture-corpus.md',
   'specs/08-evaluation/03-evaluation-runner-and-report.md',
   'specs/08-evaluation/04-real-world-corpus-and-reliability.md',
-  'evaluation/corpora/manifest.json',
-  'evaluation/candidates/openssf-candidate-pilot.json',
-  'artifacts/schemas/attack-plan.schema.json',
-  'artifacts/schemas/audit-lineage.schema.json',
-  'artifacts/schemas/audit-report-v15.schema.json',
-  'artifacts/schemas/audit-run-attempt.schema.json',
-  'artifacts/schemas/audit-run-manifest.schema.json',
-  'artifacts/schemas/context-document.schema.json',
-  'artifacts/schemas/corpus-pack.schema.json',
-  'artifacts/schemas/corpus-candidate-registry.schema.json',
-  'artifacts/schemas/corpus-readiness.schema.json',
-  'artifacts/schemas/evaluation-pack.schema.json',
-  'artifacts/schemas/runtime-configuration.schema.json',
-  'artifacts/schemas/source-admission-policy.schema.json',
-  'artifacts/schemas/source-snapshot-manifest.schema.json',
-  'artifacts/schemas/source-snapshot-retention-index.schema.json',
-  'artifacts/schemas/target-inventory.schema.json',
+  'evaluation/data/corpora/manifest.json',
+  'evaluation/data/candidates/openssf-candidate-pilot.json',
 ];
+
+const evaluatorTopLevelEntries = new Set(await readdir('evaluation'));
+for (const requiredEntry of ['src', 'data', 'runs'] as const) {
+  if (!evaluatorTopLevelEntries.has(requiredEntry)) {
+    throw new Error(`Evaluation workspace is missing its required ${requiredEntry}/ directory.`);
+  }
+}
+for (const retiredEntry of [
+  'acquisition',
+  'acquisition-metadata',
+  'acquisition-snapshots',
+  'baselines',
+  'benchmarks',
+  'candidates',
+  'corpora',
+  'curation-dossiers',
+  'fixtures',
+  'research-corpora',
+  'stage-isolated',
+] as const) {
+  if (evaluatorTopLevelEntries.has(retiredEntry)) {
+    throw new Error(
+      `Evaluation workspace retains retired top-level directory: evaluation/${retiredEntry}`,
+    );
+  }
+}
 
 for (const path of required) {
   const file = Bun.file(path);
@@ -64,9 +84,89 @@ for (const path of required) {
   }
 }
 
+const specReadingOrder = await Bun.file('specs/README.md').text();
+for (const section of CanonicalSpecReadingOrderSections) {
+  if (!specReadingOrder.includes(section)) {
+    throw new Error(`Specification reading order omits canonical section: ${section}`);
+  }
+}
+
 const entries = await readdir(join(import.meta.dir, '..', 'specs'), { recursive: true });
 if (!entries.some((entry) => entry.endsWith('readiness-and-traceability.md'))) {
   throw new Error('Missing readiness and traceability record');
+}
+
+const numberedSpecCollisions = duplicateNumberedSpecPrefixes(
+  entries.filter((entry) => entry.endsWith('.md')).map((entry) => `specs/${entry}`),
+);
+if (numberedSpecCollisions.length > 0) {
+  throw new Error(
+    `Numbered specification filenames must be unique within their directory: ${numberedSpecCollisions.join('; ')}`,
+  );
+}
+
+for (const [path, prefix] of [
+  ['specs/02-capabilities/capability-inventory.md', 'CAP'],
+  ['specs/06-quality/01-verification-and-operations.md', 'REQ'],
+] as const) {
+  const duplicates = duplicateTableSpecificationIdentifiers(await Bun.file(path).text(), prefix);
+  if (duplicates.length > 0) {
+    throw new Error(
+      `Canonical ${prefix} definitions must be unique in ${path}: ${duplicates.join(', ')}`,
+    );
+  }
+}
+
+const costCeilingConcurrencyOwner = 'specs/03-architecture/11-resumable-model-cost-ceiling.md';
+const costCeilingOwnerText = await Bun.file(costCeilingConcurrencyOwner).text();
+if (!costCeilingOwnerText.includes('Several in-flight requests can cross the value')) {
+  throw new Error(
+    `Missing shared concurrent cost-ceiling contract: ${costCeilingConcurrencyOwner}`,
+  );
+}
+for (const path of [
+  'specs/03-architecture/01-system-architecture.md',
+  'specs/07-research/04-codex-security-reference.md',
+  'docs/05-expert/providers-and-limits.md',
+] as const) {
+  if ((await Bun.file(path).text()).includes('serial vector execution')) {
+    throw new Error(`Cost-ceiling guidance must not require serial vector execution: ${path}`);
+  }
+}
+
+const canonicalVersionRegistryPath = 'specs/04-contracts/01-artifact-contracts.md';
+const canonicalVersionRegistry = await Bun.file(canonicalVersionRegistryPath).text();
+if (!canonicalVersionRegistry.includes(CanonicalPersistedArtifactVersionMarker)) {
+  throw new Error(
+    `Missing canonical persisted artifact version registry: ${canonicalVersionRegistryPath}`,
+  );
+}
+for (const artifact of CanonicalPersistedArtifactVersions) {
+  if (!canonicalVersionRegistry.includes(canonicalPersistedArtifactVersionRow(artifact))) {
+    throw new Error(
+      `Canonical persisted artifact version registry is missing ${artifact.artifact} v${artifact.version}.`,
+    );
+  }
+  const source = await Bun.file(artifact.sourcePath).text();
+  if (!strictContractDeclaresVersion(artifact, source)) {
+    throw new Error(
+      `Strict contract source does not declare ${artifact.artifact} v${artifact.version}: ${artifact.sourcePath}`,
+    );
+  }
+}
+
+const agentGuidance = await Bun.file('AGENTS.md').text();
+if (!agentGuidance.includes('`specs/04-contracts/01-artifact-contracts.md`')) {
+  throw new Error('AGENTS.md must point to the canonical persisted artifact version registry.');
+}
+
+for (const retiredGuidance of [
+  '.claude/agents/fact-candidate-discovery.md',
+  '.claude/agents/fact-refuter.md',
+] as const) {
+  if (await Bun.file(retiredGuidance).exists()) {
+    throw new Error(`Retired agent guidance must not be retained: ${retiredGuidance}`);
+  }
 }
 
 const publicDocEntries = await readdir(join(import.meta.dir, '..', 'docs'), { recursive: true });
@@ -121,11 +221,11 @@ const languageNeutralityRequirements = [
   ['specs/03-architecture/01-system-architecture.md', 'Language identification'],
   ['specs/08-evaluation/02-test-data-and-fixture-corpus.md', 'language-balanced'],
   ['docs/01-overview/README.md', 'any programming language'],
-  ['src/features/evaluation/evaluation.schema.ts', 'LanguageTagSchema'],
+  ['evaluation/src/evaluation.schema.ts', 'LanguageTagSchema'],
   ['src/features/target-inventory/inventory.ts', 'inferLanguageHint'],
   ['src/features/review-workflow/runtime/source-tools.ts', 'inferLanguageHint'],
-  ['src/features/evaluation/corpus.schema.ts', 'CorpusVariantModeSchema'],
-  ['src/features/evaluation/real-world-runner.ts', 'runCorpusEvaluation'],
+  ['evaluation/src/corpus.schema.ts', 'CorpusVariantModeSchema'],
+  ['evaluation/src/real-world-runner.ts', 'runCorpusEvaluation'],
 ] as const;
 for (const [path, marker] of languageNeutralityRequirements) {
   if (!(await Bun.file(path).text()).includes(marker)) {
@@ -139,7 +239,7 @@ const acquisitionStateOwnershipRequirements = [
     'observed upstream source-license status, single-owner state isolation',
   ],
   [
-    'specs/08-evaluation/05-control-and-state-corpus-expansion.md',
+    'specs/08-evaluation/06-control-and-state-corpus-expansion.md',
     'contains no source-snapshot state, human-adjudication state',
   ],
   [

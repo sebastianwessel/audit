@@ -1,5 +1,0 @@
-# Offline corpus manifests
-
-External datasets are referenced by reviewed manifests only. The product and default CI never download them. Contributors may copy a fully local, validated pack with `bun run eval:import --source <pack-root> --output <new-pack-root>`; the importer verifies checksums, source-inclusion permission, repository-level splits, and answer-key isolation before writing a content manifest. It never performs a network call or overwrites an existing output directory.
-
-Before a real-world paired case can contribute to readiness, its schema-v5 answer key must be `dual-reviewed` and contain two matching evaluator-only human `include` records. They must agree with at least one source-only-applicable vulnerable finding, the finding-label coverage class, finalized source-bound planning scenarios, and a patched negative expectation; names alone never qualify. A scenario has a stable id, explicit expected-finding ids, and relevant paths bound to those findings. Upstream labels, advisories, and patches are candidate evidence, not answer keys. See the human adjudication guide in the public documentation for the required review sequence.

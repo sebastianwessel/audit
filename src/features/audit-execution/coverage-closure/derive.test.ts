@@ -29,8 +29,9 @@ const evidenceMap = EvidenceMapSchema.parse({
     {
       factId: 'closure-fact-01',
       role: 'operation',
-      statement: 'The bounded source contains the reviewed operation.',
-      evidence: [{ path: 'source.unknown', startLine: 1, snippet: 'operation', kind: 'source' }],
+      evidence: [
+        { path: 'source.unknown', startLine: 1, contentDigest: 'a'.repeat(64), kind: 'source' },
+      ],
       planObligations: [{ obligationId: 'closure-obligation-01' }],
     },
   ],
@@ -51,7 +52,7 @@ const sourcePosture = SourcePostureSchema.parse({
   limitations: [],
 });
 
-test('keeps a complete no-candidate review distinct from a safety conclusion', () => {
+test('keeps an inconclusive candidate-blind posture incomplete without a later decision', () => {
   const matrix = deriveObligationClosureMatrix({
     vector,
     evidenceMap,
@@ -70,10 +71,10 @@ test('keeps a complete no-candidate review distinct from a safety conclusion', (
   expect(matrix).toMatchObject([
     {
       obligationId: 'closure-obligation-01',
-      terminalDisposition: 'no-source-backed-candidate',
+      terminalDisposition: 'incomplete',
     },
   ]);
-  expect(hasCompleteObligationClosure(matrix)).toBe(true);
+  expect(hasCompleteObligationClosure(matrix)).toBe(false);
 });
 
 test('keeps a source-backed not-applicable obligation neutral with its reason', () => {
@@ -84,8 +85,7 @@ test('keeps a source-backed not-applicable obligation neutral with its reason', 
         obligationId: 'closure-obligation-01',
         conclusion: 'not-applicable',
         evidenceMapFactIds: ['closure-fact-01'],
-        notApplicableReason:
-          'The scoped code has no feature that accepts the business capability under review.',
+        notApplicableReason: 'no-relevant-operation-in-scope',
         limitations: [],
       },
     ],
@@ -101,15 +101,14 @@ test('keeps a source-backed not-applicable obligation neutral with its reason', 
         disposition: 'not-applicable',
         evidenceMapFactIds: ['closure-fact-01'],
         sourcePostureAssessmentIds: ['closure-posture-01'],
-        limitations: ['The supplied applicability reason is retained.'],
+        limitations: ['model-declared-limitation'],
       },
     ],
   });
 
   expect(matrix[0]).toMatchObject({
     terminalDisposition: 'not-applicable',
-    notApplicableReason:
-      'The scoped code has no feature that accepts the business capability under review.',
+    notApplicableReason: 'no-relevant-operation-in-scope',
   });
   expect(hasCompleteObligationClosure(matrix)).toBe(true);
 });
@@ -137,19 +136,35 @@ test('fails closed when an investigator raises no candidate for its declared obl
 test('keeps verifier-incomplete candidate work visible as incomplete coverage', () => {
   const candidate: ProposedFinding = {
     vectorId: vector.vectorId,
-    statement: 'Bounded candidate',
-    evidence: [
+    claimEvidenceBundles: [
       {
-        path: 'source.unknown',
-        startLine: 1,
-        endLine: 1,
-        snippet: 'operation',
-        kind: 'source',
         role: 'operation',
+        evidence: [
+          {
+            path: 'source.unknown',
+            startLine: 1,
+            endLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+            role: 'operation',
+          },
+        ],
+      },
+      {
+        role: 'unsafe-condition',
+        evidence: [
+          {
+            path: 'source.unknown',
+            startLine: 1,
+            endLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+            role: 'unsafe-condition',
+          },
+        ],
       },
     ],
     planObligations: [{ obligationId: 'closure-obligation-01' }],
-    limitations: [],
   };
   const matrix = deriveObligationClosureMatrix({
     vector,

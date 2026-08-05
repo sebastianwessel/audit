@@ -6,10 +6,12 @@ import {
   readJsonArtifact,
   readPrivateUtf8Artifact,
   removeArtifactDirectory,
+  removeJsonArtifact,
   writeJsonArtifact,
   writePrivateUtf8Artifact,
 } from '../../platform/artifact-store/json-artifact-store.js';
 import { sha256 } from '../../shared/contracts/core.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 
 import type { TargetInventoryCapture } from './inventory.js';
 import {
@@ -174,22 +176,62 @@ export async function releaseTargetSnapshot(input: {
     )
       return;
     const retainedRuns = current.retainedRuns.filter((record) => record.runId !== input.runId);
-    await writeJsonArtifact(
-      input.outputRoot,
-      snapshotRetentionIndexPath(input.targetFingerprint),
-      SourceSnapshotRetentionIndexSchema,
-      {
-        schemaVersion: 2,
-        targetFingerprint: input.targetFingerprint,
-        retainedRuns,
-      },
-    );
     if (retainedRuns.length === 0) {
       await removeArtifactDirectory(
         input.outputRoot,
         snapshotDirectoryPath(input.targetFingerprint),
       );
+      await removeJsonArtifact(
+        input.outputRoot,
+        snapshotRetentionIndexPath(input.targetFingerprint),
+      );
+    } else {
+      await writeJsonArtifact(
+        input.outputRoot,
+        snapshotRetentionIndexPath(input.targetFingerprint),
+        SourceSnapshotRetentionIndexSchema,
+        {
+          schemaVersion: 2,
+          targetFingerprint: input.targetFingerprint,
+          retainedRuns,
+        },
+      );
     }
+  } finally {
+    await lease.release();
+  }
+}
+
+/**
+ * Removes the source/context snapshot retained by one exact discarded run.
+ * A shared snapshot is deliberately not mutated: its remaining owners must
+ * close first, keeping discard from changing another run's resumable state.
+ */
+export async function discardRetainedTargetSnapshot(input: {
+  outputRoot: string;
+  runId: string;
+  targetFingerprint: string;
+}): Promise<void> {
+  const lease = await acquireArtifactLease(
+    input.outputRoot,
+    snapshotRetentionLeasePath(input.targetFingerprint),
+  );
+  try {
+    const current = await readOptionalSnapshotRetentionIndex(
+      input.outputRoot,
+      input.targetFingerprint,
+    );
+    if (current === undefined) return;
+    const owner = current.retainedRuns.find((record) => record.runId === input.runId);
+    if (owner === undefined) return;
+    if (current.retainedRuns.length !== 1) {
+      throw new AuditRuntimeError(
+        'artifact-invalid',
+        'The audit run retains a shared source snapshot and cannot be discarded independently.',
+      );
+    }
+    await removeArtifactDirectory(input.outputRoot, snapshotDirectoryPath(input.targetFingerprint));
+    await removeJsonArtifact(input.outputRoot, snapshotRetentionIndexPath(input.targetFingerprint));
   } finally {
     await lease.release();
   }

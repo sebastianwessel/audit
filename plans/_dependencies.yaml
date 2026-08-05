@@ -1,5 +1,0 @@
-tickets:
-  TICKET-101:
-    depends_on: []
-    blocked_by: []
-    unblocks: []

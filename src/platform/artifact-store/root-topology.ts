@@ -7,21 +7,23 @@ import { ArtifactStoreError } from './json-artifact-store.ts';
 export const RootTopologyInputSchema = z.strictObject({
   targetRoot: z.string().trim().min(1),
   contextRoot: z.string().trim().min(1).optional(),
-  outputRoot: z.string().trim().min(1),
+  publicArtifactRoot: z.string().trim().min(1),
+  privateWorkRoot: z.string().trim().min(1),
 });
 
 export const RootTopologySchema = z.strictObject({
   targetRoot: z.string().min(1),
   contextRoot: z.string().min(1).optional(),
-  outputRoot: z.string().min(1),
+  publicArtifactRoot: z.string().min(1),
+  privateWorkRoot: z.string().min(1),
 });
 
 export type RootTopology = z.infer<typeof RootTopologySchema>;
 
 /**
- * Validates the three process roots before any output directory is created.
- * A missing output root stays unresolved on disk; callers rerun this function
- * after their safe output-root creation step before publishing artifacts.
+ * Validates every product root before either artifact directory is created.
+ * Missing artifact roots stay unresolved on disk; callers rerun this function
+ * after their safe creation steps before publishing or checkpointing artifacts.
  */
 export async function validateRootTopology(
   input: z.input<typeof RootTopologyInputSchema>,
@@ -30,7 +32,7 @@ export async function validateRootTopology(
   if (!parsed.success) {
     throw new ArtifactStoreError(
       'artifact-root-topology-invalid',
-      'Target, context, and output roots must be valid paths.',
+      'Target, context, public-artifact, and private-work roots must be valid paths.',
     );
   }
 
@@ -39,12 +41,14 @@ export async function validateRootTopology(
     parsed.data.contextRoot === undefined
       ? undefined
       : await canonicalExistingDirectory(parsed.data.contextRoot, 'context');
-  const outputRoot = await canonicalOutputCandidate(parsed.data.outputRoot);
+  const publicArtifactRoot = await canonicalOutputCandidate(parsed.data.publicArtifactRoot);
+  const privateWorkRoot = await canonicalOutputCandidate(parsed.data.privateWorkRoot);
 
   const roots = [
     { kind: 'target', path: targetRoot },
     ...(contextRoot === undefined ? [] : [{ kind: 'context', path: contextRoot }]),
-    { kind: 'output', path: outputRoot },
+    { kind: 'public-artifact', path: publicArtifactRoot },
+    { kind: 'private-work', path: privateWorkRoot },
   ];
   for (let leftIndex = 0; leftIndex < roots.length; leftIndex += 1) {
     const left = roots[leftIndex];
@@ -59,7 +63,7 @@ export async function validateRootTopology(
     }
   }
 
-  return RootTopologySchema.parse({ targetRoot, contextRoot, outputRoot });
+  return RootTopologySchema.parse({ targetRoot, contextRoot, publicArtifactRoot, privateWorkRoot });
 }
 
 /** Creates only the requested output path, rejecting every symlinked or non-directory segment. */

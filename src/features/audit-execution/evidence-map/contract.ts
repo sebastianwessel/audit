@@ -10,6 +10,7 @@ import {
   PlanObligationReferencesSchema,
   SourceEvidenceSchema,
 } from '../../attack-planning/plan.schema.js';
+import { AuditNarrativeTextSchema } from '../narrative/contract.js';
 
 export const EvidenceMapFactRoleSchema = modelTokenSchema(
   z.enum([
@@ -23,6 +24,51 @@ export const EvidenceMapFactRoleSchema = modelTokenSchema(
     'assumption',
   ]),
 );
+
+/**
+ * A source-free request from a later semantic phase for additional neutral
+ * evidence. These values describe missing evidence roles only; they are never
+ * a vulnerability conclusion, location hint, or language-specific rule.
+ */
+export const EvidenceMapGapKindSchema = z.enum([
+  'operation-evidence-missing',
+  'unsafe-condition-relation-missing',
+  'control-coverage-missing',
+  'source-relation-unresolved',
+]);
+
+/** Durable source-free signals derived from untrusted mapper prose. */
+export const EvidenceMapLimitationCodeSchema = z.enum(['model-declared-limitation']);
+
+function requireUniqueValues(values: readonly string[], context: z.RefinementCtx): void {
+  if (new Set(values).size === values.length) return;
+  context.addIssue({
+    code: 'custom',
+    message: 'Values must be unique.',
+  });
+}
+
+/** Strict, candidate-blind repair signal bound later to approved obligations. */
+export const EvidenceMapInsufficiencySchema = z.strictObject({
+  obligationIds: z.array(IdentifierSchema).min(1).superRefine(requireUniqueValues),
+  needs: z.array(EvidenceMapGapKindSchema).min(1).superRefine(requireUniqueValues),
+});
+
+export const EvidenceMapInsufficienciesSchema = z
+  .array(EvidenceMapInsufficiencySchema)
+  .superRefine((insufficiencies, context) => {
+    const signatures = insufficiencies.map((insufficiency) =>
+      JSON.stringify([
+        [...insufficiency.obligationIds].sort((left, right) => left.localeCompare(right)),
+        [...insufficiency.needs].sort((left, right) => left.localeCompare(right)),
+      ]),
+    );
+    if (new Set(signatures).size === signatures.length) return;
+    context.addIssue({
+      code: 'custom',
+      message: 'Evidence-map insufficiency signals must not duplicate a gap signature.',
+    });
+  });
 
 function requireUniqueFactReferences(factIds: readonly string[], context: z.RefinementCtx): void {
   if (new Set(factIds).size === factIds.length) return;
@@ -59,7 +105,7 @@ export const EvidenceMapSourceEvidenceSchema = SourceEvidenceSchema.extend({
 
 /**
  * Closed model-facing source selection. Canonical evidence identity,
- * line range, kind, and redacted snippet are projected only after the map
+ * line range, kind, and content digest are projected only after the map
  * verifier confirms this selection against its scoped source view.
  */
 const UnverifiedEvidenceMapSourceEvidenceSchema = z.strictObject({
@@ -92,7 +138,8 @@ export const UnverifiedEvidenceMapControlCoverageSchema = z.strictObject({
 export const EvidenceMapFactSchema = z.strictObject({
   factId: IdentifierSchema,
   role: EvidenceMapFactRoleSchema,
-  statement: BoundedTextSchema.min(1),
+  /** Validated/redacted semantic context for later model stages, never evidence itself. */
+  summary: AuditNarrativeTextSchema.optional(),
   evidence: z.array(EvidenceMapSourceEvidenceSchema).min(1),
   planObligations: PlanObligationReferencesSchema,
 });
@@ -101,12 +148,31 @@ export const EvidenceMapFactSchema = z.strictObject({
 export const UnverifiedEvidenceMapFactSchema = z.strictObject({
   factId: IdentifierSchema,
   role: EvidenceMapFactRoleSchema,
-  statement: BoundedTextSchema.min(1),
+  /** Normal model output has prose; a recovered canonical leaf deliberately does not. */
+  statement: BoundedTextSchema.min(1).optional(),
   evidence: z.array(UnverifiedEvidenceMapSourceEvidenceSchema),
   planObligations: z.array(UnverifiedPlanObligationReferenceSchema),
 });
 
-const EvidenceMapEnvelopeFields = {
+/**
+ * Mapper-owned append-only repair output. It cannot replace existing facts,
+ * declare coverage, or receive a later-stage conclusion.
+ */
+export const UnverifiedEvidenceMapRepairSchema = z
+  .strictObject({
+    facts: z.array(UnverifiedEvidenceMapFactSchema),
+  })
+  .superRefine((value, context) => {
+    const factIds = value.facts.map((fact) => fact.factId);
+    if (new Set(factIds).size === factIds.length) return;
+    context.addIssue({
+      code: 'custom',
+      path: ['facts'],
+      message: 'Evidence-map repair facts must have unique identifiers.',
+    });
+  });
+
+const UnansweredPlanObligationsField = {
   unansweredPlanObligations: z
     .array(PlanObligationReferenceSchema)
     .superRefine((references, context) => {
@@ -118,14 +184,14 @@ const EvidenceMapEnvelopeFields = {
         });
       }
     }),
-  limitations: z.array(BoundedTextSchema.min(1)),
 };
 
 export const UnverifiedEvidenceMapSchema = z
   .strictObject({
     facts: z.array(UnverifiedEvidenceMapFactSchema),
     controlCoverage: z.array(UnverifiedEvidenceMapControlCoverageSchema),
-    ...EvidenceMapEnvelopeFields,
+    ...UnansweredPlanObligationsField,
+    limitations: z.array(BoundedTextSchema.min(1)),
   })
   .superRefine((value, context) => {
     const obligationIds = value.controlCoverage.map((coverage) => coverage.obligationId);
@@ -150,7 +216,8 @@ export const UnverifiedEvidenceMapSchema = z
 export const EvidenceMapSchema = z
   .strictObject({
     facts: z.array(EvidenceMapFactSchema),
-    ...EvidenceMapEnvelopeFields,
+    ...UnansweredPlanObligationsField,
+    limitations: z.array(EvidenceMapLimitationCodeSchema),
   })
   .superRefine((value, context) => {
     const identifiers = value.facts.map((fact) => fact.factId);
@@ -179,7 +246,10 @@ export const EvidenceMapSchema = z
 export type EvidenceMap = z.infer<typeof EvidenceMapSchema>;
 export type EvidenceMapFact = z.infer<typeof EvidenceMapFactSchema>;
 export type EvidenceMapFactIds = z.infer<typeof EvidenceMapFactIdsSchema>;
+export type EvidenceMapInsufficiency = z.infer<typeof EvidenceMapInsufficiencySchema>;
+export type EvidenceMapInsufficiencies = z.infer<typeof EvidenceMapInsufficienciesSchema>;
 export type UnverifiedEvidenceMap = z.infer<typeof UnverifiedEvidenceMapSchema>;
+export type UnverifiedEvidenceMapRepair = z.infer<typeof UnverifiedEvidenceMapRepairSchema>;
 
 /**
  * The sole structural projection of map-labelled controls for an obligation.

@@ -6,11 +6,13 @@ import {
   UnverifiedInvestigationObligationClosuresSchema,
 } from '../../../audit-execution/investigation/contract.js';
 import { ContextDocumentSchema } from '../../../target-inventory/inventory.schema.js';
+import { ModelRetryGuidanceSchema } from '../../runtime/retry-guidance.js';
 import { ScopedInspectionRequirementSchema } from '../../tools/contract.js';
 
 export const VectorAuditModelInputSchema = AuditInvestigationRequestSchema.extend({
   context: z.array(ContextDocumentSchema),
   inspectionRequirement: ScopedInspectionRequirementSchema,
+  retryGuidance: ModelRetryGuidanceSchema,
 });
 
 /**

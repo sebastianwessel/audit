@@ -4,12 +4,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createJailedReadOnlyFilesystem } from '../../platform/filesystem/index.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import { parseContextDocument } from './context.js';
 import { DefaultSourceAdmissionPolicy, inferLanguageHint, inventoryTarget } from './inventory.js';
 
 test('inventory binds a deterministic source fingerprint and optional context digest', async () => {
-  const fixture = await mkdtemp(join(tmpdir(), 'security-reviewer-inventory-'));
+  const fixture = await mkdtemp(join(tmpdir(), 'audit-inventory-'));
   const target = join(fixture, 'target');
   const context = join(fixture, 'context');
   await mkdir(target);
@@ -40,7 +40,7 @@ test('context rejects unknown or complex frontmatter instead of inferring it', (
       'bad.md',
       '---\ntitle: Bad\nunknown: value\nkind: other\nsensitivity: internal\nappliesTo:\n---\nBody',
     ),
-  ).toThrow(SecurityReviewerError);
+  ).toThrow(AuditRuntimeError);
 });
 
 test('context preserves exact Markdown body text and accepts uncapped applies-to metadata', () => {
@@ -56,7 +56,7 @@ test('context preserves exact Markdown body text and accepts uncapped applies-to
 });
 
 test('inventory discovers Markdown context case-insensitively', async () => {
-  const fixture = await mkdtemp(join(tmpdir(), 'security-reviewer-context-case-'));
+  const fixture = await mkdtemp(join(tmpdir(), 'audit-context-case-'));
   const target = join(fixture, 'target');
   const context = join(fixture, 'context');
   await mkdir(target);
@@ -80,7 +80,7 @@ test('language hints are optional metadata and never an inventory allowlist', ()
 });
 
 test('records named default exclusions instead of silently omitting eligible-looking paths', async () => {
-  const fixture = await mkdtemp(join(tmpdir(), 'security-reviewer-admission-'));
+  const fixture = await mkdtemp(join(tmpdir(), 'audit-admission-'));
   const target = join(fixture, 'target');
   await mkdir(target);
   await mkdir(join(target, 'node_modules'));
@@ -107,4 +107,48 @@ test('records named default exclusions instead of silently omitting eligible-loo
       }),
     ]),
   );
+});
+
+test('records one explicit source-free admission row for every discovered regular file', async () => {
+  const fixture = await mkdtemp(join(tmpdir(), 'audit-admission-manifest-'));
+  const target = join(fixture, 'target');
+  await mkdir(join(target, 'dist'), { recursive: true });
+  await mkdir(join(target, 'vendor'), { recursive: true });
+  const admittedSource = 'private source bytes\r\n';
+  await Promise.all([
+    writeFile(join(target, 'app.unknown'), admittedSource, 'utf8'),
+    writeFile(join(target, '.env'), 'PRIVATE_VALUE=do-not-persist\n', 'utf8'),
+    writeFile(join(target, 'dist', 'generated.unknown'), 'generated\n', 'utf8'),
+    writeFile(join(target, 'vendor', 'dependency.unknown'), 'dependency\n', 'utf8'),
+    writeFile(join(target, 'invalid.unknown'), new Uint8Array([0xff])),
+  ]);
+
+  const inventory = await inventoryTarget(
+    await createJailedReadOnlyFilesystem({ targetRoot: target }),
+  );
+
+  expect(inventory.sourcePaths).toEqual(['app.unknown']);
+  expect(inventory.sourceSnapshot.rows).toEqual([
+    { disposition: 'excluded', path: '.env', reason: 'local-secret-store' },
+    expect.objectContaining({
+      disposition: 'admitted',
+      path: 'app.unknown',
+      byteLength: new TextEncoder().encode(admittedSource).byteLength,
+      languageHint: null,
+    }),
+    {
+      disposition: 'excluded',
+      path: 'dist/generated.unknown',
+      reason: 'build-or-generated-output',
+    },
+    { disposition: 'excluded', path: 'invalid.unknown', reason: 'invalid-encoding' },
+    {
+      disposition: 'excluded',
+      path: 'vendor/dependency.unknown',
+      reason: 'dependency-or-vendor-cache',
+    },
+  ]);
+  const manifestProjection = JSON.stringify(inventory.sourceSnapshot);
+  expect(manifestProjection).not.toContain(admittedSource);
+  expect(manifestProjection).not.toContain('PRIVATE_VALUE=do-not-persist');
 });

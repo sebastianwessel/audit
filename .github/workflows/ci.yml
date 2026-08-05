@@ -21,8 +21,6 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Validate specifications
         run: bun run spec:check
-      - name: Validate generated contracts
-        run: bun run schema:check
       - name: Run quality checks
         run: bun run check
       - name: Enforce coverage
@@ -30,4 +28,4 @@ jobs:
       - name: Run deterministic evaluation
         run: bun run eval
       - name: Run isolated real-world corpus evaluation
-        run: bun run eval:corpus
+        run: bun run eval:corpus:integration

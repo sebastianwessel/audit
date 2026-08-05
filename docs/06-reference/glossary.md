@@ -3,7 +3,7 @@
 | Term | Meaning |
 | --- | --- |
 | Attack vector | A bounded security question the audit will investigate. |
-| Evidence | A relative source location and bounded excerpt supporting a conclusion. |
+| Evidence | A relative source location, role, kind, and immutable content digest supporting a conclusion. Reports never store the source text itself. |
 | Plan | The human-reviewable list of vectors and their scope. |
 | Finding | A candidate weakness grounded in evidence. |
 | Coverage | The record of which planned vectors completed. |

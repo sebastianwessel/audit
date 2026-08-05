@@ -1,6 +1,6 @@
-# Security Reviewer
+# Audit
 
-Security Reviewer is a read-only agentic code review workflow for finding and explaining security weaknesses in source code. It reads a repository plus optional per-use-case Markdown context about surrounding systems, deployment, data, and controls. It first creates an editable audit plan, then executes the supplied matching plan and emits source-grounded confirmed claims. Classification, urgency, and remediation are deliberately separate from proof.
+Audit is a read-only agentic code review workflow for finding and explaining security weaknesses in source code. It reads a repository plus optional per-use-case Markdown context about surrounding systems, deployment, data, and controls. It first creates an editable audit plan, then executes the supplied matching plan and emits accepted source-backed findings. Classification, urgency, and remediation are deliberately separate from proof.
 
 It is a defensive code review tool—not a hacker tool: it does not probe running systems, execute exploits, make target network calls, execute target code, or mutate the reviewed repository.
 
@@ -23,31 +23,38 @@ Requirements: Bun >=1.3.14 and an optional Purista-supported model provider.
 ```bash
 bun install
 cp .env.example .env
-# Edit .env: set SECURITY_REVIEWER_MODEL and the matching provider key.
-bun run schema:check
+# Edit .env: set AUDIT_MODEL and the matching provider key.
 bun run check
 ```
 
 After completing `.env`, create a plan, review its Markdown projection, optionally create/reseal an editable draft, then audit the sealed JSON:
 
 ```bash
-bun run start plan --target ./target
-bun run start plan-draft --plan plans/<plan-id>.json --draft plan-drafts/review.json
+bun run start plan --target ./target --work .audit-work
+bun run start plan-draft --work .audit-work --plan plans/<plan-id>.json --draft plan-drafts/review.json
 # Edit the draft's vectors, then create a new plan pair.
-bun run start plan-reseal --plan plans/<plan-id>.json --draft plan-drafts/review.json
-bun run start audit --target ./target --plan plans/<plan-id>.json
+bun run start plan-reseal --work .audit-work --plan plans/<plan-id>.json --draft plan-drafts/review.json
+bun run start audit --target ./target --work .audit-work --public-output .audit-artifacts --plan plans/<plan-id>.json
 ```
 
 `plans/<plan-id>.json` is the only executable plan. Its matching Markdown file is a human review projection; YAML and Markdown are not executable plan inputs.
 
-Add `--context ./security-context` to `plan` and `audit` when optional Markdown context is available. The `report` command renders a stored JSON report as Markdown without calling a model.
+Add `--context ./security-context` to `plan` and `audit` when optional Markdown context is available. Plans, snapshots, checkpoints, and developer guidance remain under private work. Each audit writes source-minimal JSON and Markdown reports below the public artifact root’s `reports/` directory; upload only that public root in CI. The `report` command re-renders a stored public JSON report without calling a model.
 
-The local `.env` supplies provider, model, credential name, artifact directory, and evaluation paths. CLI flags override it for one run. Never commit `.env`.
+The local `.env` supplies provider, model, credential name, runtime limits, separate private-work/public-artifact directories, and evaluation paths. CLI arguments select the audit or evaluation run but never override those runtime settings. Never commit `.env` or upload private work.
+
+After an audit, optionally create developer guidance for the accepted findings:
+
+```bash
+bun run start guidance --target ./target --work .audit-work --public-output .audit-artifacts --plan plans/<plan-id>.json --report reports/<report-id>.json
+```
+
+Guidance is a separate, non-gating artifact. It records advisory priority and a deterministic next action, but it never changes the audit result, stores model-authored advice, or proves exploitability.
 
 To compare two reports without calling a model or rereading the target:
 
 ```bash
-bun run start lineage --previous reports/report-previous.json --current reports/report-current.json
+bun run start lineage --public-output .audit-artifacts --previous reports/report-previous.json --current reports/report-current.json
 ```
 
 ## Workflow
@@ -78,15 +85,15 @@ Run the offline mixed-language corpus without credentials or target execution:
 bun run eval:corpus:integration
 ```
 
-It validates pinned JavaScript, Java, and C source cases; keeps answer keys and reviewed plans outside the agent jail; runs the normal plan/audit flow with a deterministic provider; and writes integration artifacts under `evaluation/runs/`. It proves evaluator wiring and safety, not detection quality. Use `bun run eval:provider --provider <openai|anthropic> --model <name>` for one diagnostic provider run; use five or more repetitions only for a deliberate reliability experiment. Add `--plan-profile reviewed-plan` to measure audit quality against a human-reviewed plan without a provider planning call. Use `bun run eval:corpus:readiness` to see whether the local corpus can support a quality claim.
+It validates pinned JavaScript, Java, and C source cases; keeps answer keys and evaluator-authored audit plans outside the agent jail; runs the normal plan/audit flow with a deterministic provider; and writes integration artifacts under `evaluation/runs/`. It proves evaluator wiring and safety, not detection quality. Configure `AUDIT_PROVIDER` and `AUDIT_MODEL` in `.env`, then use `bun run eval:provider` for one diagnostic provider run. Choose and record the repeat count that fits the question; the product imposes no repeat threshold. Add `--plan-profile audit-reviewed-plan` to measure audit quality against an evaluator-authored plan without a provider planning call. Use `--plan-profile planning-generated` to measure planning alone, or retain the default `end-to-end-generated` to measure both steps. Use `bun run eval:corpus:readiness` to see whether the local corpus can support a quality claim.
 
 ## Repository map
 
 | Area | Purpose |
 | --- | --- |
-| [concepts/](./concepts/) | Exploratory ideas that may become future specs |
 | [docs/](./docs/) | Human-focused explanation from beginner to expert |
 | [src/features/](./src/features/) | Capability-owned Zod schemas, logic, orchestration, and side-by-side unit tests |
+| [evaluation/src/](./evaluation/src/) | Evaluator-only schemas, orchestration, and side-by-side unit tests |
 | [src/platform/](./src/platform/) | Filesystem, provider, configuration, and artifact adapters |
 | [src/shared/](./src/shared/) | Strictly limited cross-feature primitives |
 

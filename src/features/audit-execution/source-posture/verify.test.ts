@@ -3,7 +3,11 @@ import { expect, test } from 'bun:test';
 import { AttackVectorSchema } from '../../attack-planning/plan.schema.js';
 import { EvidenceMapSchema } from '../evidence-map/contract.js';
 
-import { downgradeUninspectedSourcePosture, verifySourcePosture } from './verify.js';
+import {
+  downgradeUninspectedSourcePosture,
+  verifySourcePosture,
+  verifySourcePostureFragment,
+} from './verify.js';
 
 const vector = AttackVectorSchema.parse({
   vectorId: 'vector-source-posture-01',
@@ -32,15 +36,27 @@ const evidenceMap = EvidenceMapSchema.parse({
     {
       factId: 'fact-first-01',
       role: 'input',
-      statement: 'The first reviewed input is in scope.',
-      evidence: [{ path: 'src/reviewed.unknown', startLine: 1, snippet: 'source', kind: 'source' }],
+      evidence: [
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 1,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+        },
+      ],
       planObligations: [{ obligationId: 'test-obligation-01' }],
     },
     {
       factId: 'fact-second-01',
       role: 'operation',
-      statement: 'The second reviewed operation is in scope.',
-      evidence: [{ path: 'src/reviewed.unknown', startLine: 2, snippet: 'source', kind: 'source' }],
+      evidence: [
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 2,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+        },
+      ],
       planObligations: [{ obligationId: 'test-obligation-02' }],
     },
   ],
@@ -98,9 +114,7 @@ test('rejects an assessment whose map facts do not bind its approved obligation'
   );
   expect(result.rejectedAssessmentCount).toBe(1);
   expect(result.complete).toBe(false);
-  expect(result.sourcePosture.limitations).toContain(
-    'The candidate-blind source posture did not establish every approved review obligation.',
-  );
+  expect(result.sourcePosture.limitations).toContain('obligation-assessment-missing');
 });
 
 test('rejects a directional posture that omits an obligation-relevant mapped control', () => {
@@ -110,9 +124,13 @@ test('rejects a directional posture that omits an obligation-relevant mapped con
       {
         factId: 'fact-control-01',
         role: 'control',
-        statement: 'A source-visible control is mapped before posture assessment.',
         evidence: [
-          { path: 'src/reviewed.unknown', startLine: 1, snippet: 'source', kind: 'source' },
+          {
+            path: 'src/reviewed.unknown',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+          },
         ],
         planObligations: [{ obligationId: 'test-obligation-01' }],
       },
@@ -146,6 +164,67 @@ test('rejects a directional posture that omits an obligation-relevant mapped con
 
   expect(result.rejectedAssessmentCount).toBe(1);
   expect(result.complete).toBe(false);
+});
+
+test('accepts a child posture with its local control and defers global control closure', () => {
+  const firstEvidenceFact = evidenceMap.facts[0];
+  if (firstEvidenceFact === undefined) throw new Error('Missing first evidence-map fixture fact.');
+  const mapWithTwoControls = EvidenceMapSchema.parse({
+    facts: [
+      firstEvidenceFact,
+      {
+        factId: 'fact-control-first-01',
+        role: 'control',
+        evidence: [
+          {
+            path: 'src/first.unknown',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+          },
+        ],
+        planObligations: [{ obligationId: 'test-obligation-01' }],
+      },
+      {
+        factId: 'fact-control-second-01',
+        role: 'control',
+        evidence: [
+          {
+            path: 'src/second.unknown',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+          },
+        ],
+        planObligations: [{ obligationId: 'test-obligation-01' }],
+      },
+    ],
+    unansweredPlanObligations: [],
+    limitations: [],
+  });
+  const firstChildMap = EvidenceMapSchema.parse({
+    facts: mapWithTwoControls.facts.filter((fact) => fact.factId !== 'fact-control-second-01'),
+    unansweredPlanObligations: [],
+    limitations: [],
+  });
+  const childPosture = {
+    assessments: [
+      {
+        assessmentId: 'posture-first-child-01',
+        obligationId: 'test-obligation-01',
+        conclusion: 'inconclusive' as const,
+        evidenceMapFactIds: ['fact-first-01', 'fact-control-first-01'],
+        limitations: [],
+      },
+    ],
+    limitations: [],
+  };
+  expect(
+    verifySourcePostureFragment(vector, childPosture, firstChildMap).sourcePosture.assessments,
+  ).toHaveLength(1);
+  expect(
+    verifySourcePosture(vector, childPosture, mapWithTwoControls).rejectedAssessmentCount,
+  ).toBe(1);
 });
 
 test('downgrades an uninspected directional posture without changing its phase bindings', () => {
@@ -187,7 +266,47 @@ test('downgrades an uninspected directional posture without changing its phase b
       evidenceMapFactIds: ['fact-second-01'],
     },
   ]);
-  expect(downgraded.limitations).toContain(
-    'The posture stage made no scoped read-only tool call; directional posture conclusions were downgraded to inconclusive before discovery.',
+  expect(downgraded.limitations).toContain('source-inspection-missing');
+});
+
+test('retains only closed not-applicable reason tokens', () => {
+  const firstObligation = vector.reviewObligations.at(0);
+  const firstFact = evidenceMap.facts.at(0);
+  if (firstObligation === undefined || firstFact === undefined) {
+    throw new Error('The shared posture fixture must include its first obligation and fact.');
+  }
+  const result = verifySourcePosture(
+    {
+      ...vector,
+      reviewObligations: [firstObligation],
+    },
+    {
+      assessments: [
+        {
+          assessmentId: 'posture-not-applicable-01',
+          obligationId: 'test-obligation-01',
+          conclusion: 'not-applicable',
+          evidenceMapFactIds: ['fact-first-01'],
+          notApplicableReason: 'no-relevant-operation-in-scope',
+          limitations: ['ASSESSMENT_PROSE_SENTINEL'],
+        },
+      ],
+      limitations: ['POSTURE_PROSE_SENTINEL'],
+    },
+    EvidenceMapSchema.parse({
+      facts: [firstFact],
+      unansweredPlanObligations: [],
+      limitations: [],
+    }),
   );
+  expect(result.sourcePosture).toMatchObject({
+    assessments: [
+      {
+        notApplicableReason: 'no-relevant-operation-in-scope',
+        limitations: ['model-declared-limitation'],
+      },
+    ],
+    limitations: ['model-declared-limitation'],
+  });
+  expect(JSON.stringify(result.sourcePosture)).not.toContain('PROSE_SENTINEL');
 });

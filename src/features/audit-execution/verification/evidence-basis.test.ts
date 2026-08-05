@@ -16,26 +16,40 @@ const evidenceMap: EvidenceMap = {
     {
       factId: 'candidate-fact-01',
       role: 'operation',
-      statement: 'The scoped source has a candidate operation.',
       evidence: [
-        { path: 'src/reviewed.unknown', startLine: 10, snippet: 'operation', kind: 'source' },
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 10,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+        },
       ],
       planObligations: [firstObligation],
     },
     {
       factId: 'control-fact-01',
       role: 'control',
-      statement: 'The scoped source has a mapped control.',
       evidence: [
-        { path: 'src/reviewed.unknown', startLine: 20, snippet: 'control', kind: 'source' },
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 20,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+        },
       ],
       planObligations: [firstObligation],
     },
     {
       factId: 'other-fact-01',
       role: 'input',
-      statement: 'A separate approved obligation has its own source fact.',
-      evidence: [{ path: 'src/reviewed.unknown', startLine: 30, snippet: 'other', kind: 'source' }],
+      evidence: [
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 30,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+        },
+      ],
       planObligations: [secondObligation],
     },
   ],
@@ -45,27 +59,53 @@ const evidenceMap: EvidenceMap = {
 
 const hypothesis: VerifiableHypothesis = {
   vectorId: 'verification-vector-01',
-  statement: 'A bounded hypothesis',
-  evidence: [
+  narrative: {
+    statement: 'The reviewed operation may be reached with an unsafe condition.',
+    roleExplanations: [
+      { role: 'operation', explanation: 'The operation evidence identifies the reviewed action.' },
+      {
+        role: 'unsafe-condition',
+        explanation: 'The condition evidence identifies the unsafe state.',
+      },
+    ],
+    limitations: [],
+  },
+  claimEvidenceBundles: [
     {
-      path: 'src/reviewed.unknown',
-      startLine: 10,
-      snippet: 'operation',
-      kind: 'source',
       role: 'operation',
+      evidence: [
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 10,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+          role: 'operation',
+        },
+      ],
     },
     {
-      path: 'src/reviewed.unknown',
-      startLine: 10,
-      snippet: 'operation',
-      kind: 'source',
       role: 'unsafe-condition',
+      evidence: [
+        {
+          path: 'src/reviewed.unknown',
+          startLine: 10,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+          role: 'unsafe-condition',
+        },
+      ],
     },
   ],
   planObligations: [firstObligation],
   evidenceMapFactIds: ['candidate-fact-01'],
+  claimEvidenceSelections: [
+    { role: 'operation', selections: [{ factId: 'candidate-fact-01', evidenceIndex: 0 }] },
+    {
+      role: 'unsafe-condition',
+      selections: [{ factId: 'candidate-fact-01', evidenceIndex: 0 }],
+    },
+  ],
   sourcePostureAssessmentIds: ['posture-first-01'],
-  limitations: [],
 };
 
 const sourcePosture: SourcePosture = {

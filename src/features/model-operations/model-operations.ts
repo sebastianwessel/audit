@@ -1,7 +1,19 @@
-import type { JsonValue, ModelProvider, ObjectRequest, ObjectResponse } from '@purista/harness';
-
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
 import {
+  isHarnessError,
+  type JsonValue,
+  ModelError,
+  type ModelProvider,
+  type ObjectRequest,
+  type ObjectResponse,
+} from '@purista/harness';
+
+import { createStableId } from '../../shared/contracts/core.js';
+import type { OutputValidationRetryGuidance } from '../../shared/contracts/model-retry-guidance.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
+import { errorCauseChain } from '../../shared/errors/cause-chain.js';
+import {
+  type EvaluatorFailureDiagnostic,
+  EvaluatorFailureDiagnosticSchema,
   type ModelCostCeilingState,
   ModelCostCeilingStateSchema,
   type ModelCostCeilingUsd,
@@ -13,6 +25,7 @@ import {
   type ModelRoute,
   type ModelRunObservation,
   ModelRunObservationSchema,
+  type ModelStage,
   type ModelStageObservation,
   ModelStageObservationSchema,
   type ModelStageTraceEvent,
@@ -24,6 +37,7 @@ import {
 } from './model-operations.schema.js';
 
 export type {
+  EvaluatorFailureDiagnostic,
   ModelCostCeilingState,
   ModelCostCeilingUsd,
   ModelPricing,
@@ -37,6 +51,101 @@ export type {
   ToolUsage,
 } from './model-operations.schema.js';
 
+/**
+ * Evaluator-only best-effort diagnostic port. Product code never supplies it,
+ * and diagnostic persistence has no model-state projection.
+ */
+export type EvaluatorFailureDiagnosticSink = Readonly<{
+  evaluationRunId: string;
+  protocolFingerprint: string;
+  now: () => string;
+  write: (diagnostic: EvaluatorFailureDiagnostic) => Promise<void>;
+}>;
+
+/** Projects a caught error to the sole evaluator-private, content-free diagnostic shape. */
+export function createEvaluatorFailureDiagnostic(input: {
+  evaluationRunId: string;
+  occurredAt: string;
+  stage: ModelStage;
+  route: ModelRoute;
+  stageId: string;
+  attemptOrdinal: number;
+  durationMs: number;
+  scopeFingerprint: string;
+  protocolFingerprint: string;
+  errorCode: string;
+  validationRetryGuidance?: OutputValidationRetryGuidance;
+  error: unknown;
+}): EvaluatorFailureDiagnostic {
+  const causes = errorCauseChain(input.error);
+  const modelError = causes.find((cause): cause is ModelError => cause instanceof ModelError);
+  const modelMeta = modelError?.meta;
+  return EvaluatorFailureDiagnosticSchema.parse({
+    schemaVersion: 2,
+    diagnosticId: createStableId(
+      'evaluator-failure',
+      `${input.evaluationRunId}\0${input.stage}\0${input.stageId}\0${input.attemptOrdinal}\0${input.occurredAt}`,
+    ),
+    evaluationRunId: input.evaluationRunId,
+    occurredAt: input.occurredAt,
+    stage: input.stage,
+    route: input.route,
+    stageId: input.stageId,
+    attemptOrdinal: input.attemptOrdinal,
+    durationMs: Math.max(0, Math.round(input.durationMs)),
+    scopeFingerprint: input.scopeFingerprint,
+    protocolFingerprint: input.protocolFingerprint,
+    errorCode: input.errorCode,
+    validationRetryGuidance: input.validationRetryGuidance ?? null,
+    errorClass:
+      modelError !== undefined
+        ? 'model-error'
+        : causes.some(isHarnessError)
+          ? 'harness-error'
+          : causes.some((cause) => cause instanceof AuditRuntimeError)
+            ? 'application-error'
+            : 'unknown-error',
+    modelFailure:
+      modelMeta === undefined
+        ? null
+        : {
+            provider: modelMeta.provider,
+            model: modelMeta.model,
+            method: modelMeta.method,
+            reason: modelMeta.reason ?? null,
+            status: modelMeta.status ?? null,
+            providerCode: modelMeta.providerCode ?? null,
+          },
+  });
+}
+
+/**
+ * Retains a private failure record only when its opt-in storage succeeds.
+ * A private destination that fails cannot guarantee a durable marker for its
+ * own failure, and its status must never alter normal evaluation state.
+ */
+export async function writeEvaluatorFailureDiagnostic(
+  sink: EvaluatorFailureDiagnosticSink | undefined,
+  input: Omit<
+    Parameters<typeof createEvaluatorFailureDiagnostic>[0],
+    'evaluationRunId' | 'occurredAt' | 'protocolFingerprint'
+  >,
+): Promise<void> {
+  if (sink === undefined) return;
+  try {
+    await sink.write(
+      createEvaluatorFailureDiagnostic({
+        ...input,
+        evaluationRunId: sink.evaluationRunId,
+        occurredAt: sink.now(),
+        protocolFingerprint: sink.protocolFingerprint,
+      }),
+    );
+  } catch {
+    // Explicitly best effort: do not log or project diagnostic-write failures.
+  }
+}
+
 export function emptyToolUsage(): ToolUsage {
   return ToolUsageSchema.parse({
     toolCallCount: 0,
@@ -47,7 +156,6 @@ export function emptyToolUsage(): ToolUsage {
     successfulGrepFilesCallCount: 0,
     rejectedCallCount: 0,
     returnedBytes: 0,
-    budgetExhausted: false,
   });
 }
 
@@ -246,7 +354,7 @@ export function createModelCostCeiling(input: {
   return Object.freeze({
     beforeRequest: () => {
       if (accumulated >= configuredUsd) {
-        throw new SecurityReviewerError(
+        throw new AuditRuntimeError(
           'model-cost-ceiling-reached',
           'The observed model-cost ceiling was reached before another request could start.',
         );
@@ -300,8 +408,8 @@ function recordCostCeiling(
   );
 }
 
-function costUnavailable(): SecurityReviewerError {
-  return new SecurityReviewerError(
+function costUnavailable(): AuditRuntimeError {
+  return new AuditRuntimeError(
     'model-cost-unavailable',
     'A model-cost ceiling requires known exact-model catalogue pricing.',
   );
@@ -391,6 +499,62 @@ export function observeModelStage(input: {
   });
 }
 
+/**
+ * Joins repeated attempts of one exact stage without discarding any request,
+ * tool operation, cost state, or trace. This is for durable resume artifacts,
+ * not for combining distinct stages or routes.
+ */
+export function mergeModelStageObservations(
+  observations: readonly ModelStageObservation[],
+): ModelStageObservation {
+  const stages = observations.map((observation) => ModelStageObservationSchema.parse(observation));
+  const first = stages[0];
+  if (first === undefined) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'A merged model-stage observation requires at least one source-free stage observation.',
+    );
+  }
+  if (
+    stages.some(
+      (stage) =>
+        stage.stage !== first.stage ||
+        stage.route !== first.route ||
+        stage.cacheRoutingEnabled !== first.cacheRoutingEnabled,
+    )
+  ) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'Only observations for one model stage, route, and cache mode may be merged.',
+    );
+  }
+  const requests = stages
+    .flatMap((stage) => stage.requests)
+    .map((request, index) => ({
+      ...request,
+      ordinal: index + 1,
+    }));
+  const trace = stages.every((stage) => stage.trace.length > 0) ? mergeStageTraces(stages) : [];
+  const usage = combineModelUsage(requests.map((request) => request.usage));
+  return ModelStageObservationSchema.parse({
+    stage: first.stage,
+    route: first.route,
+    stageId: first.stageId,
+    status: stages.every((stage) => stage.status === 'completed') ? 'completed' : 'failed',
+    durationMs: stages.reduce((total, stage) => total + stage.durationMs, 0),
+    errorCode: stages.every((stage) => stage.status === 'completed')
+      ? null
+      : (stages.find((stage) => stage.errorCode !== null)?.errorCode ?? 'provider-failure'),
+    recoveredErrorCodes: uniqueSorted(stages.flatMap((stage) => stage.recoveredErrorCodes)),
+    usage,
+    cost: summarizeStageCosts(stages, usage),
+    requests,
+    toolUsage: combineToolUsage(stages.map((stage) => stage.toolUsage)),
+    trace,
+    cacheRoutingEnabled: first.cacheRoutingEnabled,
+  });
+}
+
 /** Derives a run total exclusively from the independently recorded stages. */
 export function summarizeModelStages(
   stages: readonly ModelStageObservation[],
@@ -435,6 +599,27 @@ function summarizeStageCosts(stages: readonly ModelStageObservation[], usage: Mo
   });
 }
 
+function mergeStageTraces(
+  stages: readonly ModelStageObservation[],
+): readonly ModelStageTraceEvent[] {
+  let ordinal = 0;
+  let requestOrdinal = 0;
+  return stages.flatMap((stage) =>
+    stage.trace.map((event) => {
+      ordinal += 1;
+      if (event.kind === 'model-response') {
+        requestOrdinal += 1;
+        return { ...event, ordinal, requestOrdinal };
+      }
+      return { ...event, ordinal };
+    }),
+  );
+}
+
+function uniqueSorted(values: readonly string[]): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
 export function combineToolUsage(usages: readonly ToolUsage[]): ToolUsage {
   return ToolUsageSchema.parse(
     usages.reduce(
@@ -449,7 +634,6 @@ export function combineToolUsage(usages: readonly ToolUsage[]): ToolUsage {
           combined.successfulGrepFilesCallCount + usage.successfulGrepFilesCallCount,
         rejectedCallCount: combined.rejectedCallCount + usage.rejectedCallCount,
         returnedBytes: combined.returnedBytes + usage.returnedBytes,
-        budgetExhausted: combined.budgetExhausted || usage.budgetExhausted,
       }),
       emptyToolUsage(),
     ),

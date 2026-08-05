@@ -1,6 +1,6 @@
 # Governance and decisions
 
-Status: auto-approved at bootstrap on 2026-07-27 by explicit project instruction. Future material scope or security changes require a new review record.
+Status: auto-approved at bootstrap on 2026-07-27 by explicit project instruction. Material scope, security, evaluation, or persisted-contract changes are recorded in their source specification and a dated material-change note.
 
 ## Decisions
 
@@ -15,7 +15,8 @@ Status: auto-approved at bootstrap on 2026-07-27 by explicit project instruction
 | DEC-007 | One private package with deep domain folders until a stable public boundary exists. | Reuse without premature workspace complexity. | Import-boundary review. |
 | DEC-008 | Use hybrid vertical slices with colocated unit tests. | Keeps each capability schema, logic, and tests discoverable while isolating infrastructure adapters. | Structure check and side-by-side test review. |
 | DEC-009 | The reviewed target is language-agnostic; TypeScript/Bun is implementation-only. | Security review scope must follow bounded source evidence, not the reviewer’s own runtime language. | Unknown-extension inventory, generic language-tag, and multi-language corpus tests. |
-| DEC-010 | Every audit uses one immutable admitted source snapshot, and target/context/output roots are pairwise disjoint. | A fingerprint is meaningful only when every later tool reads exactly the admitted bytes; artifact output must never become input evidence. | Root-topology, snapshot mutation, exact digest, artifact-jail, and checkpoint-binding tests. |
+| DEC-010 | Every audit uses one immutable admitted source snapshot, and target/context/public-artifact/private-work roots are pairwise disjoint. | A fingerprint is meaningful only when every later tool reads exactly the admitted bytes; public publication and private recovery must never become input evidence. | Root-topology, snapshot mutation, exact digest, artifact-jail, and checkpoint-binding tests. |
+| DEC-011 | Record each material evolution in the changed source specification and a dated material-change note; do not retain compatibility readers. | The decision table is not a changelog, while breaking strict contracts must stay traceable without accumulating legacy behavior. | Specification checks, migration-note review, and strict-schema rejection tests. |
 
 ## Scope
 
@@ -23,4 +24,4 @@ In scope: repository source inventory, optional per-use-case Markdown/frontmatte
 
 Out of scope for v1: dynamic testing, attacks against running instances, exploit or payload execution, target compilation or test execution, network/API probing, browser automation, remote repositories, source edits, pull-request comments, distributed workers, web UI, accounts, database history, and formal certification.
 
-Change normative behavior in specs first, then update guidance, generated artifacts, code, tests, and docs. Persisted-artifact changes require a migration note under specs/plans/migrations/. The supported filesystem guarantee is macOS and Linux local filesystems that support component inspection and same-directory atomic rename; the artifact store fails closed when it cannot establish the required guarantee. Private snapshots persist only while a resumable attempt is retained, then are securely deleted with the run-work-root cleanup; a later run builds a new snapshot.
+Change normative behavior in specs first, then update guidance, owning Zod contracts, code, tests, and docs. Material security/evaluation changes and persisted-artifact changes require a dated note under specs/plans/migrations/. The supported filesystem guarantee is macOS and Linux local filesystems that support component inspection and same-directory atomic rename; the artifact store fails closed when it cannot establish the required guarantee. Private snapshots persist only while a resumable attempt is retained, then are securely deleted with the run-work-root cleanup; a later run builds a new snapshot.

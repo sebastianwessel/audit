@@ -15,7 +15,7 @@ Scope: `TICKET-301`, REL-003, evaluator checkpoint recovery and terminal-vector 
 | Completed terminal reuse | covered | `loadReusableAuditVectorResults` and checkpoint tests | Completed results remain reusable. |
 | Incomplete/failed explicit retry | covered | `src/features/audit-execution/checkpoints.ts` | Both are excluded when `retryUnfinished` is true. |
 | Cancelled explicit retry | covered | `src/features/audit-execution/checkpoints.ts` and its colocated test | `cancelled` is excluded only when `retryUnfinished` is true. |
-| Evaluator trial retry | covered | `src/features/evaluation/real-world-runner.ts` | A cancelled trial is rerun when `retryUnfinished` is true. |
+| Evaluator trial retry | covered | `evaluation/src/real-world-runner.ts` | A cancelled trial is rerun when `retryUnfinished` is true. |
 | Binding, jail, and report isolation | covered | checkpoint schemas and evaluator work-root adapter | No change requested. |
 | Frontend/client | not applicable | CLI/library workflow only | No client surface exists. |
 
@@ -27,7 +27,7 @@ Scope: `TICKET-301`, REL-003, evaluator checkpoint recovery and terminal-vector 
 | `bun run schema:check` | passed | Generated schemas current. |
 | `bun run typecheck` | passed | Current deterministic check. |
 | `bun run lint` | passed | Current deterministic check. |
-| `bun test src/features/audit-execution/checkpoints.test.ts src/features/evaluation/real-world-runner.test.ts` | passed | New cancelled-reuse regression plus evaluator delegation coverage. |
+| `bun test src/features/audit-execution/checkpoints.test.ts evaluation/src/real-world-runner.test.ts` | passed | New cancelled-reuse regression plus evaluator delegation coverage. |
 | `bun run check` | passed | Type, lint, schema, full test, and acquisition integrity validation. |
 
 ## Self-Audit

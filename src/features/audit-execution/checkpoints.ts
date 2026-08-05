@@ -1,4 +1,5 @@
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { canonicalJson } from '../../shared/contracts/core.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import type { AttackPlan } from '../attack-planning/plan.schema.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
 import {
@@ -10,6 +11,7 @@ import {
   AuditCandidateGroundingRecoveryLeafSchema,
   type AuditCheckpointBinding,
   AuditCheckpointBindingSchema,
+  type AuditCheckpointExecution,
   type AuditContextOverflowLedger,
   AuditContextOverflowLedgerSchema,
   type AuditEvidenceMapDraft,
@@ -24,8 +26,11 @@ import {
   AuditVectorCheckpointSchema,
   type AuditVectorResult,
   type CandidateAwareContextOverflowTopology,
+  modelObservationForAuditCheckpointExecution,
 } from './audit.schema.js';
 import { candidateAwareFingerprint } from './candidate-aware-identity.js';
+import { groundedHypotheses } from './candidate-grounding/identity.js';
+import { evidenceMapFingerprint } from './evidence-map/repair.js';
 import type { VerifiableHypothesis } from './verification/contract.js';
 
 /** The platform adapter returns undefined only when a checkpoint does not exist. */
@@ -96,7 +101,7 @@ export class AuditResumeState {
     this.#candidateAwareCheckpoints = uniqueIndex(
       input.candidateAwareCheckpoints ?? [],
       (checkpoint) =>
-        `${checkpoint.vectorId}\0${checkpoint.phase}\0${checkpoint.candidateOrdinal}\0${checkpoint.candidateFingerprint}`,
+        `${checkpoint.vectorId}\0${checkpoint.phase}\0${checkpoint.candidateOrdinal}\0${checkpoint.candidateFingerprint}\0${checkpoint.evidenceMapFingerprint}\0${checkpoint.sourcePostureFingerprint}`,
     );
     this.#evidenceMapDrafts = uniqueIndex(input.evidenceMapDrafts ?? [], (draft) => draft.vectorId);
     this.#sourcePostureDrafts = uniqueIndex(
@@ -109,7 +114,7 @@ export class AuditResumeState {
     );
     this.#evidenceMapRecoveryLeaves = groupedUniqueIndex(
       input.evidenceMapRecoveryLeaves ?? [],
-      (leaf) => leaf.vectorId,
+      (leaf) => `${leaf.vectorId}\0${leaf.phase}`,
       (leaf) => leaf.scopeFingerprint,
     );
     this.#sourcePostureRecoveryLeaves = groupedUniqueIndex(
@@ -145,9 +150,11 @@ export class AuditResumeState {
     phase: AuditCandidateAwareCheckpoint['phase'];
     candidateOrdinal: number;
     candidate: VerifiableHypothesis;
+    evidenceMapFingerprint: string;
+    sourcePostureFingerprint: string;
   }): AuditCandidateAwareCheckpoint | undefined {
     return this.#candidateAwareCheckpoints.get(
-      `${input.vectorId}\0${input.phase}\0${input.candidateOrdinal}\0${candidateAwareFingerprint(input.candidate)}`,
+      `${input.vectorId}\0${input.phase}\0${input.candidateOrdinal}\0${candidateAwareFingerprint(input.candidate)}\0${input.evidenceMapFingerprint}\0${input.sourcePostureFingerprint}`,
     );
   }
 
@@ -164,8 +171,8 @@ export class AuditResumeState {
       `${input.vectorId}\0${input.phase}`,
     );
     const evidenceMapRecoveryLeaves =
-      input.phase === 'evidence-mapping'
-        ? this.#evidenceMapRecoveryLeaves.get(input.vectorId)
+      input.phase === 'evidence-mapping' || input.phase === 'evidence-map-repair'
+        ? this.#evidenceMapRecoveryLeaves.get(`${input.vectorId}\0${input.phase}`)
         : undefined;
     const sourcePostureRecoveryLeaves =
       input.phase === 'source-posture'
@@ -273,25 +280,29 @@ export function auditContextOverflowLedgerPath(input: {
 export function auditEvidenceMapRecoveryLeafPath(input: {
   runId: string;
   vectorId: string;
+  phase: Extract<AuditEvidenceMapRecoveryLeaf['phase'], 'evidence-mapping' | 'evidence-map-repair'>;
+  phaseInputFingerprint: string;
   scopeFingerprint: string;
 }): string {
-  return `checkpoints/${input.runId}/${input.vectorId}.evidence-map-recovery.${input.scopeFingerprint}.json`;
+  return `checkpoints/${input.runId}/${input.vectorId}.evidence-map-recovery.${input.phase}.${input.phaseInputFingerprint}.${input.scopeFingerprint}.json`;
 }
 
 export function auditSourcePostureRecoveryLeafPath(input: {
   runId: string;
   vectorId: string;
+  phaseInputFingerprint: string;
   scopeFingerprint: string;
 }): string {
-  return `checkpoints/${input.runId}/${input.vectorId}.source-posture-recovery.${input.scopeFingerprint}.json`;
+  return `checkpoints/${input.runId}/${input.vectorId}.source-posture-recovery.${input.phaseInputFingerprint}.${input.scopeFingerprint}.json`;
 }
 
 export function auditCandidateGroundingRecoveryLeafPath(input: {
   runId: string;
   vectorId: string;
+  phaseInputFingerprint: string;
   scopeFingerprint: string;
 }): string {
-  return `checkpoints/${input.runId}/${input.vectorId}.candidate-grounding-recovery.${input.scopeFingerprint}.json`;
+  return `checkpoints/${input.runId}/${input.vectorId}.candidate-grounding-recovery.${input.phaseInputFingerprint}.${input.scopeFingerprint}.json`;
 }
 
 /** Creates an exact-bound source-free recovery topology ledger. */
@@ -300,6 +311,7 @@ export function createAuditContextOverflowLedger(input: {
   plan: AttackPlan;
   phase: AuditContextOverflowLedger['phase'];
   parentStageId: AuditContextOverflowLedger['parentStageId'];
+  phaseInputFingerprint: AuditContextOverflowLedger['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditContextOverflowLedger['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditContextOverflowLedger['rootScopeFingerprint'];
   events: AuditContextOverflowLedger['events'];
@@ -307,10 +319,11 @@ export function createAuditContextOverflowLedger(input: {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditContextOverflowLedgerSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 3,
     ...binding,
     phase: input.phase,
     parentStageId: input.parentStageId,
+    phaseInputFingerprint: input.phaseInputFingerprint,
     recoveryProtocolFingerprint: input.recoveryProtocolFingerprint,
     rootScopeFingerprint: input.rootScopeFingerprint,
     events: input.events,
@@ -321,25 +334,31 @@ export function createAuditContextOverflowLedger(input: {
 export function createAuditEvidenceMapRecoveryLeaf(input: {
   binding: AuditCheckpointBinding;
   plan: AttackPlan;
+  phase: AuditEvidenceMapRecoveryLeaf['phase'];
   parentStageId: AuditEvidenceMapRecoveryLeaf['parentStageId'];
+  phaseInputFingerprint: AuditEvidenceMapRecoveryLeaf['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditEvidenceMapRecoveryLeaf['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditEvidenceMapRecoveryLeaf['rootScopeFingerprint'];
   childKey: AuditEvidenceMapRecoveryLeaf['childKey'];
   scopeFingerprint: AuditEvidenceMapRecoveryLeaf['scopeFingerprint'];
+  execution: AuditEvidenceMapRecoveryLeaf['execution'];
   evidenceMap: AuditEvidenceMapRecoveryLeaf['evidenceMap'];
   savedAt: string;
 }): AuditEvidenceMapRecoveryLeaf {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditEvidenceMapRecoveryLeafSchema.parse({
-    schemaVersion: 1,
-    phase: 'evidence-mapping',
+    schemaVersion: 4,
+    phase: input.phase,
     ...binding,
     parentStageId: input.parentStageId,
+    phaseInputFingerprint: input.phaseInputFingerprint,
     recoveryProtocolFingerprint: input.recoveryProtocolFingerprint,
     rootScopeFingerprint: input.rootScopeFingerprint,
     childKey: input.childKey,
     scopeFingerprint: input.scopeFingerprint,
+    recoveryState: 'partial',
+    execution: input.execution,
     evidenceMap: input.evidenceMap,
     savedAt: input.savedAt,
   });
@@ -350,24 +369,29 @@ export function createAuditSourcePostureRecoveryLeaf(input: {
   binding: AuditCheckpointBinding;
   plan: AttackPlan;
   parentStageId: AuditSourcePostureRecoveryLeaf['parentStageId'];
+  phaseInputFingerprint: AuditSourcePostureRecoveryLeaf['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditSourcePostureRecoveryLeaf['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditSourcePostureRecoveryLeaf['rootScopeFingerprint'];
   childKey: AuditSourcePostureRecoveryLeaf['childKey'];
   scopeFingerprint: AuditSourcePostureRecoveryLeaf['scopeFingerprint'];
+  execution: AuditSourcePostureRecoveryLeaf['execution'];
   sourcePosture: AuditSourcePostureRecoveryLeaf['sourcePosture'];
   savedAt: string;
 }): AuditSourcePostureRecoveryLeaf {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditSourcePostureRecoveryLeafSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 4,
     phase: 'source-posture',
     ...binding,
     parentStageId: input.parentStageId,
+    phaseInputFingerprint: input.phaseInputFingerprint,
     recoveryProtocolFingerprint: input.recoveryProtocolFingerprint,
     rootScopeFingerprint: input.rootScopeFingerprint,
     childKey: input.childKey,
     scopeFingerprint: input.scopeFingerprint,
+    recoveryState: 'partial',
+    execution: input.execution,
     sourcePosture: input.sourcePosture,
     savedAt: input.savedAt,
   });
@@ -378,24 +402,29 @@ export function createAuditCandidateGroundingRecoveryLeaf(input: {
   binding: AuditCheckpointBinding;
   plan: AttackPlan;
   parentStageId: AuditCandidateGroundingRecoveryLeaf['parentStageId'];
+  phaseInputFingerprint: AuditCandidateGroundingRecoveryLeaf['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditCandidateGroundingRecoveryLeaf['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditCandidateGroundingRecoveryLeaf['rootScopeFingerprint'];
   childKey: AuditCandidateGroundingRecoveryLeaf['childKey'];
   scopeFingerprint: AuditCandidateGroundingRecoveryLeaf['scopeFingerprint'];
+  execution: AuditCandidateGroundingRecoveryLeaf['execution'];
   groundings: AuditCandidateGroundingRecoveryLeaf['groundings'];
   savedAt: string;
 }): AuditCandidateGroundingRecoveryLeaf {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditCandidateGroundingRecoveryLeafSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 3,
     phase: 'candidate-grounding',
     ...binding,
     parentStageId: input.parentStageId,
+    phaseInputFingerprint: input.phaseInputFingerprint,
     recoveryProtocolFingerprint: input.recoveryProtocolFingerprint,
     rootScopeFingerprint: input.rootScopeFingerprint,
     childKey: input.childKey,
     scopeFingerprint: input.scopeFingerprint,
+    recoveryState: 'partial',
+    execution: input.execution,
     groundings: input.groundings,
     savedAt: input.savedAt,
   });
@@ -405,18 +434,21 @@ export function createAuditEvidenceMapDraft(input: {
   binding: AuditCheckpointBinding;
   plan: AttackPlan;
   evidenceMap: AuditEvidenceMapDraft['evidenceMap'];
-  modelObservation?: AuditEvidenceMapDraft['modelObservation'];
+  repairAttempts: AuditEvidenceMapDraft['repairAttempts'];
+  execution: AuditCheckpointExecution;
   savedAt: string;
 }): AuditEvidenceMapDraft {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditEvidenceMapDraftSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 5,
     phase: 'evidence-mapping',
     ...binding,
     savedAt: input.savedAt,
     evidenceMap: input.evidenceMap,
-    ...(input.modelObservation === undefined ? {} : { modelObservation: input.modelObservation }),
+    evidenceMapFingerprint: evidenceMapFingerprint(input.evidenceMap),
+    repairAttempts: input.repairAttempts,
+    execution: input.execution,
   });
 }
 
@@ -424,30 +456,32 @@ export function createAuditCandidateGroundingDraft(input: {
   binding: AuditCheckpointBinding;
   candidateGroundingProtocolFingerprint: string;
   plan: AttackPlan;
-  findings: AuditCandidateGroundingDraft['findings'];
+  evidenceMapFingerprint: AuditCandidateGroundingDraft['evidenceMapFingerprint'];
+  sourcePostureFingerprint: AuditCandidateGroundingDraft['sourcePostureFingerprint'];
+  groundings: AuditCandidateGroundingDraft['groundings'];
   closures: AuditCandidateGroundingDraft['closures'];
   hypothesisGroundingFunnel: AuditCandidateGroundingDraft['hypothesisGroundingFunnel'];
   candidateIntegrityRejections: AuditCandidateGroundingDraft['candidateIntegrityRejections'];
-  discoveryObservation?: AuditCandidateGroundingDraft['discoveryObservation'];
-  modelObservation?: AuditCandidateGroundingDraft['modelObservation'];
+  discoveryObservation: AuditCandidateGroundingDraft['discoveryObservation'];
+  modelObservation: AuditCandidateGroundingDraft['modelObservation'];
   savedAt: string;
 }): AuditCandidateGroundingDraft {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditCandidateGroundingDraftSchema.parse({
-    schemaVersion: 4,
+    schemaVersion: 10,
     phase: 'candidate-grounding',
     candidateGroundingProtocolFingerprint: input.candidateGroundingProtocolFingerprint,
+    evidenceMapFingerprint: input.evidenceMapFingerprint,
+    sourcePostureFingerprint: input.sourcePostureFingerprint,
     ...binding,
     savedAt: input.savedAt,
-    findings: input.findings,
+    groundings: input.groundings,
     closures: input.closures,
     hypothesisGroundingFunnel: input.hypothesisGroundingFunnel,
     candidateIntegrityRejections: input.candidateIntegrityRejections,
-    ...(input.discoveryObservation === undefined
-      ? {}
-      : { discoveryObservation: input.discoveryObservation }),
-    ...(input.modelObservation === undefined ? {} : { modelObservation: input.modelObservation }),
+    discoveryObservation: input.discoveryObservation,
+    modelObservation: input.modelObservation,
   });
 }
 
@@ -459,6 +493,8 @@ export function createAuditCandidateAwareCheckpoint(input: {
   phase: AuditCandidateAwareCheckpoint['phase'];
   candidateOrdinal: number;
   candidate: VerifiableHypothesis;
+  evidenceMapFingerprint: string;
+  sourcePostureFingerprint: string;
   state: AuditCandidateAwareCheckpoint['state'];
   result?: AuditCandidateAwareCheckpoint['result'];
   contextOverflowTopology?: CandidateAwareContextOverflowTopology;
@@ -468,12 +504,14 @@ export function createAuditCandidateAwareCheckpoint(input: {
   assertBindingMatchesPlan(binding, input.plan);
   if (input.candidate.vectorId !== binding.vectorId) throw incompatibleCheckpoint();
   return AuditCandidateAwareCheckpointSchema.parse({
-    schemaVersion: 2,
+    schemaVersion: 5,
     phase: input.phase,
     candidateGroundingProtocolFingerprint: input.candidateGroundingProtocolFingerprint,
     ...binding,
     candidateOrdinal: input.candidateOrdinal,
     candidateFingerprint: candidateAwareFingerprint(input.candidate),
+    evidenceMapFingerprint: input.evidenceMapFingerprint,
+    sourcePostureFingerprint: input.sourcePostureFingerprint,
     state: input.state,
     savedAt: input.savedAt,
     ...(input.result === undefined ? {} : { result: input.result }),
@@ -486,19 +524,21 @@ export function createAuditCandidateAwareCheckpoint(input: {
 export function createAuditSourcePostureDraft(input: {
   binding: AuditCheckpointBinding;
   plan: AttackPlan;
+  evidenceMapFingerprint: AuditSourcePostureDraft['evidenceMapFingerprint'];
   sourcePosture: AuditSourcePostureDraft['sourcePosture'];
-  modelObservation?: AuditSourcePostureDraft['modelObservation'];
+  execution: AuditCheckpointExecution;
   savedAt: string;
 }): AuditSourcePostureDraft {
   const binding = AuditCheckpointBindingSchema.parse(input.binding);
   assertBindingMatchesPlan(binding, input.plan);
   return AuditSourcePostureDraftSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 4,
     phase: 'source-posture',
+    evidenceMapFingerprint: input.evidenceMapFingerprint,
     ...binding,
     savedAt: input.savedAt,
     sourcePosture: input.sourcePosture,
-    ...(input.modelObservation === undefined ? {} : { modelObservation: input.modelObservation }),
+    execution: input.execution,
   });
 }
 
@@ -512,7 +552,7 @@ export function createAuditVectorCheckpoint(input: {
   assertBindingMatchesPlan(binding, input.plan);
   if (input.result.coverage.vectorId !== binding.vectorId) throw incompatibleCheckpoint();
   return AuditVectorCheckpointSchema.parse({
-    schemaVersion: 13,
+    schemaVersion: 17,
     ...binding,
     savedAt: input.savedAt,
     result: input.result,
@@ -609,8 +649,10 @@ export async function loadReusableAuditCandidateGroundingDrafts(input: {
 }
 
 /**
- * Loads only completed, exact candidate-aware work. Pending and running records
- * prove an interrupted dispatch and are intentionally rescheduled.
+ * Loads every exact candidate-aware checkpoint. The audit core owns the only
+ * decision whether a terminal result is reusable or must be retried; retaining
+ * pending, running, and incomplete records lets it resume directly from a
+ * completed grounding draft without repeating discovery or grounding.
  */
 export async function loadReusableAuditCandidateAwareCheckpoints(input: {
   binding: AuditCheckpointBaseBinding;
@@ -618,7 +660,6 @@ export async function loadReusableAuditCandidateAwareCheckpoints(input: {
   plan: AttackPlan;
   drafts: readonly AuditCandidateGroundingDraft[];
   reader: AuditCheckpointReader;
-  retryUnfinished: boolean;
 }): Promise<AuditCandidateAwareCheckpoint[]> {
   const reusable: AuditCandidateAwareCheckpoint[] = [];
   const baseBinding = AuditCheckpointBindingSchema.omit({
@@ -632,7 +673,7 @@ export async function loadReusableAuditCandidateAwareCheckpoints(input: {
       plan: input.plan,
       vectorId: draft.vectorId,
     });
-    for (const [index, candidate] of draft.findings.entries()) {
+    for (const [index, candidate] of groundedHypotheses(draft.groundings).entries()) {
       for (const phase of ['verification', 'countercheck'] as const) {
         const checkpoint = await input.reader(
           auditCandidateAwareCheckpointPath({
@@ -649,22 +690,15 @@ export async function loadReusableAuditCandidateAwareCheckpoints(input: {
           parsed.candidateGroundingProtocolFingerprint !==
             input.candidateGroundingProtocolFingerprint ||
           parsed.phase !== phase ||
-          parsed.candidateOrdinal !== index + 1
+          parsed.candidateOrdinal !== index + 1 ||
+          parsed.evidenceMapFingerprint !== draft.evidenceMapFingerprint ||
+          parsed.sourcePostureFingerprint !== draft.sourcePostureFingerprint
         ) {
           throw incompatibleCheckpoint();
         }
-        if (
-          phase === 'verification' &&
-          parsed.candidateFingerprint !== candidateAwareFingerprint(candidate)
-        ) {
+        if (parsed.candidateFingerprint !== candidateAwareFingerprint(candidate)) {
           throw incompatibleCheckpoint();
         }
-        if (
-          parsed.state !== 'completed' ||
-          parsed.result === undefined ||
-          (input.retryUnfinished && parsed.result.decision === 'incomplete')
-        )
-          continue;
         reusable.push(parsed);
       }
     }
@@ -754,6 +788,7 @@ export async function loadReusableAuditContextOverflowLedgers(input: {
     });
     for (const phase of [
       'evidence-mapping',
+      'evidence-map-repair',
       'source-posture',
       'investigation',
       'candidate-grounding',
@@ -788,7 +823,7 @@ export async function loadReusableAuditEvidenceMapRecoveryLeaves(input: {
     vectorId: true,
     vectorDigest: true,
   }).parse(input.binding);
-  for (const ledger of input.ledgers.filter((entry) => entry.phase === 'evidence-mapping')) {
+  for (const ledger of input.ledgers.filter(isEvidenceMapRecoveryLedger)) {
     const binding = createAuditCheckpointBinding({
       binding: baseBinding,
       plan: input.plan,
@@ -799,6 +834,8 @@ export async function loadReusableAuditEvidenceMapRecoveryLeaves(input: {
         auditEvidenceMapRecoveryLeafPath({
           runId: binding.runId,
           vectorId: binding.vectorId,
+          phase: ledger.phase,
+          phaseInputFingerprint: ledger.phaseInputFingerprint,
           scopeFingerprint: event.scopeFingerprint,
         }),
       );
@@ -806,11 +843,15 @@ export async function loadReusableAuditEvidenceMapRecoveryLeaves(input: {
       const parsed = AuditEvidenceMapRecoveryLeafSchema.parse(checkpoint);
       assertCompatibleCheckpointBinding(parsed, binding, input.plan);
       if (
+        parsed.phase !== ledger.phase ||
         parsed.parentStageId !== ledger.parentStageId ||
+        parsed.phaseInputFingerprint !== ledger.phaseInputFingerprint ||
         parsed.recoveryProtocolFingerprint !== ledger.recoveryProtocolFingerprint ||
         parsed.rootScopeFingerprint !== ledger.rootScopeFingerprint ||
         parsed.childKey !== event.childKey ||
-        parsed.scopeFingerprint !== event.scopeFingerprint
+        parsed.scopeFingerprint !== event.scopeFingerprint ||
+        parsed.recoveryState !== 'partial' ||
+        !sameRecoveredChildExecution(parsed.execution, event.execution)
       ) {
         throw incompatibleCheckpoint();
       }
@@ -818,6 +859,12 @@ export async function loadReusableAuditEvidenceMapRecoveryLeaves(input: {
     }
   }
   return reusable;
+}
+
+function isEvidenceMapRecoveryLedger(
+  ledger: AuditContextOverflowLedger,
+): ledger is AuditContextOverflowLedger & { phase: AuditEvidenceMapRecoveryLeaf['phase'] } {
+  return ledger.phase === 'evidence-mapping' || ledger.phase === 'evidence-map-repair';
 }
 
 /** Loads source-posture leaves only when their completed topology handoff matches exactly. */
@@ -844,6 +891,7 @@ export async function loadReusableAuditSourcePostureRecoveryLeaves(input: {
         auditSourcePostureRecoveryLeafPath({
           runId: binding.runId,
           vectorId: binding.vectorId,
+          phaseInputFingerprint: ledger.phaseInputFingerprint,
           scopeFingerprint: event.scopeFingerprint,
         }),
       );
@@ -852,10 +900,13 @@ export async function loadReusableAuditSourcePostureRecoveryLeaves(input: {
       assertCompatibleCheckpointBinding(parsed, binding, input.plan);
       if (
         parsed.parentStageId !== ledger.parentStageId ||
+        parsed.phaseInputFingerprint !== ledger.phaseInputFingerprint ||
         parsed.recoveryProtocolFingerprint !== ledger.recoveryProtocolFingerprint ||
         parsed.rootScopeFingerprint !== ledger.rootScopeFingerprint ||
         parsed.childKey !== event.childKey ||
-        parsed.scopeFingerprint !== event.scopeFingerprint
+        parsed.scopeFingerprint !== event.scopeFingerprint ||
+        parsed.recoveryState !== 'partial' ||
+        !sameRecoveredChildExecution(parsed.execution, event.execution)
       )
         throw incompatibleCheckpoint();
       reusable.push(parsed);
@@ -888,6 +939,7 @@ export async function loadReusableAuditCandidateGroundingRecoveryLeaves(input: {
         auditCandidateGroundingRecoveryLeafPath({
           runId: binding.runId,
           vectorId: binding.vectorId,
+          phaseInputFingerprint: ledger.phaseInputFingerprint,
           scopeFingerprint: event.scopeFingerprint,
         }),
       );
@@ -896,10 +948,13 @@ export async function loadReusableAuditCandidateGroundingRecoveryLeaves(input: {
       assertCompatibleCheckpointBinding(parsed, binding, input.plan);
       if (
         parsed.parentStageId !== ledger.parentStageId ||
+        parsed.phaseInputFingerprint !== ledger.phaseInputFingerprint ||
         parsed.recoveryProtocolFingerprint !== ledger.recoveryProtocolFingerprint ||
         parsed.rootScopeFingerprint !== ledger.rootScopeFingerprint ||
         parsed.childKey !== event.childKey ||
-        parsed.scopeFingerprint !== event.scopeFingerprint
+        parsed.scopeFingerprint !== event.scopeFingerprint ||
+        parsed.recoveryState !== 'partial' ||
+        !sameRecoveredChildExecution(parsed.execution, event.execution)
       ) {
         throw incompatibleCheckpoint();
       }
@@ -931,9 +986,21 @@ export function reusableContextOverflowModelStages(input: {
     )
       return [];
     return ledger.events.flatMap((event) =>
-      event.modelObservation === undefined ? [] : [event.modelObservation],
+      event.execution === undefined
+        ? []
+        : (modelObservationForAuditCheckpointExecution(event.execution) ?? []),
     );
   });
+}
+
+/** Reuse requires the leaf and its completed topology transition to retain identical telemetry. */
+function sameRecoveredChildExecution(
+  leafExecution: AuditEvidenceMapRecoveryLeaf['execution'],
+  eventExecution: AuditContextOverflowLedger['events'][number]['execution'],
+): boolean {
+  return (
+    eventExecution !== undefined && canonicalJson(leafExecution) === canonicalJson(eventExecution)
+  );
 }
 
 function hasReusablePhaseBoundary(
@@ -947,6 +1014,17 @@ function hasReusablePhaseBoundary(
   if (
     phase === 'evidence-mapping' &&
     input.evidenceMapDrafts.some((draft) => draft.vectorId === vectorId)
+  )
+    return true;
+  if (
+    phase === 'evidence-map-repair' &&
+    input.evidenceMapDrafts.some(
+      (draft) =>
+        draft.vectorId === vectorId &&
+        draft.repairAttempts.some(
+          (attempt) => modelObservationForAuditCheckpointExecution(attempt.execution) !== undefined,
+        ),
+    )
   )
     return true;
   if (
@@ -1022,8 +1100,8 @@ function isUnfinishedVectorOutcome(
   return outcome === 'incomplete' || outcome === 'failed' || outcome === 'cancelled';
 }
 
-function incompatibleCheckpoint(): SecurityReviewerError {
-  return new SecurityReviewerError(
+function incompatibleCheckpoint(): AuditRuntimeError {
+  return new AuditRuntimeError(
     'artifact-invalid',
     'The audit checkpoint does not match the executable plan or provider configuration.',
   );

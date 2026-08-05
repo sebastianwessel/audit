@@ -1,4 +1,4 @@
-import type { ProposedFinding } from '../../attack-planning/plan.schema.js';
+import { claimEvidenceItems, type ProposedFinding } from '../../attack-planning/plan.schema.js';
 import type { SourceDocument } from '../audit.schema.js';
 
 export type InvestigationEvidencePackage = Readonly<{
@@ -13,7 +13,9 @@ export function buildInvestigationEvidencePackage(
   candidates: readonly ProposedFinding[],
 ): InvestigationEvidencePackage {
   const candidatePaths = new Set(
-    candidates.flatMap((candidate) => candidate.evidence.map((evidence) => evidence.path)),
+    candidates.flatMap((candidate) =>
+      claimEvidenceItems(candidate).map((evidence) => evidence.path),
+    ),
   );
   const ordered = [...scopedSources].sort((left, right) => {
     const leftCandidate = candidatePaths.has(left.path) ? 0 : 1;

@@ -12,7 +12,7 @@ Make one full-workflow reviewed-plan provider experiment cost-bounded and diagno
 - The runner executes all declared variants of that case; a paired case therefore measures its vulnerable and patched variants for every required repetition.
 - The exact selector is recorded in the configuration fingerprint, checkpoint, run JSON, Markdown report, and JSONL trial trace. A changed selector cannot resume or compare as the same experiment.
 - The selector is evaluator-only. It never enters the target jail, planner/audit prompt, repository tools, reviewed plan, answer key, or product report.
-- The first probe uses `reviewed-plan` and `full-workflow`, so audit behavior is measured independently of generated-plan behavior. Five repetitions remain mandatory. The configured observed-cost ceiling is a dispatch guard, not an input/output/tool cap.
+- The first probe uses `reviewed-plan` and `full-workflow`, so audit behavior is measured independently of generated-plan behavior. Its selected repeat count is recorded configuration, not a mandatory product setting. The configured observed-cost guard is a dispatch guard, not an input/output/tool cap.
 - Offline proof uses the existing fake-provider full lifecycle. It must cover evidence mapping, source posture, discovery, candidate grounding, and verification, and prove every stage has a validated ordered trace plus exact no-dispatch resume.
 - A resulting targeted or provisional measurement is diagnostic only. It cannot create a reliability, precision, or release claim.
 

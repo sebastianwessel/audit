@@ -1,13 +1,21 @@
 import type { ModelProvider } from '@purista/harness';
-import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
-import type { DraftVectorInput } from '../../attack-planning/plan.js';
-import type { AdditionalObservation } from '../../attack-planning/plan.schema.js';
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
+import { createPlan, type DraftVectorInput } from '../../attack-planning/plan.js';
+import type { AdditionalObservation, AttackPlan } from '../../attack-planning/plan.schema.js';
 import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
-import type { PlanModelRequest } from '../agents/planning/contract.js';
+import {
+  type PlanModelOutput,
+  PlanModelOutputSchema,
+  type PlanModelRequest,
+} from '../agents/planning/contract.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
-import { runScopedModelStage } from './scoped-model-stage.js';
+import {
+  type EvaluatorFailureDiagnosticSink,
+  projectScopedModelOutput,
+  runScopedModelStage,
+} from './scoped-model-stage.js';
 
 /** Creates one source-inspected draft plan through the shared scoped lifecycle. */
 export async function runPlanningStage(input: {
@@ -21,8 +29,9 @@ export async function runPlanningStage(input: {
   modelPricing: ModelPricing;
   modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
 }) {
-  return runScopedModelStage({
+  return runScopedModelStage<AttackPlan, PlanModelOutput>({
     stage: 'planning',
     route: 'primary',
     stageId: input.sessionId,
@@ -37,21 +46,59 @@ export async function runPlanningStage(input: {
     modelPricing: input.modelPricing,
     modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
+    evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     requireScopedSourceInspection: true,
-    invoke: (session, _attempt, scope) =>
+    invoke: (session, _attempt, scope, retryGuidance) =>
       session.agents.planner.prompt({
         ...input.request,
         sourcePaths: [...scope.sourcePaths],
         context: [...scope.context],
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
+        retryGuidance,
       }),
-    reduceRecoveredOutputs: (leaves) => ({
-      vectors: mergeRecoveredDraftVectors(leaves.flatMap((leaf) => leaf.output.vectors)),
-      additionalObservations: mergeAdditionalObservations(
-        leaves.flatMap((leaf) => leaf.output.additionalObservations),
+    projectOutput: (output) =>
+      projectScopedModelOutput(() =>
+        createExecutablePlan(input.request, PlanModelOutputSchema.parse(output)),
       ),
-    }),
+    reduceRecoveredOutputs: (leaves) =>
+      createExecutablePlan(input.request, {
+        vectors: mergeRecoveredDraftVectors(
+          leaves.flatMap((leaf) => leaf.output.vectors.map(toDraftVector)),
+        ),
+        additionalObservations: mergeAdditionalObservations(
+          leaves.flatMap((leaf) => leaf.output.additionalObservations),
+        ),
+      }),
   });
+}
+
+function createExecutablePlan(
+  request: PlanModelRequest,
+  output: Readonly<{
+    vectors: readonly DraftVectorInput[];
+    additionalObservations: readonly AdditionalObservation[];
+  }>,
+): AttackPlan {
+  return createPlan({
+    targetFingerprint: request.targetFingerprint,
+    contextDigest: request.contextDigest,
+    targetDisplayName: request.targetDisplayName,
+    inventorySummary: request.inventorySummary,
+    vectors: output.vectors,
+    additionalObservations: output.additionalObservations,
+    createdAt: request.createdAt,
+  });
+}
+
+function toDraftVector(vector: AttackPlan['vectors'][number]): DraftVectorInput {
+  return {
+    title: vector.title,
+    rationale: vector.rationale,
+    enabled: vector.enabled,
+    scopeGlobs: vector.scopeGlobs,
+    reviewObligations: vector.reviewObligations,
+    limitations: vector.limitations,
+  };
 }
 
 function mergeAdditionalObservations(
@@ -61,7 +108,7 @@ function mergeAdditionalObservations(
   for (const observation of observations) {
     const existing = byId.get(observation.observationId);
     if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(observation)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'provider-context-overflow',
         'Context recovery produced conflicting additional-observation identities.',
       );
@@ -79,7 +126,7 @@ function mergeRecoveredDraftVectors(vectors: readonly DraftVectorInput[]): Draft
     const identity = vector.title;
     const existing = byIdentity.get(identity);
     if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(vector)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'provider-context-overflow',
         'Context recovery produced conflicting planning-vector identities.',
       );

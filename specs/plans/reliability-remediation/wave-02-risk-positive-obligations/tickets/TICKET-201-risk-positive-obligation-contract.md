@@ -14,9 +14,9 @@ write_scope:
   - src/features/attack-planning/
   - src/features/audit-execution/
   - src/features/review-workflow/
-  - src/features/evaluation/
-  - evaluation/corpora/reviewed-plans/
-  - evaluation/research-corpora/private-mixed-language-v1/reviewed-plans/
+  - evaluation/src/
+  - evaluation/data/corpora/reviewed-plans/
+  - evaluation/data/research-corpora/private-mixed-language-v1/reviewed-plans/
   - artifacts/schemas/
   - specs/
 read_scope:
@@ -25,9 +25,9 @@ read_scope:
   - src/features/attack-planning/
   - src/features/audit-execution/
   - src/features/review-workflow/
-  - src/features/evaluation/
-  - evaluation/corpora/
-  - evaluation/research-corpora/private-mixed-language-v1/
+  - evaluation/src/
+  - evaluation/data/corpora/
+  - evaluation/data/research-corpora/private-mixed-language-v1/
 contract_readiness: ready
 generated_contracts: bun run schema:generate
 ticket_readiness: ready

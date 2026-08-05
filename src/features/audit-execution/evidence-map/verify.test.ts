@@ -1,9 +1,19 @@
 import { expect, test } from 'bun:test';
-
+import { sha256 } from '../../../shared/contracts/core.js';
 import { AttackVectorSchema } from '../../attack-planning/plan.schema.js';
 
-import { EvidenceMapSchema, UnverifiedEvidenceMapSchema } from './contract.js';
-import { verifyEvidenceMap } from './verify.js';
+import {
+  EvidenceMapInsufficienciesSchema,
+  EvidenceMapSchema,
+  UnverifiedEvidenceMapRepairSchema,
+  UnverifiedEvidenceMapSchema,
+} from './contract.js';
+import {
+  applyEvidenceMapRepair,
+  evidenceMapInsufficiencySignature,
+  verifyEvidenceMapInsufficiencies,
+} from './repair.js';
+import { verifyEvidenceMap, verifyEvidenceMapFragment } from './verify.js';
 
 const vector = AttackVectorSchema.parse({
   vectorId: 'vector-boundary-01',
@@ -78,13 +88,43 @@ test('retains only map facts with valid source locations and approved plan bindi
   expect(result.evidenceMap.facts).toMatchObject([
     {
       factId: 'fact-valid-01',
-      evidence: [{ path: 'reviewed.unknown', snippet: 'value = request.input;' }],
+      evidence: [{ path: 'reviewed.unknown' }],
     },
   ]);
   expect(result.evidenceMap.unansweredPlanObligations).toEqual([]);
+  expect(result.evidenceMap.facts[0]?.summary).toBe(
+    'The reviewed source contains the selected operation.',
+  );
+  expect(result.evidenceMap.limitations).toEqual(['model-declared-limitation']);
 });
 
-test('retains a complete long source line without a product snippet cap', () => {
+test('accepts an empty recovery fragment while the complete-vector verifier remains incomplete', () => {
+  const fragment = verifyEvidenceMapFragment(
+    vector,
+    {
+      facts: [],
+      controlCoverage: [],
+      unansweredPlanObligations: [],
+      limitations: ['This exact recovery child had no relevant source fact.'],
+    },
+    [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+  );
+  expect(fragment).toMatchObject({ rejectedFactCount: 0, evidenceMap: { facts: [] } });
+  expect(
+    verifyEvidenceMap(
+      vector,
+      {
+        facts: [],
+        controlCoverage: [],
+        unansweredPlanObligations: [],
+        limitations: [],
+      },
+      [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    ).complete,
+  ).toBe(false);
+});
+
+test('binds a complete long source line without persisting it', () => {
   const longLine = `value = ${'x'.repeat(20_000)};`;
   const result = verifyEvidenceMap(
     vector,
@@ -104,7 +144,7 @@ test('retains a complete long source line without a product snippet cap', () => 
     },
     [{ path: 'reviewed.unknown', content: longLine, languageHint: null }],
   );
-  expect(result.evidenceMap.facts[0]?.evidence[0]?.snippet).toHaveLength(longLine.length);
+  expect(result.evidenceMap.facts[0]?.evidence[0]?.contentDigest).toBe(sha256(longLine));
 });
 
 test('projects the requested line from CR-only source text', () => {
@@ -126,10 +166,10 @@ test('projects the requested line from CR-only source text', () => {
     },
     [{ path: 'reviewed.unknown', content: 'first\roperation\rthird', languageHint: null }],
   );
-  expect(result.evidenceMap.facts[0]?.evidence[0]?.snippet).toBe('operation');
+  expect(result.evidenceMap.facts[0]?.evidence[0]?.contentDigest).toBe(sha256('operation'));
 });
 
-test('projects source snippets through the safe artifact redactor', () => {
+test('does not persist a sensitive selected source line', () => {
   const result = verifyEvidenceMap(
     vector,
     {
@@ -155,16 +195,23 @@ test('projects source snippets through the safe artifact redactor', () => {
     ],
   );
 
-  expect(result.evidenceMap.facts[0]?.evidence[0]?.snippet).toBe('password = "[REDACTED]";[2J');
+  expect(JSON.stringify(result.evidenceMap)).not.toContain('not-for-artifacts');
+  expect(result.evidenceMap.facts[0]?.evidence[0]?.contentDigest).toBe(
+    sha256('password = "not-for-artifacts";\u001b[2J'),
+  );
 });
 
 test('rejects duplicate map fact identifiers at the strict contract boundary', () => {
   const fact = {
     factId: 'fact-duplicate-01',
     role: 'operation' as const,
-    statement: 'The reviewed source contains the selected operation.',
     evidence: [
-      { path: 'reviewed.unknown', startLine: 1, snippet: 'source', kind: 'source' as const },
+      {
+        path: 'reviewed.unknown',
+        startLine: 1,
+        contentDigest: 'a'.repeat(64),
+        kind: 'source' as const,
+      },
     ],
     planObligations: [{ obligationId: 'test-obligation-01' }],
   };
@@ -177,6 +224,33 @@ test('rejects duplicate map fact identifiers at the strict contract boundary', (
   ).toThrow('identifiers must be unique');
 });
 
+test('retains only the named validated summary field in a canonical evidence map', () => {
+  const fact = {
+    factId: 'fact-prose-01',
+    role: 'operation',
+    summary: 'MODEL_STATEMENT_SENTINEL',
+    evidence: [
+      {
+        path: 'reviewed.unknown',
+        startLine: 1,
+        contentDigest: 'a'.repeat(64),
+        kind: 'source',
+      },
+    ],
+    planObligations: [{ obligationId: 'test-obligation-01' }],
+  };
+  expect(
+    EvidenceMapSchema.parse({ facts: [fact], unansweredPlanObligations: [], limitations: [] }),
+  ).toMatchObject({ facts: [{ summary: 'MODEL_STATEMENT_SENTINEL' }] });
+  expect(() =>
+    EvidenceMapSchema.parse({
+      facts: [{ ...fact, statement: 'A forbidden raw-output field.' }],
+      unansweredPlanObligations: [],
+      limitations: [],
+    }),
+  ).toThrow();
+});
+
 test('rejects canonical map states that make one obligation both mapped and unanswered', () => {
   expect(() =>
     EvidenceMapSchema.parse({
@@ -184,8 +258,14 @@ test('rejects canonical map states that make one obligation both mapped and unan
         {
           factId: 'fact-overlap-01',
           role: 'operation',
-          statement: 'The reviewed source contains a neutral operation.',
-          evidence: [{ path: 'reviewed.unknown', startLine: 1, snippet: 'source', kind: 'source' }],
+          evidence: [
+            {
+              path: 'reviewed.unknown',
+              startLine: 1,
+              contentDigest: 'a'.repeat(64),
+              kind: 'source',
+            },
+          ],
           planObligations: [{ obligationId: 'test-obligation-01' }],
         },
       ],
@@ -201,8 +281,14 @@ test('normalizes only known model enum casing at the map boundary', () => {
       {
         factId: 'fact-normalized-01',
         role: ' Operation ',
-        statement: 'The reviewed source contains the selected operation.',
-        evidence: [{ path: 'reviewed.unknown', startLine: 1, snippet: 'source', kind: ' SOURCE ' }],
+        evidence: [
+          {
+            path: 'reviewed.unknown',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: ' SOURCE ',
+          },
+        ],
         planObligations: [{ obligationId: 'test-obligation-01' }],
       },
     ],
@@ -231,6 +317,100 @@ test('turns a structurally incomplete model map fact into a counted rejection', 
     { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
   ]);
   expect(result).toMatchObject({ rejectedFactCount: 1, evidenceMap: { facts: [] } });
+});
+
+test('accepts only generic approved-obligation evidence-map repair signals', () => {
+  const insufficiencies = EvidenceMapInsufficienciesSchema.parse([
+    {
+      obligationIds: ['test-obligation-01'],
+      needs: ['operation-evidence-missing', 'source-relation-unresolved'],
+    },
+  ]);
+  expect(verifyEvidenceMapInsufficiencies(vector, insufficiencies)).toEqual(insufficiencies);
+  expect(evidenceMapInsufficiencySignature(insufficiencies)).toBe(
+    '[{"obligationIds":["test-obligation-01"],"needs":["operation-evidence-missing","source-relation-unresolved"]}]',
+  );
+  expect(() =>
+    EvidenceMapInsufficienciesSchema.parse([
+      {
+        obligationIds: ['test-obligation-01'],
+        needs: ['operation-evidence-missing'],
+        expectedLocation: 'reviewed.unknown:1',
+      },
+    ]),
+  ).toThrow();
+  expect(() =>
+    verifyEvidenceMapInsufficiencies(vector, [
+      { obligationIds: ['unapproved-obligation-01'], needs: ['control-coverage-missing'] },
+    ]),
+  ).toThrow('outside the approved vector');
+});
+
+test('appends validated neutral repair facts without replacing or weakening the existing map', () => {
+  const original = EvidenceMapSchema.parse({
+    facts: [
+      {
+        factId: 'fact-existing-01',
+        role: 'input',
+        evidence: [
+          {
+            path: 'reviewed.unknown',
+            startLine: 1,
+            contentDigest: 'a'.repeat(64),
+            kind: 'source',
+          },
+        ],
+        planObligations: [{ obligationId: 'test-obligation-01' }],
+      },
+    ],
+    unansweredPlanObligations: [],
+    limitations: ['model-declared-limitation'],
+  });
+  const repaired = applyEvidenceMapRepair({
+    vector,
+    evidenceMap: original,
+    repair: UnverifiedEvidenceMapRepairSchema.parse({
+      facts: [
+        {
+          factId: 'fact-operation-01',
+          role: 'operation',
+          statement: 'The reviewed source performs the selected operation.',
+          evidence: [{ path: 'reviewed.unknown', startLine: 1 }],
+          planObligations: [{ obligationId: 'test-obligation-01' }],
+        },
+      ],
+    }),
+    sources: [
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ],
+  });
+  expect(repaired).toMatchObject({
+    appendedFactCount: 1,
+    evidenceMap: {
+      facts: [{ factId: 'fact-existing-01' }, { factId: 'fact-operation-01' }],
+      limitations: ['model-declared-limitation'],
+    },
+  });
+  expect(() =>
+    applyEvidenceMapRepair({
+      vector,
+      evidenceMap: original,
+      repair: {
+        facts: [
+          {
+            factId: 'fact-existing-01',
+            role: 'operation',
+            statement: 'Replacement is forbidden.',
+            evidence: [{ path: 'reviewed.unknown', startLine: 1 }],
+            planObligations: [{ obligationId: 'test-obligation-01' }],
+          },
+        ],
+      },
+      sources: [
+        { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+      ],
+    }),
+  ).toThrow('replace an existing neutral fact');
 });
 
 test('quarantines invalid model facts without discarding independent canonical facts', () => {
@@ -274,7 +454,7 @@ test('quarantines invalid model facts without discarding independent canonical f
   expect(result.evidenceMap.facts).toMatchObject([
     {
       factId: 'fact-retained-01',
-      evidence: [{ snippet: 'value = request.input;' }],
+      evidence: [{}],
     },
   ]);
   expect(result.evidenceMap.facts[0]?.evidence[0]?.role).toBeUndefined();

@@ -1,15 +1,24 @@
 # Reading the report
 
-Start with coverage, then findings, then limitations.
+Start with the outcome and actionable findings, then check coverage before acting.
 
 ## Report order
 
-1. Vector coverage: matched files, a closure row for each planned review obligation, investigation candidate count, findings, and limitations.
-2. Errors or partial vectors.
-3. Confirmed claims, in stable identifier order.
-4. Evidence links, short excerpts, and the static verification record.
-5. Limitations and any human-review-required items.
-6. Human-review disclaimer.
+1. Outcome: whether this bounded static run completed, produced accepted source-backed findings, requires human review, or has incomplete work.
+2. Actionable findings: the sealed plan's review question, a concise redacted claim, why the operation and unsafe-condition locations matter, declared limitations, complete evidence bundles, verification state, and a deterministic next-step checklist.
+3. Coverage and review state: matched-file counts, a closure row for each planned review obligation, investigation candidate counts, findings, and closed limitation codes when coverage could not establish something.
+4. What to do next: one concise action for every vector.
+5. Human-review-required items and errors or partial vectors.
+6. Technical appendix: closure, admission funnel, and source-free operational accounting.
+
+## What to do next
+
+The per-vector action table is deliberately narrow. It is derived only from the vector’s terminal state and, when present, its stable error code. It does not infer whether code is safe, unsafe, exploitable, or fixed.
+
+- **Completed** means audit execution finished for that vector. Continue with the report review; it is not a guarantee that the target is secure.
+- **Not applicable** is neutral. The report gives a fixed reason and the selected source locations: either no operation relevant to the obligation exists in the reviewed scope, or the obligation belongs to a component not represented there. Do not count it as a passed check or a finding.
+- **Skipped** means that vector did not execute. Review the plan configuration if that coverage is needed.
+- **Incomplete**, **failed**, and **cancelled** vectors are not covered. Investigate their terminal code and explicitly resume the same run if the review should continue.
 
 ## Finding admission ledger
 
@@ -19,13 +28,13 @@ The ledger intentionally contains counts only. It never includes source code, pr
 
 ## Obligation closure
 
-Read each closure row as the audit trail for one planned question. A row marked **no source-backed candidate** means the reviewer completed its bounded review without retaining a candidate; it does not certify the code as secure. A row marked **incomplete** or **not reached** means the audit did not finish that planned work. In either case, the vector must not be treated as fully covered.
+Read each closure row as the audit trail for one planned question. A row marked **no source-backed candidate** means the reviewer completed its bounded review without retaining a candidate; it does not certify the code as secure. A source-backed verifier rejection is also a completed negative result. A row marked **incomplete** or **not reached** means the audit did not finish that planned work; this includes a case where code behavior was visible but the supplied source and context could not establish the required security consequence. In either case, the vector must not be treated as fully covered.
 
-The JSON report is for automation. The Markdown report is a readable rendering of the same validated data. If they disagree, treat the run as invalid and keep the JSON for diagnosis.
+The JSON report is for automation. Each audit persists a Markdown projection beside it for people; the `report` command renders the same validated JSON again. If they disagree, treat the run as invalid and keep the JSON for diagnosis.
 
 When you compare two reports, the separate lineage output tracks only exact finding identities. Treat **resolved** as a review signal, not proof that a change fixed the issue. If either report did not complete the relevant vector, the lineage state is **unknown**.
 
-Evidence excerpts are shortened and redact common credential literals, bearer tokens, and email addresses before they are stored. Use the referenced file and line in your protected repository when a reviewer needs the original surrounding code.
+Reports never store source excerpts, prompts, raw model output, provider metadata, or verifier reasoning. A finding retains only a concise, redacted claim and role explanations so a human can understand what needs checking; those words are not evidence or proof. Use the referenced file, line, role, and content digest in your protected repository when a reviewer needs the original surrounding code.
 
 ## Triage after confirmation
 

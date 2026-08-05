@@ -1,6 +1,9 @@
 import type { ModelProvider } from '@purista/harness';
-import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
-import type { AuditVerificationRequest } from '../../audit-execution/verification/contract.js';
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import type {
+  AuditVerificationRequest,
+  AuditVerificationResult,
+} from '../../audit-execution/verification/contract.js';
 import { terminalLaneForVerificationDecision } from '../../audit-execution/verification/contract.js';
 import { createVerificationEvidenceSelectionBasis } from '../../audit-execution/verification/evidence-basis.js';
 import { materializeVerificationResult } from '../../audit-execution/verification/materialize.js';
@@ -8,17 +11,26 @@ import {
   hasSuccessfulScopedSourceInspection,
   type ModelCostCeiling,
   type ModelPricing,
+  type ModelStageObservation,
 } from '../../model-operations/model-operations.js';
 import type { ModelRoute } from '../../model-operations/model-operations.schema.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
-import type {
-  ContextOverflowTopology,
-  ContextOverflowTopologyEvent,
-  ContextRecoveryScope,
-} from '../runtime/context-overflow.js';
+import type { VerificationModelOutput } from '../agents/verification/contract.js';
+import type { ContextRecoveryScope } from '../runtime/context-overflow.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
-import { runScopedModelStage } from './scoped-model-stage.js';
+import {
+  type EvaluatorFailureDiagnosticSink,
+  runScopedModelStage,
+  type ScopedModelStageOverflowTopologyBase,
+} from './scoped-model-stage.js';
+
+type CanonicalVerificationStageOutput = Readonly<{
+  result: AuditVerificationResult;
+  terminalLane:
+    | 'evidence-projection-invalid'
+    | ReturnType<typeof terminalLaneForVerificationDecision>;
+}>;
 
 /** Executes only the verifier's scoped challenge and fails closed when it did not inspect source. */
 export async function runVerificationStage(input: {
@@ -34,12 +46,14 @@ export async function runVerificationStage(input: {
   modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   route?: ModelRoute;
-  overflowTopology?: Readonly<{
-    prior?: ContextOverflowTopology;
-    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
-  }>;
+  overflowTopology?: ScopedModelStageOverflowTopologyBase;
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
 }) {
-  const stageResult = await runScopedModelStage({
+  const stageResult = await runScopedModelStage<
+    CanonicalVerificationStageOutput,
+    VerificationModelOutput
+  >({
     stage: 'verification',
     route: input.route ?? 'primary',
     stageId: input.request.verificationId,
@@ -54,64 +68,67 @@ export async function runVerificationStage(input: {
     modelPricing: input.modelPricing,
     modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
+    evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
+    onCompletedModelObservation: input.onCompletedModelObservation,
     ...(input.overflowTopology === undefined ? {} : { overflowTopology: input.overflowTopology }),
     requireScopedSourceInspection: true,
     allowScopeSplitting: false,
-    invoke: (session, _attempt, scope: ContextRecoveryScope) =>
+    invoke: (session, _attempt, scope: ContextRecoveryScope, retryGuidance) =>
       session.workflows.verify_hypothesis.prompt({
         ...input.request,
         evidenceSelectionBasis: createVerificationEvidenceSelectionBasis(input.request),
         availableSourcePaths: [...scope.sourcePaths],
         context: [...scope.context],
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
+        retryGuidance,
       }),
+    projectOutput: (output) => {
+      const result = materializeVerificationResult(
+        output.result,
+        input.request.hypothesis,
+        input.request.evidenceMap,
+        input.request.sourcePosture,
+      );
+      return result === undefined
+        ? {
+            result: incompleteVerificationResult(),
+            terminalLane: 'evidence-projection-invalid',
+          }
+        : { result, terminalLane: terminalLaneForVerificationDecision(result.decision) };
+    },
   });
   if (stageResult.status === 'completed') {
-    const result = materializeVerificationResult(
-      stageResult.output,
-      input.request.hypothesis,
-      input.request.evidenceMap,
-      input.request.sourcePosture,
-    );
-    if (result === undefined) {
-      return {
-        decision: 'incomplete' as const,
-        reason: 'The verifier selected invalid map evidence.',
-        verifiedEvidence: null,
-        verifiedPlanObligations: [],
-        controlAssessment: null,
-        obligationReconciliations: [],
-        postureReconciliations: [],
-        modelObservation: stageResult.modelObservation,
-        terminalLane: 'evidence-projection-invalid' as const,
-      };
-    }
+    const { result, terminalLane } = stageResult.output;
     const accessedSource = hasSuccessfulScopedSourceInspection(stageResult.toolUsage);
     return {
       ...(result.decision === 'accepted' && !accessedSource
         ? {
-            decision: 'incomplete' as const,
-            reason: 'The verifier accepted without inspecting scoped source evidence.',
-            verifiedEvidence: null,
-            verifiedPlanObligations: [],
-            controlAssessment: null,
-            obligationReconciliations: [],
-            postureReconciliations: [],
+            ...incompleteVerificationResult(),
             terminalLane: 'inspection-missing' as const,
           }
-        : { ...result, terminalLane: terminalLaneForVerificationDecision(result.decision) }),
+        : { ...result, terminalLane }),
       modelObservation: stageResult.modelObservation,
     };
   }
   return {
-    decision: 'incomplete' as const,
-    reason: 'The independent verifier did not complete.',
-    verifiedEvidence: null,
+    ...incompleteVerificationResult(),
+    modelObservation: stageResult.modelObservation,
+    terminalLane: 'stage-failed' as const,
+  };
+}
+
+/** One strict source-minimal incomplete result for every verifier-owned non-verdict path. */
+function incompleteVerificationResult(): AuditVerificationResult {
+  return {
+    decision: 'incomplete',
+    reasonCode: 'output-invalid',
+    claimEvidenceBundles: null,
+    contradictionEvidence: null,
+    inspectedEvidence: [],
     verifiedPlanObligations: [],
+    affectedPlanObligations: [],
     controlAssessment: null,
     obligationReconciliations: [],
     postureReconciliations: [],
-    modelObservation: stageResult.modelObservation,
-    terminalLane: 'stage-failed' as const,
   };
 }

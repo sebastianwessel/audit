@@ -8,10 +8,10 @@
   "files": {
     "includes": [
       "**",
-      "!evaluation/corpora",
-      "!evaluation/research-corpora",
-      "!evaluation/acquisition-snapshots",
-      "!artifacts/schemas",
+      "!evaluation/data/corpora",
+      "!evaluation/data/research-corpora",
+      "!evaluation/data/acquisition/snapshots",
+      "!evaluation/data/stage-isolated/packs",
       "!tmp"
     ]
   },

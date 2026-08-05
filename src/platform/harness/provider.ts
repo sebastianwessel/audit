@@ -2,7 +2,7 @@ import type { ModelProvider } from '@purista/harness';
 import { anthropic } from '@purista/harness-anthropic';
 import { openai } from '@purista/harness-openai';
 import type { ModelPricing } from '../../features/model-operations/model-operations.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import type { ProviderName } from '../configuration/environment.js';
 
 export { type ProviderName, ProviderNameSchema } from '../configuration/environment.js';
@@ -12,7 +12,7 @@ export function providerCacheRoutingKey(input: {
   provider: ProviderName;
   model: string;
 }): string | undefined {
-  return input.provider === 'openai' ? `security-reviewer:${input.model}` : undefined;
+  return input.provider === 'openai' ? `audit:${input.model}` : undefined;
 }
 
 /** Harness uses `0` for an explicitly disabled deadline; provider adapters require omission. */
@@ -50,7 +50,7 @@ export function createConfiguredProvider(input: {
   const credential = configuredProviderCredentialState(input);
   const apiKey = (input.environment ?? process.env)[credential.environmentVariable];
   if (!credential.configured || apiKey === undefined) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'provider-failure',
       `The configured provider API key environment variable ${credential.environmentVariable} is not set.`,
     );

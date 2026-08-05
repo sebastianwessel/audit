@@ -24,7 +24,7 @@ An investigator candidate now cites `sourcePostureAssessmentIds`. Each of its ap
 
 ## Evaluation decision
 
-Run the existing reviewed-plan, same-route provider corpus with five or more repeats only after local contract, recovery, schema, and full test checks pass. Compare source-free outcome and cost data descriptively against the July 30 baseline. Do not make a reliability or promotion claim unless the qualified dual-reviewed real-world corpus and private-holdout gates are met.
+Run the existing reviewed-plan, same-route provider corpus with an explicitly recorded repeat count only after local contract, recovery, schema, and full test checks pass. Compare source-free outcome and cost data descriptively against the July 30 baseline. Do not make a reliability or promotion claim unless the qualified dual-reviewed real-world corpus and private-holdout gates are met.
 
 ## First measurement — not promoted
 

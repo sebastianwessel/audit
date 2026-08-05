@@ -13,10 +13,33 @@ const sources: SourceDocument[] = [
 
 const candidate: ProposedFinding = {
   vectorId: 'vector-injection-01',
-  statement: 'Candidate',
-  evidence: [{ path: 'src/candidate.txt', startLine: 1, snippet: 'b', kind: 'source' }],
+  claimEvidenceBundles: [
+    {
+      role: 'operation',
+      evidence: [
+        {
+          path: 'src/candidate.txt',
+          startLine: 1,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+          role: 'operation',
+        },
+      ],
+    },
+    {
+      role: 'unsafe-condition',
+      evidence: [
+        {
+          path: 'src/candidate.txt',
+          startLine: 1,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+          role: 'unsafe-condition',
+        },
+      ],
+    },
+  ],
   planObligations: [{ obligationId: 'candidate-obligation-01' }],
-  limitations: [],
 };
 
 test('prioritizes deterministic candidate files without omitting approved source', () => {

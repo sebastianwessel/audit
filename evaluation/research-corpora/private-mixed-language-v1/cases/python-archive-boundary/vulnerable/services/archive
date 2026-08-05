@@ -1,7 +1,0 @@
-from pathlib import Path
-
-
-def store_archive_entry(root: Path, entry_name: str, content: bytes) -> None:
-    destination = root / entry_name
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(content)

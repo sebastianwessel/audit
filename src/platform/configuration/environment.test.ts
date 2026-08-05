@@ -6,21 +6,15 @@ import { join } from 'node:path';
 import { loadRuntimeConfiguration, parseDotEnv } from './environment.js';
 
 test('loads project-local .env values over the inherited environment without exposing secrets', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-env-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-'));
   await writeFile(
     join(root, '.env'),
-    [
-      'SECURITY_REVIEWER_PROVIDER=anthropic',
-      'SECURITY_REVIEWER_MODEL=claude-test',
-      'SECURITY_REVIEWER_COST_INPUT_PER_MILLION=2.5',
-      'SECURITY_REVIEWER_COST_CACHED_INPUT_PER_MILLION=0.25',
-      'SECURITY_REVIEWER_COST_OUTPUT_PER_MILLION=10',
-    ].join('\n'),
+    ['AUDIT_PROVIDER=anthropic', 'AUDIT_MODEL=claude-test'].join('\n'),
     'utf8',
   );
   const loaded = await loadRuntimeConfiguration({
     cwd: root,
-    environment: { SECURITY_REVIEWER_PROVIDER: 'openai', OPENAI_API_KEY: 'inherited-secret' },
+    environment: { AUDIT_PROVIDER: 'openai', OPENAI_API_KEY: 'inherited-secret' },
   });
   expect(loaded.configuration).toMatchObject({
     provider: 'anthropic',
@@ -30,16 +24,57 @@ test('loads project-local .env values over the inherited environment without exp
   expect(loaded.environment.OPENAI_API_KEY).toBe('inherited-secret');
 });
 
+test('rejects removed local pricing variables', async () => {
+  await expect(
+    loadRuntimeConfiguration({
+      environment: { AUDIT_COST_INPUT_PER_MILLION: '2.5' },
+      loadDotEnv: false,
+    }),
+  ).rejects.toThrow('AUDIT_COST_INPUT_PER_MILLION has been removed');
+});
+
+test('rejects retired configuration names instead of silently accepting compatibility input', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-roots-'));
+  await writeFile(
+    join(root, '.env'),
+    [
+      'AUDIT_PUBLIC_ARTIFACT_DIR=public-artifacts',
+      'AUDIT_PRIVATE_WORK_DIR=private-work',
+      'AUDIT_ARTIFACT_DIR=retired-root',
+    ].join('\n'),
+    'utf8',
+  );
+  await expect(loadRuntimeConfiguration({ cwd: root, environment: {} })).rejects.toThrow(
+    'AUDIT_ARTIFACT_DIR has been removed',
+  );
+});
+
+test('rejects the former product-prefixed configuration names', async () => {
+  await expect(
+    loadRuntimeConfiguration({
+      environment: { SECURITY_REVIEWER_MODEL: 'retired-model' },
+      loadDotEnv: false,
+    }),
+  ).rejects.toThrow('SECURITY_REVIEWER_MODEL has been removed');
+});
+
 test('rejects malformed environment lines and keeps empty values optional', () => {
   expect(() => parseDotEnv('NOT VALID')).toThrow('Invalid .env line 1');
-  expect(parseDotEnv('SECURITY_REVIEWER_MODEL=')).toEqual({ SECURITY_REVIEWER_MODEL: '' });
+  expect(parseDotEnv('AUDIT_MODEL=')).toEqual({ AUDIT_MODEL: '' });
+});
+
+test('accepts any positive vector queue capacity without turning it into an audit-work limit', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-concurrency-'));
+  await writeFile(join(root, '.env'), 'AUDIT_MAX_PARALLEL_VECTORS=128\n', 'utf8');
+  const loaded = await loadRuntimeConfiguration({ cwd: root, environment: {} });
+  expect(loaded.configuration.maxParallelVectors).toBe(128);
 });
 
 test('uses the bundled exact catalogue price without local price configuration', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-env-catalogue-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-catalogue-'));
   await writeFile(
     join(root, '.env'),
-    ['SECURITY_REVIEWER_PROVIDER=openai', 'SECURITY_REVIEWER_MODEL=gpt-5.3-codex'].join('\n'),
+    ['AUDIT_PROVIDER=openai', 'AUDIT_MODEL=gpt-5.3-codex'].join('\n'),
     'utf8',
   );
   const loaded = await loadRuntimeConfiguration({ cwd: root, environment: {} });
@@ -52,13 +87,13 @@ test('uses the bundled exact catalogue price without local price configuration',
 });
 
 test('loads an optional observed-cost ceiling without accepting a price override', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-env-cost-ceiling-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-cost-ceiling-'));
   await writeFile(
     join(root, '.env'),
     [
-      'SECURITY_REVIEWER_PROVIDER=openai',
-      'SECURITY_REVIEWER_MODEL=gpt-5.3-codex',
-      'SECURITY_REVIEWER_MAX_ESTIMATED_COST_USD=1.50',
+      'AUDIT_PROVIDER=openai',
+      'AUDIT_MODEL=gpt-5.3-codex',
+      'AUDIT_MAX_ESTIMATED_COST_USD=1.50',
     ].join('\n'),
     'utf8',
   );
@@ -68,16 +103,16 @@ test('loads an optional observed-cost ceiling without accepting a price override
 });
 
 test('loads a complete independent verifier route without retaining the credential value in configuration', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-env-independent-route-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-independent-route-'));
   await writeFile(
     join(root, '.env'),
     [
-      'SECURITY_REVIEWER_PROVIDER=openai',
-      'SECURITY_REVIEWER_MODEL=primary-model',
-      'SECURITY_REVIEWER_VERIFICATION_MODE=independent-route',
-      'SECURITY_REVIEWER_VERIFIER_PROVIDER=anthropic',
-      'SECURITY_REVIEWER_VERIFIER_MODEL=verifier-model',
-      'SECURITY_REVIEWER_VERIFIER_API_KEY_ENV=SECONDARY_PROVIDER_KEY',
+      'AUDIT_PROVIDER=openai',
+      'AUDIT_MODEL=primary-model',
+      'AUDIT_VERIFICATION_MODE=independent-route',
+      'AUDIT_VERIFIER_PROVIDER=anthropic',
+      'AUDIT_VERIFIER_MODEL=verifier-model',
+      'AUDIT_VERIFIER_API_KEY_ENV=SECONDARY_PROVIDER_KEY',
     ].join('\n'),
     'utf8',
   );
@@ -100,16 +135,16 @@ test('loads a complete independent verifier route without retaining the credenti
 });
 
 test('rejects an independent verifier that repeats the normalized primary route', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'security-reviewer-env-same-route-'));
+  const root = await mkdtemp(join(tmpdir(), 'audit-env-same-route-'));
   await writeFile(
     join(root, '.env'),
     [
-      'SECURITY_REVIEWER_PROVIDER=openai',
-      'SECURITY_REVIEWER_MODEL=primary-model',
-      'SECURITY_REVIEWER_VERIFICATION_MODE=independent-route',
-      'SECURITY_REVIEWER_VERIFIER_PROVIDER=openai',
-      'SECURITY_REVIEWER_VERIFIER_MODEL= PRIMARY-MODEL ',
-      'SECURITY_REVIEWER_VERIFIER_API_KEY_ENV=SECONDARY_PROVIDER_KEY',
+      'AUDIT_PROVIDER=openai',
+      'AUDIT_MODEL=primary-model',
+      'AUDIT_VERIFICATION_MODE=independent-route',
+      'AUDIT_VERIFIER_PROVIDER=openai',
+      'AUDIT_VERIFIER_MODEL= PRIMARY-MODEL ',
+      'AUDIT_VERIFIER_API_KEY_ENV=SECONDARY_PROVIDER_KEY',
     ].join('\n'),
     'utf8',
   );

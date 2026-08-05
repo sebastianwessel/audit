@@ -1,8 +1,9 @@
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import { FilesystemBoundaryError } from '../../../platform/filesystem/filesystem-error.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import { type ToolUsage, ToolUsageSchema } from '../../model-operations/model-operations.schema.js';
 import type { ReviewRepositoryToolset } from './contract.js';
 
-export type BudgetedReviewToolset = Readonly<{
+export type ObservedReviewToolset = Readonly<{
   toolset: ReviewRepositoryToolset;
   usage: () => ToolUsage;
 }>;
@@ -21,7 +22,7 @@ export type ReviewToolTraceRecorder = Readonly<{
 export function createObservedReviewToolset(
   toolset: ReviewRepositoryToolset,
   trace?: ReviewToolTraceRecorder,
-): BudgetedReviewToolset {
+): ObservedReviewToolset {
   let toolCallCount = 0;
   let listFilesCallCount = 0;
   let readFileCallCount = 0;
@@ -101,7 +102,6 @@ export function createObservedReviewToolset(
         successfulGrepFilesCallCount,
         rejectedCallCount,
         returnedBytes,
-        budgetExhausted: false,
       }),
   });
 }
@@ -111,5 +111,9 @@ function serializedByteLength(response: object): number {
 }
 
 function toolErrorCode(error: unknown): string {
-  return error instanceof SecurityReviewerError ? error.code : 'tool-failure';
+  if (error instanceof AuditRuntimeError) return error.code;
+  if (error instanceof FilesystemBoundaryError) {
+    return `filesystem-${error.code.toLowerCase().replaceAll('_', '-')}`;
+  }
+  return 'tool-failure';
 }

@@ -10,14 +10,14 @@ import {
 } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
-import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/security-reviewer-harness.js';
+import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/audit-harness.js';
 import { SourcePostureRequestSchema } from '../../audit-execution/phase-input/contract.js';
 import { SourcePostureModelInputSchema } from '../agents/source-posture/contract.js';
 
 import { runSourcePostureStage } from './source-posture.js';
 
 test('fails closed when a tool-guided posture completes without scoped source inspection', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-source-posture-stage-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-source-posture-stage-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   provider.enqueueObject({
@@ -27,6 +27,7 @@ test('fails closed when a tool-guided posture completes without scoped source in
           assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-contradicted',
+          summary: 'The scoped evidence contradicts the risk-positive obligation.',
           evidenceMapFactIds: ['fact-source-01'],
           limitations: [],
         },
@@ -48,12 +49,11 @@ test('fails closed when a tool-guided posture completes without scoped source in
           {
             factId: 'fact-source-01',
             role: 'operation',
-            statement: 'The approved source contains the reviewed operation.',
             evidence: [
               {
                 path: 'reviewed.unknown',
                 startLine: 1,
-                snippet: 'value = request.input;',
+                contentDigest: 'a'.repeat(64),
                 kind: 'source',
               },
             ],
@@ -87,9 +87,7 @@ test('fails closed when a tool-guided posture completes without scoped source in
 });
 
 test('records a source-backed not-applicable posture as a neutral outcome', async () => {
-  const targetRoot = await mkdtemp(
-    join(tmpdir(), 'security-reviewer-source-posture-not-applicable-'),
-  );
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-source-posture-not-applicable-'));
   await writeFile(join(targetRoot, 'reviewed.unknown'), 'value = request.input;\n', 'utf8');
   const provider = new FakeModelProvider();
   enqueueScopedSearch(provider, 'not-applicable-inspection');
@@ -100,8 +98,9 @@ test('records a source-backed not-applicable posture as a neutral outcome', asyn
           assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'not-applicable',
+          summary: 'The scoped source does not represent the reviewed operation.',
           evidenceMapFactIds: ['fact-source-01'],
-          notApplicableReason: 'The inspected source has no tenant-scoped resource or boundary.',
+          notApplicableReason: 'no-relevant-operation-in-scope',
           limitations: [],
         },
       ],
@@ -139,7 +138,7 @@ test('records a source-backed not-applicable posture as a neutral outcome', asyn
       assessments: [
         {
           conclusion: 'not-applicable',
-          notApplicableReason: 'The inspected source has no tenant-scoped resource or boundary.',
+          notApplicableReason: 'no-relevant-operation-in-scope',
         },
       ],
     },
@@ -151,7 +150,7 @@ test('records a source-backed not-applicable posture as a neutral outcome', asyn
 });
 
 test('does not persist a recovered posture that references evidence outside its child scope', async () => {
-  const targetRoot = await mkdtemp(join(tmpdir(), 'security-reviewer-source-posture-overflow-'));
+  const targetRoot = await mkdtemp(join(tmpdir(), 'audit-source-posture-overflow-'));
   await writeFile(join(targetRoot, 'a.unknown'), 'value = request.a;\n', 'utf8');
   await writeFile(join(targetRoot, 'b.unknown'), 'value = request.b;\n', 'utf8');
   const provider = new OverflowFirstObjectProvider();
@@ -180,6 +179,7 @@ test('does not persist a recovered posture that references evidence outside its 
     modelPricing: {},
     cacheRoutingEnabled: false,
     overflowTopology: {
+      phaseInputFingerprint: '0'.repeat(64),
       onTransition: async () => undefined,
       onRecoveredLeafCompleted: async () => {
         persistedLeafCount += 1;
@@ -233,6 +233,7 @@ function postureOutput(factId: string) {
           assessmentId: 'posture-test-obligation-01',
           obligationId: 'test-obligation-01',
           conclusion: 'risk-contradicted',
+          summary: 'The scoped evidence contradicts the risk-positive obligation.',
           evidenceMapFactIds: [factId],
           limitations: [],
         },
@@ -248,8 +249,7 @@ function sourceFact(factId: string, path: string) {
   return {
     factId,
     role: 'operation' as const,
-    statement: 'The approved source contains the reviewed operation.',
-    evidence: [{ path, startLine: 1, snippet: 'value = request;', kind: 'source' as const }],
+    evidence: [{ path, startLine: 1, contentDigest: 'a'.repeat(64), kind: 'source' as const }],
     planObligations: [{ obligationId: 'test-obligation-01' }],
   };
 }

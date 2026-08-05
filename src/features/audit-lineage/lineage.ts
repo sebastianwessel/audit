@@ -1,7 +1,11 @@
 import { createStableId } from '../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
-import type { AuditReport, Finding, VectorCoverage } from '../audit-execution/audit.schema.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import { createFindingFingerprint } from '../audit-execution/synthesis/identity.js';
+import type {
+  PublicAuditReport,
+  PublicFinding,
+  PublicVectorCoverage,
+} from '../audit-report/public-contract.js';
 
 import {
   type AuditLineageEntry,
@@ -11,8 +15,8 @@ import {
 
 /** Compares reports by a source-free partial fingerprint; it never reads target source. */
 export function createAuditReportLineage(input: {
-  previous: AuditReport;
-  current: AuditReport;
+  previous: PublicAuditReport;
+  current: PublicAuditReport;
   generatedAt: string;
 }): AuditReportLineage {
   const previousFindings = findingsByIdentity(input.previous, 'previous');
@@ -73,14 +77,14 @@ export function createAuditReportLineage(input: {
 }
 
 function findingsByIdentity(
-  report: AuditReport,
+  report: PublicAuditReport,
   label: 'previous' | 'current',
-): ReadonlyMap<string, Finding> {
-  const findings = new Map<string, Finding>();
+): ReadonlyMap<string, PublicFinding> {
+  const findings = new Map<string, PublicFinding>();
   for (const finding of report.findings) {
     const identity = createFindingFingerprint(finding);
     if (findings.has(identity)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'invalid-input',
         `The ${label} report has duplicate stable finding fingerprints.`,
       );
@@ -91,13 +95,13 @@ function findingsByIdentity(
 }
 
 function coverageByVector(
-  report: AuditReport,
+  report: PublicAuditReport,
   label: 'previous' | 'current',
-): ReadonlyMap<string, VectorCoverage> {
-  const coverage = new Map<string, VectorCoverage>();
+): ReadonlyMap<string, PublicVectorCoverage> {
+  const coverage = new Map<string, PublicVectorCoverage>();
   for (const vector of report.coverage) {
     if (coverage.has(vector.vectorId)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'invalid-input',
         `The ${label} report has duplicate coverage vector identifiers.`,
       );
@@ -107,11 +111,11 @@ function coverageByVector(
   return coverage;
 }
 
-function isCompleted(coverage: VectorCoverage | undefined): boolean {
+function isCompleted(coverage: PublicVectorCoverage | undefined): boolean {
   return coverage?.completed === true && coverage.outcome === 'completed';
 }
 
-function reportIdentity(report: AuditReport) {
+function reportIdentity(report: PublicAuditReport) {
   return {
     reportId: report.reportId,
     planId: report.planId,

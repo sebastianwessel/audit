@@ -3,7 +3,7 @@ import { expect, test } from 'bun:test';
 import { AttackPlanSchema, hasExactPlanObligations, SourceEvidenceSchema } from './plan.schema.js';
 
 const plan = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   planId: 'plan-demo-01',
   planDigest: 'c'.repeat(64),
   targetFingerprint: 'a'.repeat(64),
@@ -55,7 +55,7 @@ test('does not impose fixed product ceilings on vectors, obligations, or source 
     SourceEvidenceSchema.parse({
       path: 'source.unknown',
       startLine: 1,
-      snippet: 'source',
+      contentDigest: 'a'.repeat(64),
       kind: 'source',
       role: 'operation',
     }),
@@ -65,6 +65,23 @@ test('does not impose fixed product ceilings on vectors, obligations, or source 
 test('attack plan contract rejects unknown fields and retired approval metadata', () => {
   expect(() => AttackPlanSchema.parse({ ...plan, unexpected: true })).toThrow();
   expect(() => AttackPlanSchema.parse({ ...plan, reviewStatus: 'approved' })).toThrow();
+});
+
+test('requires unique executable vector identities and at least one enabled vector', () => {
+  const vector = plan.vectors[0];
+  if (vector === undefined) throw new Error('Fixture requires one vector.');
+  expect(() =>
+    AttackPlanSchema.parse({ ...plan, vectors: [vector, { ...vector, title: 'Duplicate id' }] }),
+  ).toThrow('vector identifiers must be unique');
+  expect(() =>
+    AttackPlanSchema.parse({
+      ...plan,
+      vectors: [vector, { ...vector, vectorId: 'different-vector-01' }],
+    }),
+  ).toThrow('vector digests must be unique');
+  expect(() =>
+    AttackPlanSchema.parse({ ...plan, vectors: [{ ...vector, enabled: false }] }),
+  ).toThrow('requires at least one enabled vector');
 });
 
 test('rejects duplicate additional observation identifiers', () => {
@@ -115,7 +132,7 @@ test('canonicalizes source-evidence tokens supplied by an agent boundary', () =>
       path: 'src/review.ts',
       startLine: 1,
       endLine: null,
-      snippet: 'operation(value)',
+      contentDigest: 'a'.repeat(64),
       kind: ' SOURCE ',
       role: null,
     }),
@@ -127,7 +144,7 @@ test('owns the extended source-role vocabulary in one reusable schema', () => {
     SourceEvidenceSchema.parse({
       path: 'source.unknown',
       startLine: 1,
-      snippet: 'source',
+      contentDigest: 'a'.repeat(64),
       kind: 'source',
       role: ' CounterEvidence ',
     }).role,
@@ -136,7 +153,7 @@ test('owns the extended source-role vocabulary in one reusable schema', () => {
     SourceEvidenceSchema.parse({
       path: 'source.unknown',
       startLine: 1,
-      snippet: 'source',
+      contentDigest: 'a'.repeat(64),
       kind: 'source',
       role: 'language-specific-shortcut',
     }),

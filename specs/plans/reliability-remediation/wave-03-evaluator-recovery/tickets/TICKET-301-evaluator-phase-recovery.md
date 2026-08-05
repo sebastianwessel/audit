@@ -13,7 +13,7 @@ spec_refs:
 write_scope:
   - src/cli/
   - src/features/audit-execution/
-  - src/features/evaluation/
+  - evaluation/src/
   - docs/
   - .claude/agents/
   - specs/
@@ -21,7 +21,7 @@ read_scope:
   - AGENTS.md
   - .agent/IMPLEMENTATION.md
   - src/features/audit-execution/
-  - src/features/evaluation/
+  - evaluation/src/
   - src/features/review-workflow/
   - src/platform/artifact-store/
 contract_readiness: ready

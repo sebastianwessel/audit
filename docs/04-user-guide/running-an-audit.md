@@ -3,8 +3,8 @@
 Before starting, confirm:
 
 - the target path is the intended checkout;
-- the plan is approved;
-- output goes to a separate artifact directory;
+- the plan has been reviewed or edited according to your team's process;
+- private work and public artifacts go to separate directories;
 - provider and model settings are intentional;
 - the chosen vector concurrency and optional observed-cost ceiling are intentional.
 
@@ -12,7 +12,7 @@ If the use case has context documents, confirm they describe the intended surrou
 
 The audit reads repository source and selected context, then produces a new report. It does not change the target, contact a running instance, execute code, or perform a real attack.
 
-`--max-parallel-vectors 1` is the safe default. Raise it only when your provider quota and CI resources support parallel independent investigations. The same setting also bounds all in-flight verifier and evaluation-only countercheck requests across the whole run, so a vector with many candidates cannot create a provider-call burst. It never limits how many candidates or files the reviewer processes; queued work keeps its reviewed-plan order. The same default can be set with `SECURITY_REVIEWER_MAX_PARALLEL_VECTORS` in `.env`.
+`AUDIT_MAX_PARALLEL_VECTORS=1` is the safe default in `.env`. Raise it only when your provider quota and CI resources support parallel independent investigations. The setting bounds all in-flight verifier and evaluation-only countercheck requests across the whole run, so a vector with many candidates cannot create a provider-call burst. It never limits how many candidates or files the reviewer processes; queued work keeps its reviewed-plan order.
 
 ## When a run is partial
 
@@ -20,4 +20,6 @@ A partial report is still useful when some vectors completed successfully. It mu
 
 ## Safe reruns
 
-Use a new run identifier when changing provider, model, limits, or plan. Compare reports as separate observations. If an audit stops partway through, repeat the same run id with `--resume true` to reuse completed phase and verifier work; add `--retry-unfinished true` to reattempt only incomplete, failed, or cancelled work. Interrupted verifier work is safely scheduled again, while an exact completed verifier result is not paid for twice. The tool does not claim that two AI runs will produce identical findings.
+Use a new run identifier when changing provider, model, limits, or plan. Compare reports as separate observations. If an audit stops partway through, repeat the same run id with `--resume true` to reuse matching completed work from private work; add `--retry-unfinished true` to resume from the smallest exact incomplete boundary. For example, if the grounding draft was saved but the verifier had not yet started, the audit keeps the completed map, posture, discovery, grounding, closures, and recorded cost, then starts only that missing verifier unit. A pending, running, failed, or incomplete verifier/countercheck resumes only according to its exact matching state. Only grounding work explicitly recorded as unfinished returns to its own earlier boundary. Resume never turns an earlier provider failure into a clean result or promises that a retry will succeed. Upload only the public artifact root; private work is not a CI artifact.
+
+After a failed command, keep the private work directory and resume the same run. A report file without its matching run manifest is not a complete publishable audit result.

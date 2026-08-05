@@ -7,12 +7,12 @@ import {
 import {
   type HarnessExecutionConfiguration,
   HarnessExecutionConfigurationSchema,
-} from '../../platform/harness/security-reviewer-harness.js';
+} from '../../platform/harness/audit-harness.js';
 import {
-  SecurityReviewerError,
-  SecurityReviewerErrorCodeSchema,
-} from '../../shared/errors/security-reviewer-error.js';
-import { assertPlanIsSealed, createPlan } from '../attack-planning/plan.js';
+  AuditRuntimeError,
+  AuditRuntimeErrorCodeSchema,
+} from '../../shared/errors/audit-runtime-error.js';
+import { assertPlanIsSealed, assertPlanMatchesTarget } from '../attack-planning/plan.js';
 import type { AttackPlan } from '../attack-planning/plan.schema.js';
 import {
   type AuditCandidateGroundingRecoveryLeafUpdate,
@@ -26,14 +26,33 @@ import {
 } from '../audit-execution/audit.js';
 import type {
   AuditCandidateGroundingDraft,
+  AuditCheckpointExecution,
+  AuditContextOverflowLedger,
   AuditEvidenceMapDraft,
   AuditReport,
   AuditSourcePostureDraft,
   AuditVectorResult,
 } from '../audit-execution/audit.schema.js';
 import type { AuditResumeState } from '../audit-execution/checkpoints.js';
+import { selectScopedSources } from '../audit-execution/investigation/scope.js';
+import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
+import type { PublicAuditReport } from '../audit-report/public-contract.js';
+import {
+  type DeveloperGuidanceAttempt,
+  type DeveloperGuidanceCheckpoint,
+  type DeveloperGuidanceItem,
+  type DeveloperGuidanceReport,
+  DeveloperGuidanceReportSchema,
+} from '../developer-guidance/guidance.schema.js';
+import {
+  createDeveloperGuidanceFindingBinding,
+  createDeveloperGuidanceId,
+  createDeveloperGuidanceReportDigest,
+  latestDeveloperGuidanceAttempts,
+} from '../developer-guidance/identity.js';
 import {
   createModelCostCeiling,
+  type ModelCostCeiling,
   type ModelCostCeilingState,
   type ModelCostCeilingUsd,
   type ModelPricing,
@@ -55,20 +74,43 @@ import {
 import { selectApplicableContext } from './runtime/source-tools.js';
 import type { ResolvedVerificationRoute } from './runtime/verification-route.js';
 import { runCandidateGroundingStage } from './stages/candidate-grounding.js';
+import { runDeveloperGuidanceStage } from './stages/developer-guidance.js';
 import { runEvidenceMapStage } from './stages/evidence-map.js';
+import { runEvidenceMapRepairStage } from './stages/evidence-map-repair.js';
 import { runInvestigationStage } from './stages/investigation.js';
 import { runPlanningStage } from './stages/planning.js';
+import type { EvaluatorFailureDiagnosticSink } from './stages/scoped-model-stage.js';
 import { runSourcePostureStage } from './stages/source-posture.js';
 import { runVerificationStage } from './stages/verification.js';
 
 export type ReviewService = Readonly<{
   inspectTarget: (input: ReviewTargetInput) => Promise<TargetInventory>;
   recordPriorModelStages: (stages: readonly ModelStageObservation[]) => void;
+  /** Shared evaluator-owned dispatch guard, when a later isolated stage must use it. */
+  modelCostCeiling: () => ModelCostCeiling | undefined;
   /** Current source-free run-wide dispatch-guard state, including disabled state. */
   modelCostCeilingState: () => ModelCostCeilingState;
   createPlan: (input: ReviewTargetInput & { createdAt: string; sessionId: string }) => Promise<{
     inventory: TargetInventory;
     plan: AttackPlan;
+    modelObservation: ModelRunObservation;
+    modelCostCeilingState?: ModelCostCeilingState;
+  }>;
+  createDeveloperGuidance: (
+    input: ReviewTargetInput & {
+      plan: AttackPlan;
+      report: PublicAuditReport;
+      retainedTarget?: TargetInventoryCapture;
+      recoveredCheckpoint?: DeveloperGuidanceCheckpoint;
+      retryUnfinished?: boolean;
+      onCheckpoint?: (state: { attempts: readonly DeveloperGuidanceAttempt[] }) => Promise<void>;
+      runId: string;
+      generatedAt: string;
+      sessionId: string;
+    },
+  ) => Promise<{
+    inventory: TargetInventory;
+    guidance: DeveloperGuidanceReport;
     modelObservation: ModelRunObservation;
     modelCostCeilingState?: ModelCostCeilingState;
   }>;
@@ -83,24 +125,32 @@ export type ReviewService = Readonly<{
       retainedSnapshot?: TargetInventoryCapture;
       onSnapshotCaptured?: (capture: TargetInventoryCapture) => Promise<void>;
       onEvidenceMapDraft?: (
-        draft: Pick<AuditEvidenceMapDraft, 'vectorId' | 'evidenceMap' | 'modelObservation'>,
+        draft: Pick<
+          AuditEvidenceMapDraft,
+          'vectorId' | 'evidenceMap' | 'repairAttempts' | 'execution'
+        >,
       ) => Promise<void>;
       onCandidateGroundingDraft?: (
         draft: Pick<
           AuditCandidateGroundingDraft,
           | 'vectorId'
-          | 'findings'
+          | 'groundings'
           | 'closures'
           | 'hypothesisGroundingFunnel'
           | 'candidateIntegrityRejections'
           | 'discoveryObservation'
           | 'modelObservation'
+          | 'evidenceMapFingerprint'
+          | 'sourcePostureFingerprint'
         >,
       ) => Promise<void>;
       onVerifiedDiscoverySeed?: (update: AuditVerifiedDiscoverySeedUpdate) => Promise<void>;
       onCandidateAwareCheckpoint?: (update: CandidateAwareCheckpointUpdate) => Promise<void>;
       onSourcePostureDraft?: (
-        draft: Pick<AuditSourcePostureDraft, 'vectorId' | 'sourcePosture' | 'modelObservation'>,
+        draft: Pick<
+          AuditSourcePostureDraft,
+          'vectorId' | 'sourcePosture' | 'execution' | 'evidenceMapFingerprint'
+        >,
       ) => Promise<void>;
       onContextOverflowTransition?: (update: AuditContextOverflowTransition) => Promise<void>;
       onEvidenceMapRecoveryLeaf?: (update: AuditEvidenceMapRecoveryLeafUpdate) => Promise<void>;
@@ -131,8 +181,51 @@ export type ReviewServiceOptions = Readonly<{
   modelCacheRoutingKey?: string;
   independentVerifierRoute?: ResolvedVerificationRoute;
   maxEstimatedCostUsd?: ModelCostCeilingUsd;
+  /**
+   * Evaluation workflows can supply their one shared observed-cost guard when
+   * a later evaluator stage must account for the same provider budget.
+   * Supplying both forms would create two inconsistent accounting domains.
+   */
+  modelCostCeiling?: ModelCostCeiling;
   priorModelStages?: readonly ModelStageObservation[];
+  /** Evaluator-only best-effort diagnostics; product callers must leave this absent. */
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
 }>;
+
+export type DeveloperGuidanceTargetInput = ReviewTargetInput &
+  Readonly<{
+    plan: AttackPlan;
+    report: PublicAuditReport;
+  }>;
+
+function assertDeveloperGuidanceBindings(
+  input: DeveloperGuidanceTargetInput,
+  inventory: TargetInventory,
+): void {
+  assertPlanIsSealed(input.plan);
+  assertPlanMatchesTarget(input.plan, inventory.targetFingerprint, inventory.contextDigest);
+  if (
+    input.report.planId !== input.plan.planId ||
+    input.report.targetFingerprint !== inventory.targetFingerprint
+  ) {
+    throw new AuditRuntimeError(
+      'invalid-input',
+      'Developer guidance requires a report for the exact sealed plan and target.',
+    );
+  }
+}
+
+/**
+ * Validates every non-provider input and captures the immutable state that the
+ * later guidance stage is allowed to inspect.
+ */
+export async function prepareDeveloperGuidanceTarget(
+  input: DeveloperGuidanceTargetInput,
+): Promise<TargetInventoryCapture> {
+  const capture = await captureTargetInventory(await createFilesystem(input));
+  assertDeveloperGuidanceBindings(input, capture.inventory);
+  return capture;
+}
 
 export function createReviewService(
   modelProvider: ModelProvider,
@@ -144,25 +237,27 @@ export function createReviewService(
     options.harnessExecution ?? {},
   );
   const modelPricing: ModelPricing = options.modelPricing ?? {};
+  if (options.modelCostCeiling !== undefined && options.maxEstimatedCostUsd !== undefined) {
+    throw new AuditRuntimeError(
+      'invalid-input',
+      'A review service accepts either a shared model-cost ceiling or a configured ceiling, not both.',
+    );
+  }
   const modelCostCeiling =
-    options.maxEstimatedCostUsd === undefined
+    options.modelCostCeiling ??
+    (options.maxEstimatedCostUsd === undefined
       ? undefined
       : createModelCostCeiling({
           configuredUsd: options.maxEstimatedCostUsd,
           pricing: modelPricing,
           priorStages: options.priorModelStages,
-        });
-  if (modelCostCeiling !== undefined && maxParallelVectors !== 1) {
-    throw new SecurityReviewerError(
-      'invalid-input',
-      'A model-cost ceiling requires maxParallelVectors to be 1.',
-    );
-  }
+        }));
   const cacheRoutingEnabled = options.modelCacheRoutingKey !== undefined;
   const verificationRoute = options.independentVerifierRoute;
   return Object.freeze({
     inspectTarget: async (input) => inventoryTarget(await createFilesystem(input)),
     recordPriorModelStages: (stages) => modelCostCeiling?.recordPriorStages(stages),
+    modelCostCeiling: () => modelCostCeiling,
     modelCostCeilingState: () =>
       modelCostCeiling?.state() ?? {
         configuredUsd: null,
@@ -192,27 +287,170 @@ export function createReviewService(
         modelPricing,
         modelCostCeiling,
         cacheRoutingEnabled,
+        evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
       });
       if (planning.status === 'failed') {
-        const stableErrorCode = SecurityReviewerErrorCodeSchema.safeParse(planning.errorCode);
-        throw new SecurityReviewerError(
+        const stableErrorCode = AuditRuntimeErrorCodeSchema.safeParse(planning.errorCode);
+        throw new AuditRuntimeError(
           stableErrorCode.success ? stableErrorCode.data : 'provider-failure',
           'The planning model stage did not complete.',
         );
       }
-      const plan = createPlan({
+      return {
+        inventory,
+        plan: planning.output,
+        modelObservation: summarizeModelStages([planning.modelObservation], modelPricing),
+        ...(modelCostCeiling === undefined
+          ? {}
+          : { modelCostCeilingState: modelCostCeiling.state() }),
+      };
+    },
+    createDeveloperGuidance: async (input) => {
+      const capture = input.retainedTarget ?? (await prepareDeveloperGuidanceTarget(input));
+      const { inventory, snapshot } = capture;
+      assertDeveloperGuidanceBindings(input, inventory);
+      const attempts = [...(input.recoveredCheckpoint?.attempts ?? [])];
+      const recoveredByFinding = latestDeveloperGuidanceAttempts(input.recoveredCheckpoint);
+      const reportFindingIds = new Set(input.report.findings.map((finding) => finding.findingId));
+      if (attempts.some((attempt) => !reportFindingIds.has(attempt.item.findingId))) {
+        throw new AuditRuntimeError(
+          'artifact-invalid',
+          'A recovered developer-guidance item is not an accepted report finding.',
+        );
+      }
+      for (const attempt of attempts) {
+        const finding = input.report.findings.find(
+          (candidate) => candidate.findingId === attempt.item.findingId,
+        );
+        if (finding === undefined) {
+          throw new AuditRuntimeError(
+            'artifact-invalid',
+            'A recovered developer-guidance attempt is not an accepted report finding.',
+          );
+        }
+        const binding = createDeveloperGuidanceFindingBinding(finding);
+        if (
+          attempt.item.findingFingerprint !== binding.findingFingerprint ||
+          attempt.item.vectorId !== binding.vectorId ||
+          attempt.modelObservation.stageId !==
+            createDeveloperGuidanceId(input.report.reportId, finding.findingId)
+        ) {
+          throw new AuditRuntimeError(
+            'artifact-invalid',
+            'A recovered developer-guidance attempt does not match its accepted finding.',
+          );
+        }
+      }
+      for (const finding of input.report.findings) {
+        const binding = createDeveloperGuidanceFindingBinding(finding);
+        const recovered = recoveredByFinding.get(finding.findingId);
+        if (recovered !== undefined) {
+          if (
+            recovered.item.findingFingerprint !== binding.findingFingerprint ||
+            recovered.item.vectorId !== binding.vectorId
+          ) {
+            throw new AuditRuntimeError(
+              'artifact-invalid',
+              'A recovered developer-guidance item does not match its accepted finding.',
+            );
+          }
+          if (recovered.item.status === 'completed' || input.retryUnfinished !== true) continue;
+        }
+        const vector = input.plan.vectors.find(
+          (candidate) => candidate.vectorId === finding.vectorId,
+        );
+        if (vector === undefined) {
+          throw new AuditRuntimeError(
+            'artifact-invalid',
+            'A report finding has no matching plan vector.',
+          );
+        }
+        const sources = selectScopedSources(vector, snapshot.documents());
+        const stage = await runDeveloperGuidanceStage({
+          modelProvider,
+          filesystem: snapshot,
+          request: {
+            guidanceId: createDeveloperGuidanceId(input.report.reportId, finding.findingId),
+            finding,
+            vector,
+            availableSourcePaths: sources.map((source) => source.path),
+            context: [
+              ...selectApplicableContext(
+                inventory.context,
+                sources.map((source) => source.path),
+              ),
+            ],
+          },
+          context: selectApplicableContext(
+            inventory.context,
+            sources.map((source) => source.path),
+          ),
+          sessionId: input.sessionId,
+          modelName,
+          harnessExecution,
+          modelCacheRoutingKey: options.modelCacheRoutingKey,
+          modelPricing,
+          modelCostCeiling,
+          cacheRoutingEnabled,
+        });
+        const item: DeveloperGuidanceItem =
+          stage.status === 'completed'
+            ? {
+                ...binding,
+                status: 'completed',
+                recommendedPriority: stage.output.recommendedPriority,
+              }
+            : stage.errorCode === 'provider-cancelled'
+              ? { ...binding, status: 'cancelled', reasonCode: 'provider-cancelled' }
+              : { ...binding, status: 'incomplete', reasonCode: stage.errorCode };
+        attempts.push({
+          attempt: (recovered?.attempt ?? 0) + 1,
+          item,
+          modelObservation: stage.modelObservation,
+        });
+        await input.onCheckpoint?.({ attempts });
+      }
+      const finalAttempts = new Map(recoveredByFinding);
+      for (const attempt of attempts) {
+        const current = finalAttempts.get(attempt.item.findingId);
+        if (current === undefined || current.attempt < attempt.attempt) {
+          finalAttempts.set(attempt.item.findingId, attempt);
+        }
+      }
+      const items = input.report.findings.map((finding) => {
+        const attempt = finalAttempts.get(finding.findingId);
+        if (attempt === undefined) {
+          throw new AuditRuntimeError(
+            'artifact-invalid',
+            'Developer guidance is missing a terminal item for an accepted report finding.',
+          );
+        }
+        return attempt.item;
+      });
+      const guidance = DeveloperGuidanceReportSchema.parse({
+        schemaVersion: 3,
+        guidanceId: createDeveloperGuidanceId(input.report.reportId, input.runId),
+        runId: input.runId,
+        reportId: input.report.reportId,
+        reportDigest: createDeveloperGuidanceReportDigest(input.report),
+        planId: input.plan.planId,
+        planDigest: input.plan.planDigest,
         targetFingerprint: inventory.targetFingerprint,
         contextDigest: inventory.contextDigest,
-        targetDisplayName: input.targetDisplayName,
-        inventorySummary: inventory.summary,
-        vectors: planning.output.vectors,
-        additionalObservations: planning.output.additionalObservations,
-        createdAt: input.createdAt,
+        generatedAt: input.generatedAt,
+        items,
+        modelObservation: summarizeModelStages(
+          attempts.map((attempt) => attempt.modelObservation),
+          modelPricing,
+        ),
+        ...(modelCostCeiling === undefined
+          ? {}
+          : { modelCostCeilingState: modelCostCeiling.state() }),
       });
       return {
         inventory,
-        plan,
-        modelObservation: summarizeModelStages([planning.modelObservation], modelPricing),
+        guidance,
+        modelObservation: guidance.modelObservation,
         ...(modelCostCeiling === undefined
           ? {}
           : { modelCostCeilingState: modelCostCeiling.state() }),
@@ -261,13 +499,16 @@ export function createReviewService(
                     ...(stageContext?.priorEvidenceMapRecoveryLeaves === undefined
                       ? {}
                       : {
-                          priorRecoveredLeaves: stageContext.priorEvidenceMapRecoveryLeaves.map(
-                            (leaf) => ({
+                          priorRecoveredLeaves: stageContext.priorEvidenceMapRecoveryLeaves
+                            .filter(
+                              (leaf) =>
+                                leaf.phaseInputFingerprint === stageContext.phaseInputFingerprint,
+                            )
+                            .map((leaf) => ({
                               childKey: leaf.childKey,
                               scopeFingerprint: leaf.scopeFingerprint,
                               output: leaf.evidenceMap,
-                            }),
-                          ),
+                            })),
                         }),
                     ...(stageContext?.onEvidenceMapRecoveryLeaf === undefined
                       ? {}
@@ -275,11 +516,14 @@ export function createReviewService(
                           onRecoveredLeafCompleted: async (leaf: {
                             childKey: string;
                             scopeFingerprint: string;
+                            execution: AuditCheckpointExecution;
                             output: import('../audit-execution/evidence-map/contract.js').EvidenceMap;
                           }) =>
                             stageContext.onEvidenceMapRecoveryLeaf?.({
                               vectorId: request.vector.vectorId,
+                              phase: 'evidence-mapping',
                               parentStageId: request.vector.vectorId,
+                              phaseInputFingerprint: stageContext.phaseInputFingerprint,
                               recoveryProtocolFingerprint:
                                 contextOverflowRecoveryProtocolFingerprint,
                               rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
@@ -288,6 +532,7 @@ export function createReviewService(
                               }),
                               childKey: leaf.childKey,
                               scopeFingerprint: leaf.scopeFingerprint,
+                              execution: leaf.execution,
                               evidenceMap: leaf.output,
                             }),
                         }),
@@ -309,6 +554,8 @@ export function createReviewService(
             modelPricing,
             modelCostCeiling,
             cacheRoutingEnabled,
+            evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+            onCompletedModelObservation: stageContext?.onCompletedModelObservation,
             ...evidenceMapRecovery,
           });
           return result.status === 'completed'
@@ -322,6 +569,87 @@ export function createReviewService(
                 },
                 modelObservation: result.modelObservation,
               };
+        },
+        repairEvidenceMap: async (request, stageContext) => {
+          const context = selectApplicableContext(inventory.context, request.availableSourcePaths);
+          const recovery = overflowTopologyForStage({
+            stageContext,
+            phase: 'evidence-map-repair',
+            vectorId: request.vector.vectorId,
+            sourcePaths: request.availableSourcePaths,
+            context,
+          });
+          const evidenceMapRepairRecovery =
+            'overflowTopology' in recovery
+              ? {
+                  overflowTopology: {
+                    ...recovery.overflowTopology,
+                    ...(stageContext?.priorEvidenceMapRecoveryLeaves === undefined
+                      ? {}
+                      : {
+                          priorRecoveredLeaves: stageContext.priorEvidenceMapRecoveryLeaves
+                            .filter(
+                              (leaf) =>
+                                leaf.phase === 'evidence-map-repair' &&
+                                leaf.phaseInputFingerprint === stageContext.phaseInputFingerprint,
+                            )
+                            .map((leaf) => ({
+                              childKey: leaf.childKey,
+                              scopeFingerprint: leaf.scopeFingerprint,
+                              output: leaf.evidenceMap,
+                            })),
+                        }),
+                    ...(stageContext?.onEvidenceMapRecoveryLeaf === undefined
+                      ? {}
+                      : {
+                          onRecoveredLeafCompleted: async (leaf: {
+                            childKey: string;
+                            scopeFingerprint: string;
+                            execution: AuditCheckpointExecution;
+                            output: import('../audit-execution/evidence-map/contract.js').EvidenceMap;
+                          }) =>
+                            stageContext.onEvidenceMapRecoveryLeaf?.({
+                              vectorId: request.vector.vectorId,
+                              phase: 'evidence-map-repair',
+                              parentStageId: request.vector.vectorId,
+                              phaseInputFingerprint: stageContext.phaseInputFingerprint,
+                              recoveryProtocolFingerprint:
+                                contextOverflowRecoveryProtocolFingerprint,
+                              rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
+                                sourcePaths: request.availableSourcePaths,
+                                context,
+                              }),
+                              childKey: leaf.childKey,
+                              scopeFingerprint: leaf.scopeFingerprint,
+                              execution: leaf.execution,
+                              evidenceMap: leaf.output,
+                            }),
+                        }),
+                  },
+                }
+              : recovery;
+          const result = await runEvidenceMapRepairStage({
+            modelProvider,
+            filesystem: sourceSnapshot,
+            request,
+            sources: sourceSnapshot
+              .documents()
+              .filter((source) => request.availableSourcePaths.includes(source.path)),
+            context,
+            sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map-repair`,
+            modelName,
+            harnessExecution,
+            modelCacheRoutingKey: options.modelCacheRoutingKey,
+            modelPricing,
+            modelCostCeiling,
+            cacheRoutingEnabled,
+            evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+            onCompletedModelObservation: stageContext?.onCompletedModelObservation,
+            ...evidenceMapRepairRecovery,
+          });
+          return result.status === 'completed'
+            ? { evidenceMap: result.output, modelObservation: result.modelObservation }
+            : { evidenceMap: request.evidenceMap, modelObservation: result.modelObservation };
         },
         assessSourcePosture: async (request, stageContext) => {
           const context = selectApplicableContext(inventory.context, request.availableSourcePaths);
@@ -340,13 +668,16 @@ export function createReviewService(
                     ...(stageContext?.priorSourcePostureRecoveryLeaves === undefined
                       ? {}
                       : {
-                          priorRecoveredLeaves: stageContext.priorSourcePostureRecoveryLeaves.map(
-                            (leaf) => ({
+                          priorRecoveredLeaves: stageContext.priorSourcePostureRecoveryLeaves
+                            .filter(
+                              (leaf) =>
+                                leaf.phaseInputFingerprint === stageContext.phaseInputFingerprint,
+                            )
+                            .map((leaf) => ({
                               childKey: leaf.childKey,
                               scopeFingerprint: leaf.scopeFingerprint,
                               output: leaf.sourcePosture,
-                            }),
-                          ),
+                            })),
                         }),
                     ...(stageContext?.onSourcePostureRecoveryLeaf === undefined
                       ? {}
@@ -354,11 +685,13 @@ export function createReviewService(
                           onRecoveredLeafCompleted: async (leaf: {
                             childKey: string;
                             scopeFingerprint: string;
+                            execution: AuditCheckpointExecution;
                             output: import('../audit-execution/source-posture/contract.js').SourcePosture;
                           }) =>
                             stageContext.onSourcePostureRecoveryLeaf?.({
                               vectorId: request.vector.vectorId,
                               parentStageId: request.vector.vectorId,
+                              phaseInputFingerprint: stageContext.phaseInputFingerprint,
                               recoveryProtocolFingerprint:
                                 contextOverflowRecoveryProtocolFingerprint,
                               rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
@@ -367,6 +700,7 @@ export function createReviewService(
                               }),
                               childKey: leaf.childKey,
                               scopeFingerprint: leaf.scopeFingerprint,
+                              execution: leaf.execution,
                               sourcePosture: leaf.output,
                             }),
                         }),
@@ -385,6 +719,8 @@ export function createReviewService(
             modelPricing,
             modelCostCeiling,
             cacheRoutingEnabled,
+            evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+            onCompletedModelObservation: stageContext?.onCompletedModelObservation,
             ...sourcePostureRecovery,
           });
           return result.status === 'completed'
@@ -411,6 +747,8 @@ export function createReviewService(
             modelPricing,
             modelCostCeiling,
             cacheRoutingEnabled,
+            evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+            onCompletedModelObservation: stageContext?.onCompletedModelObservation,
             ...overflowTopologyForStage({
               stageContext,
               phase: 'investigation',
@@ -437,8 +775,12 @@ export function createReviewService(
                     ...(stageContext?.priorCandidateGroundingRecoveryLeaves === undefined
                       ? {}
                       : {
-                          priorRecoveredLeaves:
-                            stageContext.priorCandidateGroundingRecoveryLeaves.map((leaf) => ({
+                          priorRecoveredLeaves: stageContext.priorCandidateGroundingRecoveryLeaves
+                            .filter(
+                              (leaf) =>
+                                leaf.phaseInputFingerprint === stageContext.phaseInputFingerprint,
+                            )
+                            .map((leaf) => ({
                               childKey: leaf.childKey,
                               scopeFingerprint: leaf.scopeFingerprint,
                               output: leaf.groundings,
@@ -450,11 +792,13 @@ export function createReviewService(
                           onRecoveredLeafCompleted: async (leaf: {
                             childKey: string;
                             scopeFingerprint: string;
+                            execution: AuditCheckpointExecution;
                             output: import('../audit-execution/candidate-grounding/contract.js').CanonicalCandidateGroundingOutput;
                           }) =>
                             stageContext.onCandidateGroundingRecoveryLeaf?.({
                               vectorId: request.vector.vectorId,
                               parentStageId: request.vector.vectorId,
+                              phaseInputFingerprint: stageContext.phaseInputFingerprint,
                               recoveryProtocolFingerprint:
                                 contextOverflowRecoveryProtocolFingerprint,
                               rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
@@ -463,6 +807,7 @@ export function createReviewService(
                               }),
                               childKey: leaf.childKey,
                               scopeFingerprint: leaf.scopeFingerprint,
+                              execution: leaf.execution,
                               groundings: leaf.output,
                             }),
                         }),
@@ -484,10 +829,16 @@ export function createReviewService(
             modelPricing,
             modelCostCeiling,
             cacheRoutingEnabled,
+            evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+            onCompletedModelObservation: stageContext?.onCompletedModelObservation,
             ...candidateGroundingRecovery,
           });
           return result.status === 'completed'
-            ? { groundings: result.output, modelObservation: result.modelObservation }
+            ? {
+                groundings: result.output,
+                mapInsufficiencies: result.output.mapInsufficiencies ?? [],
+                modelObservation: result.modelObservation,
+              }
             : { groundings: { groundings: [] }, modelObservation: result.modelObservation };
         },
         verify: (request, candidateContext) => {
@@ -496,11 +847,13 @@ export function createReviewService(
             candidateContext === undefined
               ? undefined
               : {
+                  phaseInputFingerprint: candidateContext.phaseInputFingerprint,
                   ...(candidateContext.priorContextOverflowTopology === undefined
                     ? {}
                     : { prior: candidateContext.priorContextOverflowTopology }),
                   onTransition: async (event: ContextOverflowTopology['events'][number]) =>
                     candidateContext.onContextOverflowTransition?.({
+                      phaseInputFingerprint: candidateContext.phaseInputFingerprint,
                       recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
                       rootScopeFingerprint: contextRecoveryRootScopeFingerprint({
                         sourcePaths: request.availableSourcePaths,
@@ -522,6 +875,8 @@ export function createReviewService(
             modelPricing: verificationRoute?.modelPricing ?? modelPricing,
             modelCostCeiling,
             cacheRoutingEnabled: verificationRoute?.cacheRoutingEnabled ?? cacheRoutingEnabled,
+            evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+            onCompletedModelObservation: candidateContext?.onCompletedModelObservation,
             route: verificationRoute?.route ?? 'primary',
             ...(overflowTopology === undefined ? {} : { overflowTopology }),
           });
@@ -549,6 +904,7 @@ function overflowTopologyForStage(input: {
 }):
   | Readonly<{
       overflowTopology: Readonly<{
+        phaseInputFingerprint: AuditContextOverflowLedger['phaseInputFingerprint'];
         prior?: ContextOverflowTopology;
         onTransition: (event: ContextOverflowTopology['events'][number]) => Promise<void>;
       }>;
@@ -567,27 +923,31 @@ function overflowTopologyForStage(input: {
       prior.phase !== input.phase ||
       prior.parentStageId !== input.vectorId)
   ) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'The persisted context-overflow topology is bound to a different audit stage.',
     );
   }
+  const reusablePrior =
+    prior?.phaseInputFingerprint === stageContext.phaseInputFingerprint ? prior : undefined;
   return {
     overflowTopology: {
-      ...(prior === undefined
+      phaseInputFingerprint: stageContext.phaseInputFingerprint,
+      ...(reusablePrior === undefined
         ? {}
         : {
             prior: {
-              recoveryProtocolFingerprint: prior.recoveryProtocolFingerprint,
-              rootScopeFingerprint: prior.rootScopeFingerprint,
-              events: prior.events.map(
-                ({ childKey, attempt, scopeFingerprint, state, errorCode, modelObservation }) => ({
+              phaseInputFingerprint: reusablePrior.phaseInputFingerprint,
+              recoveryProtocolFingerprint: reusablePrior.recoveryProtocolFingerprint,
+              rootScopeFingerprint: reusablePrior.rootScopeFingerprint,
+              events: reusablePrior.events.map(
+                ({ childKey, attempt, scopeFingerprint, state, errorCode, execution }) => ({
                   childKey,
                   attempt,
                   scopeFingerprint,
                   state,
                   errorCode,
-                  ...(modelObservation === undefined ? {} : { modelObservation }),
+                  ...(execution === undefined ? {} : { execution }),
                 }),
               ),
             },
@@ -597,6 +957,7 @@ function overflowTopologyForStage(input: {
           vectorId: input.vectorId,
           phase: input.phase,
           parentStageId: input.vectorId,
+          phaseInputFingerprint: stageContext.phaseInputFingerprint,
           recoveryProtocolFingerprint: contextOverflowRecoveryProtocolFingerprint,
           rootScopeFingerprint,
           event,
@@ -604,34 +965,6 @@ function overflowTopologyForStage(input: {
       },
     },
   };
-}
-
-/**
- * Builds the run ledger only from independently retained stage observations.
- * Countercheck remains evaluation-only, but its cost must never disappear.
- */
-export function modelStagesForAudit(
-  input: AuditReport | AuditReport['coverage'],
-): readonly ModelStageObservation[] {
-  const coverage = Array.isArray(input) ? input : input.coverage;
-  return [
-    ...coverage.flatMap((coverage) =>
-      coverage.evidenceMapObservation === undefined ? [] : [coverage.evidenceMapObservation],
-    ),
-    ...coverage.flatMap((coverage) =>
-      coverage.sourcePostureObservation === undefined ? [] : [coverage.sourcePostureObservation],
-    ),
-    ...coverage.flatMap((coverage) =>
-      coverage.modelObservation === undefined ? [] : [coverage.modelObservation],
-    ),
-    ...coverage.flatMap((coverage) =>
-      coverage.candidateGroundingObservation === undefined
-        ? []
-        : [coverage.candidateGroundingObservation],
-    ),
-    ...coverage.flatMap((coverage) => coverage.verificationObservations ?? []),
-    ...coverage.flatMap((coverage) => coverage.countercheckObservations ?? []),
-  ];
 }
 
 async function createFilesystem(input: ReviewTargetInput): Promise<JailedReadOnlyFilesystem> {

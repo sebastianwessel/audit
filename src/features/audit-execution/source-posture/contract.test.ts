@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { UnverifiedSourcePostureSchema } from './contract.js';
+import { SourcePostureSchema, UnverifiedSourcePostureSchema } from './contract.js';
 
 test('normalizes only known source-posture conclusion tokens at the model boundary', () => {
   const posture = UnverifiedSourcePostureSchema.parse({
@@ -34,10 +34,10 @@ test('rejects duplicate obligation assessments and unknown fields', () => {
   ).toThrow('at most one');
   expect(() =>
     UnverifiedSourcePostureSchema.parse({ assessments: [assessment], limitations: [], raw: true }),
-  ).toThrow();
+  ).toThrow('Unrecognized key');
 });
 
-test('requires a crisp reason only for a not-applicable assessment', () => {
+test('requires a closed reason only for a not-applicable assessment', () => {
   const base = {
     assessmentId: 'posture-question-01',
     obligationId: 'test-obligation-01',
@@ -56,10 +56,34 @@ test('requires a crisp reason only for a not-applicable assessment', () => {
         {
           ...base,
           conclusion: 'not-applicable',
-          notApplicableReason: 'The scoped code has no matching feature.',
+          notApplicableReason: ' NO-RELEVANT-OPERATION-IN-SCOPE ',
         },
       ],
       limitations: [],
     }).assessments[0]?.notApplicableReason,
-  ).toBe('The scoped code has no matching feature.');
+  ).toBe('no-relevant-operation-in-scope');
+  expect(
+    SourcePostureSchema.parse({
+      assessments: [
+        {
+          ...base,
+          conclusion: 'not-applicable',
+          notApplicableReason: 'no-relevant-operation-in-scope',
+        },
+      ],
+      limitations: [],
+    }).assessments[0]?.notApplicableReason,
+  ).toBe('no-relevant-operation-in-scope');
+  expect(() =>
+    UnverifiedSourcePostureSchema.parse({
+      assessments: [
+        {
+          ...base,
+          conclusion: 'not-applicable',
+          notApplicableReason: 'the scoped code has no matching feature',
+        },
+      ],
+      limitations: [],
+    }),
+  ).toThrow();
 });

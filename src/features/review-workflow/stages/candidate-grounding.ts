@@ -1,8 +1,11 @@
 import type { ModelProvider } from '@purista/harness';
-import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
+import { claimEvidenceItems } from '../../attack-planning/plan.schema.js';
+import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import type {
   CandidateGroundingRequest,
+  CandidateGroundingStageOutput,
   CanonicalCandidateGroundingOutput,
 } from '../../audit-execution/candidate-grounding/contract.js';
 import { canonicalizeCandidateGroundingOutput } from '../../audit-execution/candidate-grounding/identity.js';
@@ -10,13 +13,19 @@ import type { EvidenceMap } from '../../audit-execution/evidence-map/contract.js
 import type { HypothesisSeed } from '../../audit-execution/investigation/contract.js';
 import type { SourceDocument } from '../../audit-execution/phase-input/contract.js';
 import type { SourcePosture } from '../../audit-execution/source-posture/contract.js';
-import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
+import type {
+  ModelCostCeiling,
+  ModelPricing,
+  ModelStageObservation,
+} from '../../model-operations/model-operations.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
+import {
+  type CandidateGroundingModelOutput,
+  CandidateGroundingModelOutputSchema,
+} from '../agents/candidate-grounding/contract.js';
 import type {
   ContextOverflowRecoveredLeaf,
-  ContextOverflowTopology,
-  ContextOverflowTopologyEvent,
   ContextRecoveryScope,
 } from '../runtime/context-overflow.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
@@ -25,7 +34,12 @@ import {
   sourceEvidenceIntersectsRecoveryScope,
   sourceEvidenceIsWithinRecoveryScope,
 } from './scoped-evidence.js';
-import { runScopedModelStage } from './scoped-model-stage.js';
+import {
+  type EvaluatorFailureDiagnosticSink,
+  projectScopedModelOutput,
+  runScopedModelStage,
+  type ScopedModelStageOverflowTopologyBase,
+} from './scoped-model-stage.js';
 
 /** Grounds a bounded batch of discovery seeds without permitting new discovery. */
 export async function runCandidateGroundingStage(input: {
@@ -42,24 +56,33 @@ export async function runCandidateGroundingStage(input: {
   modelPricing: ModelPricing;
   modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
-  overflowTopology?: Readonly<{
-    prior?: ContextOverflowTopology;
-    priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<CanonicalCandidateGroundingOutput>[];
-    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
-    onRecoveredLeafCompleted?: (input: {
-      childKey: string;
-      scope: ContextRecoveryScope;
-      scopeFingerprint: string;
-      output: CanonicalCandidateGroundingOutput;
-    }) => Promise<void>;
-  }>;
+  overflowTopology?: ScopedModelStageOverflowTopologyBase &
+    Readonly<{
+      priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<CanonicalCandidateGroundingOutput>[];
+      onRecoveredLeafCompleted?: (input: {
+        childKey: string;
+        scope: ContextRecoveryScope;
+        scopeFingerprint: string;
+        execution: AuditCheckpointExecution;
+        output: CanonicalCandidateGroundingOutput;
+      }) => Promise<void>;
+    }>;
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
 }) {
   const overflowTopology = (() => {
     if (input.overflowTopology === undefined) return undefined;
     const { priorRecoveredLeaves, onRecoveredLeafCompleted, ...topology } = input.overflowTopology;
     return {
       ...topology,
-      ...(priorRecoveredLeaves === undefined ? {} : { priorRecoveredLeaves }),
+      ...(priorRecoveredLeaves === undefined
+        ? {}
+        : {
+            priorRecoveredLeaves: priorRecoveredLeaves.map((leaf) => ({
+              ...leaf,
+              output: { ...leaf.output, mapInsufficiencies: [] },
+            })),
+          }),
       ...(onRecoveredLeafCompleted === undefined
         ? {}
         : {
@@ -68,25 +91,31 @@ export async function runCandidateGroundingStage(input: {
               attempt: number;
               scope: ContextRecoveryScope;
               scopeFingerprint: string;
-              output: CanonicalCandidateGroundingOutput;
+              execution: AuditCheckpointExecution;
+              output: CandidateGroundingStageOutput;
             }) => {
               const scoped = candidateGroundingScopeProjection(
                 input.request,
                 input.sources,
                 leaf.scope,
               );
-              assertCanonicalGroundingWithinScope(leaf.output, scoped, leaf.scope);
+              assertCanonicalGroundingWithinScope(
+                { groundings: leaf.output.groundings },
+                scoped,
+                leaf.scope,
+              );
               await onRecoveredLeafCompleted({
                 childKey: leaf.childKey,
                 scope: leaf.scope,
                 scopeFingerprint: leaf.scopeFingerprint,
-                output: leaf.output,
+                execution: leaf.execution,
+                output: { groundings: leaf.output.groundings },
               });
             },
           }),
     };
   })();
-  return runScopedModelStage<CanonicalCandidateGroundingOutput>({
+  return runScopedModelStage<CandidateGroundingStageOutput, CandidateGroundingModelOutput>({
     stage: 'candidate-grounding',
     route: 'primary',
     stageId: input.request.vector.vectorId,
@@ -101,57 +130,91 @@ export async function runCandidateGroundingStage(input: {
     modelPricing: input.modelPricing,
     modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
+    evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
+    onCompletedModelObservation: input.onCompletedModelObservation,
     ...(overflowTopology === undefined ? {} : { overflowTopology }),
     requireScopedSourceInspection: true,
     hasModelWorkInScope: (scope) =>
       candidateGroundingScopeProjection(input.request, input.sources, scope).request.seeds.length >
       0,
-    emptyScopeOutput: () => ({ groundings: [] }),
+    emptyScopeOutput: () => ({ groundings: [], mapInsufficiencies: [] }),
     allowContextSplitting: false,
-    invoke: async (session, _attempt, scope: ContextRecoveryScope) => {
+    invoke: async (session, _attempt, scope: ContextRecoveryScope, retryGuidance) => {
       const scoped = candidateGroundingScopeProjection(input.request, input.sources, scope);
       if (scoped.request.seeds.length === 0) {
-        throw new SecurityReviewerError(
+        throw new AuditRuntimeError(
           'artifact-invalid',
           'Candidate grounding dispatched a recovery scope without a complete seed basis.',
         );
       }
-      return canonicalizeCandidateGroundingOutput({
-        vector: input.request.vector,
-        seeds: scoped.request.seeds,
-        output: await session.workflows.ground_vector_candidates.prompt({
-          ...scoped.request,
-          availableSourcePaths: [...scope.sourcePaths],
-          context: [...scope.context],
-          inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
-        }),
-        evidenceMap: scoped.request.evidenceMap,
-        sourcePosture: scoped.request.sourcePosture,
-        sources: scoped.sources,
+      return session.workflows.ground_vector_candidates.prompt({
+        ...scoped.request,
+        availableSourcePaths: [...scope.sourcePaths],
+        context: [...scope.context],
+        inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
+        retryGuidance,
       });
     },
+    projectOutput: (output, scope) =>
+      projectScopedModelOutput(() => {
+        const scoped = candidateGroundingScopeProjection(input.request, input.sources, scope);
+        const normalizedOutput = CandidateGroundingModelOutputSchema.parse(output);
+        return {
+          groundings: canonicalizeCandidateGroundingOutput({
+            vector: input.request.vector,
+            seeds: scoped.request.seeds,
+            output: normalizedOutput,
+            evidenceMap: scoped.request.evidenceMap,
+            sourcePosture: scoped.request.sourcePosture,
+            sources: scoped.sources,
+          }).groundings,
+          mapInsufficiencies: normalizedOutput.mapInsufficiencies ?? [],
+        };
+      }),
     reduceRecoveredOutputs: (leaves) => ({
       groundings: input.request.seeds.map((seed) => {
         const groundings = leaves.flatMap((leaf) =>
           leaf.output.groundings.filter((grounding) => grounding.seedId === seed.seedId),
         );
         if (groundings.length !== 1) {
-          throw new SecurityReviewerError(
+          throw new AuditRuntimeError(
             'provider-context-overflow',
             'Context recovery must return exactly one canonical grounding for every requested seed.',
           );
         }
         const grounding = groundings[0];
         if (grounding === undefined) {
-          throw new SecurityReviewerError(
+          throw new AuditRuntimeError(
             'provider-context-overflow',
             'Context recovery did not retain a canonical grounding outcome.',
           );
         }
         return grounding;
       }),
+      mapInsufficiencies: uniqueInsufficiencies(
+        leaves.flatMap((leaf) => leaf.output.mapInsufficiencies ?? []),
+      ),
     }),
   });
+}
+
+function uniqueInsufficiencies(
+  insufficiencies: NonNullable<CandidateGroundingStageOutput['mapInsufficiencies']>,
+): NonNullable<CandidateGroundingStageOutput['mapInsufficiencies']> {
+  const bySignature = new Map<
+    string,
+    NonNullable<CandidateGroundingStageOutput['mapInsufficiencies']>[number]
+  >();
+  for (const insufficiency of insufficiencies) {
+    const signature = JSON.stringify([
+      [...insufficiency.obligationIds].sort((left, right) => left.localeCompare(right)),
+      [...insufficiency.needs].sort((left, right) => left.localeCompare(right)),
+    ]);
+    bySignature.set(signature, insufficiency);
+  }
+  return [...bySignature.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([, insufficiency]) => insufficiency);
 }
 
 /** Projects only the complete, exact seed basis a recovery child can inspect. */
@@ -174,7 +237,7 @@ function candidateGroundingScopeProjection(
   const seeds = request.seeds.flatMap((seed) => {
     const facts = seed.evidenceMapFactIds.map((factId) => factsById.get(factId));
     if (facts.some((fact) => fact === undefined)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'artifact-invalid',
         'Candidate grounding received a seed with an unknown evidence-map fact.',
       );
@@ -182,7 +245,7 @@ function candidateGroundingScopeProjection(
     const complete = seed.evidenceMapFactIds.every((factId) => scopedFactIds.has(factId));
     if (!complete) {
       if (facts.some((fact) => fact !== undefined && evidenceMapFactTouchesScope(fact, scope))) {
-        throw new SecurityReviewerError(
+        throw new AuditRuntimeError(
           'provider-context-overflow',
           'A discovery seed cannot be losslessly assigned to one recovered source scope.',
         );
@@ -194,7 +257,7 @@ function candidateGroundingScopeProjection(
         scopedAssessmentIds.has(assessmentId),
       )
     ) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'artifact-invalid',
         'Candidate grounding received a seed without its complete source-posture basis.',
       );
@@ -243,7 +306,7 @@ function assertCanonicalGroundingWithinScope(
     scoped.request.evidenceMap.facts.map((fact) => [fact.factId, fact] as const),
   );
   if (output.groundings.length !== seeds.size) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'A recovered grounding artifact does not retain exactly its assigned seed outcomes.',
     );
@@ -251,7 +314,7 @@ function assertCanonicalGroundingWithinScope(
   for (const grounding of output.groundings) {
     const seed = seeds.get(grounding.seedId);
     if (seed === undefined) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'artifact-invalid',
         'A recovered grounding artifact references a seed outside its exact approved scope.',
       );
@@ -260,18 +323,18 @@ function assertCanonicalGroundingWithinScope(
     for (const factId of grounding.hypothesis.evidenceMapFactIds) {
       const fact = facts.get(factId);
       if (fact === undefined || !evidenceMapFactIsWithinRecoveryScope(fact, scope)) {
-        throw new SecurityReviewerError(
+        throw new AuditRuntimeError(
           'artifact-invalid',
           'A recovered grounding artifact references map evidence outside its exact approved scope.',
         );
       }
     }
     if (
-      grounding.hypothesis.evidence.some(
+      claimEvidenceItems(grounding.hypothesis).some(
         (evidence) => !sourceEvidenceIsWithinRecoveryScope(evidence, scope),
       )
     ) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'artifact-invalid',
         'A recovered grounding artifact references source evidence outside its exact approved scope.',
       );

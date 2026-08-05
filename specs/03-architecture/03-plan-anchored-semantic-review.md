@@ -12,6 +12,13 @@ explicit, risk-positive review obligations. Each obligation has a stable
 `obligationId`, a `riskStatement`, and an `evidenceRequirement`. It is the
 only review-unit identity used after plan execution starts.
 
+`riskStatement` names both the source condition under review and its protected
+security consequence; `evidenceRequirement` names the source relations and
+controls needed to establish or negate that exact claim. They are a single
+human/model semantic contract, not a taxonomy or a new deterministic security
+rule. A generic coding pattern or a missing guard is not a substitute for the
+named consequence.
+
 ## Required review protocol
 
 For each candidate, discovery and grounding must preserve the exact approved
@@ -23,9 +30,13 @@ with a visible limitation.
 The verifier independently re-reads the same vector scope and decides whether
 the supplied hypothesis answers its exact obligations. It must search for
 source-local controls that could negate or qualify the claim. `accepted`
-requires reconciled `operation` and `unsafe-condition` evidence for the same
-claim and vector; `rejected` requires a source-backed contradiction; and
-`incomplete` is required when bounded static evidence cannot decide.
+requires complete independently selected `operation` and `unsafe-condition`
+evidence bundles for the same claim and vector; every bundle may retain several
+map-projected locations plus an explanation. `rejected` requires source-backed
+counterevidence and complete reconciliation; `incomplete` is required when
+bounded static evidence cannot decide. A source-level behavior without
+source/context evidence for the plan-required security consequence or
+reachability is `incomplete` with `context-required`, not a confirmed claim.
 
 When source supports it, model evidence can distinguish an entrypoint,
 effecting operation, root control, and counterevidence. These are
@@ -40,10 +51,13 @@ output, and private reasoning are never persisted.
 Every candidate and verifier result references one or more unique
 `{ obligationId }` values. Its selected map facts and source-posture
 assessments must bind those exact obligations. Before verification,
-deterministic code projects model-selected locations only from validated map
-facts. It rejects invalid obligation references, bindings, and selections.
+deterministic code projects every model-selected bundle location only from
+validated map facts. It rejects invalid obligation references, bindings,
+selection duplication, incomplete role sets, and impossible decision fields.
 This is provenance validation only: it does not interpret the risk statement,
-decide control effectiveness or data flow, or create a finding.
+decide control effectiveness or data flow, or create a finding. A schema-valid
+rejection is a completed negative decision; an incomplete model decision and
+an operational failure remain distinct incomplete coverage states.
 
 ## Additional observations
 
@@ -74,10 +88,30 @@ provider context-window error uses the shared lossless recovery protocol. A
 failed response or incomplete verifier never produces a static fallback
 finding.
 
+`repo_read` returns an ordered collection of exact physical `{ line, text }`
+records. A model must cite only a returned `line` value that directly supports
+its map fact or verifier selection; it must not count displayed text, use a
+nearby delimiter/comment, or estimate a coordinate. `repo_grep` may locate
+candidate areas, but exact source-evidence selection requires a subsequent
+`repo_read`. This is a tool-provenance rule, not a source-language or
+vulnerability interpretation.
+
+Every model-stage input carries one closed `retryGuidance` value. `initial`
+means produce the normal strict output. `output-validation` contains only a
+stable signature and schema-path labels: the stage must correct those output
+fields while preserving the exact scope, source-evidence discipline, and every
+unrelated valid output. `source-inspection` means the previous completion did
+not complete the required scoped read/search action, so the stage must inspect
+the same scope before producing a conclusion. Instructions use one
+feature-owned explanation of these semantics; they never receive a rejected
+output, validation message/value, source, prompt, tool transcript, or provider
+detail. A repeated validation signature is a typed no-progress incomplete
+outcome, not an unbounded retry or broader inspection allowance.
+
 ## Evaluation and promotion
 
 Provider evaluation uses the reviewed-plan profile, tool-guided evidence,
-five repeats, compatible configuration identities, and evaluator-only answer
+an explicitly recorded repeat count, compatible configuration identities, and evaluator-only answer
 keys. It reports completion, detection, localization, patched matching
 behavior, adjudicated false positives, unadjudicated outputs, agreement,
 latency, token use, and cost only where the corpus supports those claims. A
@@ -86,7 +120,10 @@ diagnostic result is never an automatic product promotion.
 ## Acceptance
 
 - Instructions require exact risk-positive obligation anchoring and
-  source-local control review in discovery and verification.
+  source-local control review in discovery and verification, including the
+  named security consequence rather than a generic code-pattern concern.
+- Exact physical source-line records prevent models from estimating evidence
+  coordinates; tests reject the former unnumbered `repo_read` response shape.
 - All product references use the plan-owned `obligationId`; no indexed
   obligation contract remains.
 - Unknown-extension source follows the same protocol.
@@ -95,3 +132,6 @@ diagnostic result is never an automatic product promotion.
   gating, or evaluation scoring until a human promotes it into a resealed plan.
 - Retry, recovery, telemetry, schemas, and strict source-free artifacts retain
   the exact obligation binding.
+- Every live model-stage instruction explains the same closed retry-guidance
+  semantics, and fake-provider tests prove retry inputs retain scope while
+  correcting only the declared output shape.

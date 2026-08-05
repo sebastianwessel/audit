@@ -7,12 +7,14 @@ import {
   ModelPricingSchema,
 } from '../../features/model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../../features/model-operations/model-pricing-catalogue.js';
+import { MaxParallelVectorsSchema } from '../../shared/contracts/concurrency.js';
+import { ModelIdentifierSchema } from '../../shared/contracts/model-identity.js';
 
 export type EnvironmentSource = Readonly<Record<string, string | undefined>>;
 
 export const ProviderNameSchema = z.enum(['openai', 'anthropic']);
 export type ProviderName = z.infer<typeof ProviderNameSchema>;
-export const MaxParallelVectorsSchema = z.number().int().min(1).max(8);
+export { MaxParallelVectorsSchema } from '../../shared/contracts/concurrency.js';
 export const VerificationModeSchema = z.enum(['same-route', 'independent-route']);
 export type VerificationMode = z.infer<typeof VerificationModeSchema>;
 
@@ -25,7 +27,7 @@ const EnvironmentVariableNameSchema = z
 
 export const IndependentVerifierRouteSchema = z.strictObject({
   provider: ProviderNameSchema,
-  model: z.string().trim().min(1).max(160),
+  model: ModelIdentifierSchema,
   apiKeyEnvironmentVariable: EnvironmentVariableNameSchema,
   modelPricing: ModelPricingSchema,
 });
@@ -34,9 +36,10 @@ export type IndependentVerifierRoute = z.infer<typeof IndependentVerifierRouteSc
 export const RuntimeConfigurationSchema = z
   .strictObject({
     provider: ProviderNameSchema.optional(),
-    model: z.string().trim().min(1).max(160).optional(),
+    model: ModelIdentifierSchema.optional(),
     apiKeyEnvironmentVariable: z.string().trim().min(1).max(160).optional(),
-    artifactDirectory: z.string().trim().min(1).max(1_024),
+    publicArtifactDirectory: z.string().trim().min(1).max(1_024),
+    privateWorkDirectory: z.string().trim().min(1).max(1_024),
     evaluationCorpusRoot: z.string().trim().min(1).max(1_024),
     evaluationOutputRoot: z.string().trim().min(1).max(1_024),
     maxParallelVectors: MaxParallelVectorsSchema,
@@ -87,6 +90,13 @@ export type RuntimeConfigurationOptions = Readonly<{
   loadDotEnv?: boolean;
 }>;
 
+const RemovedEnvironmentVariableNames = [
+  'AUDIT_ARTIFACT_DIR',
+  'AUDIT_COST_INPUT_PER_MILLION',
+  'AUDIT_COST_CACHED_INPUT_PER_MILLION',
+  'AUDIT_COST_OUTPUT_PER_MILLION',
+] as const;
+
 /** Loads the project-local optional .env file without ever logging its values. */
 export async function loadRuntimeConfiguration(
   options: RuntimeConfigurationOptions = {},
@@ -97,46 +107,42 @@ export async function loadRuntimeConfiguration(
       ? {}
       : await readOptionalDotEnv(join(options.cwd ?? process.cwd(), '.env'));
   const environment = Object.freeze({ ...processEnvironment, ...dotEnv });
-  const provider = optionalValue(environment, 'SECURITY_REVIEWER_PROVIDER');
-  const model = optionalValue(environment, 'SECURITY_REVIEWER_MODEL');
+  assertNoRetiredEnvironmentVariables(environment);
+  const provider = optionalValue(environment, 'AUDIT_PROVIDER');
+  const model = optionalValue(environment, 'AUDIT_MODEL');
   const verificationMode = VerificationModeSchema.parse(
-    optionalValue(environment, 'SECURITY_REVIEWER_VERIFICATION_MODE') ?? 'same-route',
+    optionalValue(environment, 'AUDIT_VERIFICATION_MODE') ?? 'same-route',
   );
   return Object.freeze({
     configuration: RuntimeConfigurationSchema.parse({
       provider,
       model,
-      apiKeyEnvironmentVariable: optionalValue(environment, 'SECURITY_REVIEWER_API_KEY_ENV'),
-      artifactDirectory:
-        optionalValue(environment, 'SECURITY_REVIEWER_ARTIFACT_DIR') ??
-        '.security-review-artifacts',
+      apiKeyEnvironmentVariable: optionalValue(environment, 'AUDIT_API_KEY_ENV'),
+      publicArtifactDirectory:
+        optionalValue(environment, 'AUDIT_PUBLIC_ARTIFACT_DIR') ?? '.audit-artifacts',
+      privateWorkDirectory: optionalValue(environment, 'AUDIT_PRIVATE_WORK_DIR') ?? '.audit-work',
       evaluationCorpusRoot:
-        optionalValue(environment, 'SECURITY_REVIEWER_EVALUATION_CORPUS_ROOT') ??
-        'evaluation/corpora',
+        optionalValue(environment, 'AUDIT_EVALUATION_CORPUS_ROOT') ?? 'evaluation/data/corpora',
       evaluationOutputRoot:
-        optionalValue(environment, 'SECURITY_REVIEWER_EVALUATION_OUTPUT_ROOT') ?? 'evaluation/runs',
-      maxParallelVectors:
-        optionalInteger(environment, 'SECURITY_REVIEWER_MAX_PARALLEL_VECTORS') ?? 1,
-      maxEstimatedCostUsd: optionalDecimal(environment, 'SECURITY_REVIEWER_MAX_ESTIMATED_COST_USD'),
+        optionalValue(environment, 'AUDIT_EVALUATION_OUTPUT_ROOT') ?? 'evaluation/runs',
+      maxParallelVectors: optionalInteger(environment, 'AUDIT_MAX_PARALLEL_VECTORS') ?? 1,
+      maxEstimatedCostUsd: optionalDecimal(environment, 'AUDIT_MAX_ESTIMATED_COST_USD'),
       modelPricing: catalogueModelPricing({ provider, model }),
       verificationMode,
       ...(verificationMode === 'independent-route'
         ? {
             independentVerifierRoute: {
               provider: ProviderNameSchema.parse(
-                requiredEnvironmentValue(environment, 'SECURITY_REVIEWER_VERIFIER_PROVIDER'),
+                requiredEnvironmentValue(environment, 'AUDIT_VERIFIER_PROVIDER'),
               ),
-              model: requiredEnvironmentValue(environment, 'SECURITY_REVIEWER_VERIFIER_MODEL'),
+              model: requiredEnvironmentValue(environment, 'AUDIT_VERIFIER_MODEL'),
               apiKeyEnvironmentVariable: requiredEnvironmentValue(
                 environment,
-                'SECURITY_REVIEWER_VERIFIER_API_KEY_ENV',
+                'AUDIT_VERIFIER_API_KEY_ENV',
               ),
               modelPricing: catalogueModelPricing({
-                provider: requiredEnvironmentValue(
-                  environment,
-                  'SECURITY_REVIEWER_VERIFIER_PROVIDER',
-                ),
-                model: requiredEnvironmentValue(environment, 'SECURITY_REVIEWER_VERIFIER_MODEL'),
+                provider: requiredEnvironmentValue(environment, 'AUDIT_VERIFIER_PROVIDER'),
+                model: requiredEnvironmentValue(environment, 'AUDIT_VERIFIER_MODEL'),
               }),
             },
           }
@@ -144,6 +150,19 @@ export async function loadRuntimeConfiguration(
     }),
     environment,
   });
+}
+
+function assertNoRetiredEnvironmentVariables(environment: EnvironmentSource): void {
+  const retiredVariable = Object.keys(environment).find(
+    (variable) =>
+      variable.startsWith('SECURITY_REVIEWER_') ||
+      (RemovedEnvironmentVariableNames as readonly string[]).includes(variable),
+  );
+  if (retiredVariable !== undefined) {
+    throw new TypeError(
+      `${retiredVariable} has been removed. Use the AUDIT_* configuration names and bundled model pricing.`,
+    );
+  }
 }
 
 async function readOptionalDotEnv(path: string): Promise<EnvironmentSource> {

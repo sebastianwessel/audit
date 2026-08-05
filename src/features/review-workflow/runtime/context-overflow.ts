@@ -1,8 +1,8 @@
 import { isHarnessError } from '@purista/harness';
 
 import { sha256 } from '../../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
-import type { ModelStageObservation } from '../../model-operations/model-operations.schema.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
+import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 
 export type SourceLineRange = Readonly<{
@@ -49,11 +49,16 @@ export type ContextOverflowTopologyEvent = Readonly<{
   scopeFingerprint: string;
   state: ContextOverflowTopologyState;
   errorCode: string | null;
-  /** Content-free per-scope telemetry supplied by the shared stage lifecycle. */
-  modelObservation?: ModelStageObservation;
+  /**
+   * Content-free terminal-child execution supplied by the shared stage
+   * lifecycle. The generic coordinator cannot determine this itself: an
+   * owning stage may complete a child without model work.
+   */
+  execution?: AuditCheckpointExecution;
 }>;
 
 export type ContextOverflowTopology = Readonly<{
+  phaseInputFingerprint: string;
   recoveryProtocolFingerprint: string;
   rootScopeFingerprint: string;
   events: readonly ContextOverflowTopologyEvent[];
@@ -61,7 +66,7 @@ export type ContextOverflowTopology = Readonly<{
 
 /** Bump only with a deliberate breaking change to deterministic scope splitting. */
 export const contextOverflowRecoveryProtocolFingerprint = sha256(
-  'security-reviewer-context-overflow-topology-v2',
+  'audit-context-overflow-topology-v2',
 );
 
 type ContextSelector = (
@@ -70,6 +75,7 @@ type ContextSelector = (
 ) => readonly ContextDocument[];
 
 export type ContextOverflowRecoveryInput<Result> = Readonly<{
+  phaseInputFingerprint: string;
   sourcePaths: readonly string[];
   context?: readonly ContextDocument[];
   selectContext?: ContextSelector;
@@ -132,7 +138,7 @@ export async function recoverFromContextOverflow<Result>(
 ): Promise<Result> {
   const scope = createPathScope(input.sourcePaths, input.context ?? [], input.selectContext);
   const rootScopeFingerprint = contextRecoveryScopeFingerprint(scope);
-  assertPriorTopology(input.priorTopology, rootScopeFingerprint);
+  assertPriorTopology(input.priorTopology, input.phaseInputFingerprint, rootScopeFingerprint);
   const rootPreviouslyOverflowed = latestState(input.priorTopology, 'root') === 'overflowed';
   const leaves = await collectRecoveredLeaves(scope, input, 1, 'root', rootScopeFingerprint);
   if (!rootPreviouslyOverflowed && leaves.length === 1 && leaves[0]?.scope === scope) {
@@ -222,7 +228,7 @@ async function collectRecoveredLeaves<Result>(
   const partitions =
     input.allowScopeSplitting === false ? undefined : await splitScope(scope, input);
   if (partitions === undefined) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'provider-context-overflow',
       'The provider context window was exceeded for an indivisible approved source and context scope.',
     );
@@ -291,10 +297,12 @@ export function contextRecoveryRootScopeFingerprint(input: {
 
 function assertPriorTopology(
   topology: ContextOverflowTopology | undefined,
+  phaseInputFingerprint: string,
   rootScopeFingerprint: string,
 ): void {
   if (topology === undefined) return;
   if (
+    topology.phaseInputFingerprint !== phaseInputFingerprint ||
     topology.recoveryProtocolFingerprint !== contextOverflowRecoveryProtocolFingerprint ||
     topology.rootScopeFingerprint !== rootScopeFingerprint
   ) {
@@ -342,8 +350,8 @@ async function emitTopologyTransition<Result>(
   await input.onTopologyTransition?.(event);
 }
 
-function topologyMismatch(): SecurityReviewerError {
-  return new SecurityReviewerError(
+function topologyMismatch(): AuditRuntimeError {
+  return new AuditRuntimeError(
     'artifact-invalid',
     'The persisted context-overflow topology does not match the current recovery scope.',
   );

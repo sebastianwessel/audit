@@ -1,12 +1,12 @@
-import { createStableId } from '../../shared/contracts/core.js';
-import {
-  isRetryableSecurityReviewerErrorCode,
-  SecurityReviewerError,
-} from '../../shared/errors/security-reviewer-error.js';
+import { createStableId, sha256 } from '../../shared/contracts/core.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import { assertPlanMatchesTarget } from '../attack-planning/plan.js';
-import type { AttackPlan, ProposedFinding } from '../attack-planning/plan.schema.js';
+import type { AttackPlan } from '../attack-planning/plan.schema.js';
 import { hasExactPlanObligations } from '../attack-planning/plan.schema.js';
-import { hasSuccessfulScopedSourceInspection } from '../model-operations/model-operations.js';
+import {
+  hasSuccessfulScopedSourceInspection,
+  mergeModelStageObservations,
+} from '../model-operations/model-operations.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
 import type {
   ContextOverflowTopology,
@@ -18,10 +18,12 @@ import {
   type AuditCandidateGroundingDraft,
   AuditCandidateGroundingDraftSchema,
   type AuditCandidateGroundingRecoveryLeaf,
+  type AuditCheckpointExecution,
   type AuditContextOverflowLedger,
   type AuditError,
   type AuditEvidenceMapDraft,
   type AuditEvidenceMapRecoveryLeaf,
+  type AuditEvidenceMapRepairAttempt,
   type AuditInvestigationRequest,
   AuditInvestigationRequestSchema,
   type AuditReport,
@@ -33,7 +35,11 @@ import {
   type CandidateAwareContextOverflowTopology,
   CandidateIntegrityRejectionLedgerSchema,
   DiscoveryIntegrityRejectionLedgerSchema,
+  isRetryableAuditErrorCode,
   MaxParallelVectorsSchema,
+  materializeAuditErrorCode,
+  materializeAuditVectorResultForPersistence,
+  modelObservationForAuditCheckpointExecution,
   type PersistedCandidateAwareResult,
   type SourceDocument,
   type VectorCoverage,
@@ -42,13 +48,18 @@ import {
   type CandidateAwareDispatchPool,
   createCandidateAwareDispatchPool,
 } from './candidate-aware-dispatch.js';
+import { candidateAwareFingerprint } from './candidate-aware-identity.js';
 import {
   type CandidateGroundingOutput,
+  CandidateGroundingOutputSchema,
   type CandidateGroundingRequest,
   CandidateGroundingRequestSchema,
+  type CandidateGroundingStageOutput,
   type CanonicalCandidateGroundingOutput,
 } from './candidate-grounding/contract.js';
 import {
+  canonicalizeCandidateGroundingOutput,
+  groundedHypotheses,
   selectCanonicalSeedBoundGroundings,
   selectSeedBoundGroundings,
 } from './candidate-grounding/identity.js';
@@ -60,12 +71,20 @@ import {
 import { verifyInvestigationClosures } from './coverage-closure/verify.js';
 import {
   type EvidenceMap,
+  type EvidenceMapInsufficiencies,
   mappedControlFactIdsForObligation,
   type UnverifiedEvidenceMap,
 } from './evidence-map/contract.js';
+import {
+  applyCanonicalEvidenceMapRepair,
+  evidenceMapFingerprint,
+  evidenceMapInsufficiencySignature,
+  verifyEvidenceMapInsufficiencies,
+} from './evidence-map/repair.js';
 import { verifyEvidenceMap } from './evidence-map/verify.js';
 import type {
   HypothesisSeed,
+  UnverifiedAuditCandidate,
   UnverifiedInvestigationObligationClosure,
 } from './investigation/contract.js';
 import {
@@ -76,11 +95,17 @@ import { buildInvestigationEvidencePackage } from './investigation/evidence-pack
 import { selectScopedSources } from './investigation/scope.js';
 import { verifyHypothesisSeeds } from './investigation/seed.js';
 import { verifyModelFindings } from './investigation/verify.js';
-import type { EvidenceMapRequest, SourcePostureRequest } from './phase-input/contract.js';
+import type {
+  EvidenceMapRepairRequest,
+  EvidenceMapRequest,
+  SourcePostureRequest,
+} from './phase-input/contract.js';
+import { type RecoveryPhaseInput, recoveryPhaseInputFingerprint } from './recovery-phase-input.js';
 import type { SourcePosture, UnverifiedSourcePosture } from './source-posture/contract.js';
+import { sourcePostureFingerprint } from './source-posture/identity.js';
 import { downgradeUninspectedSourcePosture, verifySourcePosture } from './source-posture/verify.js';
 import {
-  redactProposedFinding,
+  canonicalizeProposedFindings,
   synthesizeFindings,
   synthesizeReviewRequiredFindings,
 } from './synthesis/findings.js';
@@ -116,7 +141,20 @@ export type AuditEvidenceMapper = (
   request: EvidenceMapRequest,
   context?: AuditScopedStageContext,
 ) => Promise<
-  Readonly<{ evidenceMap: UnverifiedEvidenceMap; modelObservation?: ModelStageObservation }>
+  Readonly<{
+    evidenceMap: UnverifiedEvidenceMap | EvidenceMap;
+    modelObservation?: ModelStageObservation;
+  }>
+>;
+
+export type AuditEvidenceMapRepairer = (
+  request: EvidenceMapRepairRequest,
+  context?: AuditScopedStageContext,
+) => Promise<
+  Readonly<{
+    evidenceMap: EvidenceMap;
+    modelObservation?: ModelStageObservation;
+  }>
 >;
 
 export type AuditSourcePostureAssessor = (
@@ -132,30 +170,146 @@ export type AuditCandidateGrounder = (
 ) => Promise<
   Readonly<{
     groundings: CandidateGroundingOutput | CanonicalCandidateGroundingOutput;
+    mapInsufficiencies?: EvidenceMapInsufficiencies;
     modelObservation?: ModelStageObservation;
   }>
 >;
 
+/** A grounded seed is durable work; null and binding-rejected outcomes are unfinished. */
+function retryGroundingSeeds(input: {
+  seeds: readonly HypothesisSeed[];
+  priorDraft: AuditCandidateGroundingDraft | undefined;
+  retryUnfinished: boolean;
+}): readonly HypothesisSeed[] {
+  if (!input.retryUnfinished || input.priorDraft === undefined) return input.seeds;
+  const groundedSeedIds = new Set(
+    input.priorDraft.groundings.groundings.flatMap((outcome) =>
+      outcome.disposition === 'grounded' ? [outcome.seedId] : [],
+    ),
+  );
+  return input.seeds.filter((seed) => !groundedSeedIds.has(seed.seedId));
+}
+
+/** The first stage that still needs work after loading one exact grounding draft. */
+type GroundingResumeBoundary =
+  | Readonly<{ kind: 'discovery'; reason: 'no-compatible-draft' }>
+  | Readonly<{
+      kind: 'discovery';
+      reason: 'retryable-grounding-outcome-without-durable-seed';
+    }>
+  | Readonly<{ kind: 'candidate-aware'; draft: AuditCandidateGroundingDraft }>;
+
+/**
+ * Selects the smallest unfinished boundary from a grounding draft that the
+ * checkpoint loader and the current map/posture fingerprints already proved
+ * exact. A draft deliberately does not retain discovery seeds. Consequently a
+ * requested retry of a null or binding-rejected outcome has to recreate that
+ * seed through discovery; it may not invent one from a durable outcome.
+ *
+ * Grounded hypotheses, their closure, and both upstream observations are
+ * complete durable work even when a process stopped before writing the first
+ * verifier checkpoint. Candidate-aware scheduling remains owned by
+ * runCandidateAwareStage, which writes its normal pending/running/completed
+ * transitions for that crash window.
+ */
+function resolveGroundingResumeBoundary(input: {
+  priorDraft: AuditCandidateGroundingDraft | undefined;
+  retryUnfinished: boolean;
+}): GroundingResumeBoundary {
+  const draft = input.priorDraft;
+  if (draft === undefined) return { kind: 'discovery', reason: 'no-compatible-draft' };
+  const hasRetryableOutcome = draft.groundings.groundings.some(
+    (outcome) => outcome.disposition !== 'grounded',
+  );
+  if (input.retryUnfinished && hasRetryableOutcome) {
+    return {
+      kind: 'discovery',
+      reason: 'retryable-grounding-outcome-without-durable-seed',
+    };
+  }
+  return { kind: 'candidate-aware', draft };
+}
+
+/** Canonicalizes exactly the seeds dispatched in this invocation. */
+function canonicalGroundingOutput(input: {
+  vector: AttackPlan['vectors'][number];
+  seeds: readonly HypothesisSeed[];
+  grounding:
+    | Readonly<{
+        groundings:
+          | CandidateGroundingOutput
+          | CanonicalCandidateGroundingOutput
+          | CandidateGroundingStageOutput;
+        modelObservation?: ModelStageObservation;
+      }>
+    | undefined;
+  evidenceMap: EvidenceMap;
+  sourcePosture: SourcePosture;
+  sources: readonly SourceDocument[];
+}): CanonicalCandidateGroundingOutput {
+  if (input.grounding === undefined) {
+    return {
+      groundings: input.seeds.map((seed) => ({
+        seedId: seed.seedId,
+        disposition: 'binding-rejected' as const,
+      })),
+    };
+  }
+  return isCanonicalGroundingOutput(input.grounding.groundings)
+    ? { groundings: input.grounding.groundings.groundings }
+    : canonicalizeCandidateGroundingOutput({
+        vector: input.vector,
+        seeds: input.seeds,
+        output: CandidateGroundingOutputSchema.parse(input.grounding.groundings),
+        evidenceMap: input.evidenceMap,
+        sourcePosture: input.sourcePosture,
+        sources: input.sources,
+      });
+}
+
+/** Combines only exact durable grounded outcomes with this retry's new per-seed outcomes. */
+function mergeRetryGroundingOutcomes(input: {
+  seeds: readonly HypothesisSeed[];
+  prior: CanonicalCandidateGroundingOutput;
+  recovered: CanonicalCandidateGroundingOutput;
+}): CanonicalCandidateGroundingOutput {
+  const prior = new Map(
+    input.prior.groundings.map((outcome) => [outcome.seedId, outcome] as const),
+  );
+  const recovered = new Map(
+    input.recovered.groundings.map((outcome) => [outcome.seedId, outcome] as const),
+  );
+  return {
+    groundings: input.seeds.map((seed) => {
+      const priorOutcome = prior.get(seed.seedId);
+      if (priorOutcome?.disposition === 'grounded') return priorOutcome;
+      return (
+        recovered.get(seed.seedId) ?? {
+          seedId: seed.seedId,
+          disposition: 'binding-rejected' as const,
+        }
+      );
+    }),
+  };
+}
+
 function isCanonicalGroundingOutput(
-  output: CandidateGroundingOutput | CanonicalCandidateGroundingOutput,
+  output:
+    | CandidateGroundingOutput
+    | CanonicalCandidateGroundingOutput
+    | CandidateGroundingStageOutput,
 ): output is CanonicalCandidateGroundingOutput {
   const first = output.groundings[0];
   return first !== undefined && 'disposition' in first;
 }
 
-/** Raw stage result is parsed at the admission boundary; legacy/malformed output fails closed. */
-export type AuditVerificationResultWithObservation = Readonly<{
-  decision: AuditVerificationResult['decision'];
-  reason: string;
-  verifiedEvidence: AuditVerificationResult['verifiedEvidence'];
-  verifiedPlanObligations: AuditVerificationResult['verifiedPlanObligations'];
-  controlAssessment?: AuditVerificationResult['controlAssessment'];
-  obligationReconciliations?: AuditVerificationResult['obligationReconciliations'];
-  postureReconciliations?: AuditVerificationResult['postureReconciliations'];
-  modelObservation?: ModelStageObservation;
-  /** Optional only at external test ports; production stages always declare a lane. */
-  terminalLane?: VerificationTerminalLane;
-}>;
+/** Raw stage result is parsed at the admission boundary; noncanonical or malformed output fails closed. */
+export type AuditVerificationResultWithObservation = AuditVerificationResult &
+  Readonly<{
+    modelObservation?: ModelStageObservation;
+    /** Optional only at external test ports; production stages always declare a lane. */
+    terminalLane?: VerificationTerminalLane;
+  }>;
 
 export type AuditVerifier = (
   request: AuditVerificationRequest,
@@ -169,8 +323,12 @@ export type AuditCounterchecker = (
 
 /** Exact candidate-bound recovery state for one verifier or countercheck dispatch. */
 export type CandidateAwareModelStageContext = Readonly<{
+  phaseInputFingerprint: string;
+  /** In-memory, content-free retention for a completed verifier/countercheck stage. */
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
   priorContextOverflowTopology?: ContextOverflowTopology;
   onContextOverflowTransition?: (input: {
+    phaseInputFingerprint: string;
     recoveryProtocolFingerprint: string;
     rootScopeFingerprint: string;
     event: ContextOverflowTopologyEvent;
@@ -182,13 +340,34 @@ export type CandidateAwareCheckpointUpdate = Readonly<{
   phase: AuditCandidateAwareCheckpoint['phase'];
   candidateOrdinal: number;
   candidate: VerifiableHypothesis;
+  evidenceMapFingerprint: string;
+  sourcePostureFingerprint: string;
   state: AuditCandidateAwareCheckpoint['state'];
   result?: PersistedCandidateAwareResult;
   contextOverflowTopology?: CandidateAwareContextOverflowTopology;
 }>;
 
+/**
+ * Checkpoint writers receive an explicit execution ownership decision. This
+ * prevents resumed work from treating an absent observation as free provider work.
+ */
+type AuditEvidenceMapDraftUpdate = Pick<
+  AuditEvidenceMapDraft,
+  'vectorId' | 'evidenceMap' | 'repairAttempts'
+> &
+  Readonly<{ execution: AuditCheckpointExecution }>;
+
+type AuditSourcePostureDraftUpdate = Pick<
+  AuditSourcePostureDraft,
+  'vectorId' | 'sourcePosture' | 'evidenceMapFingerprint'
+> &
+  Readonly<{ execution: AuditCheckpointExecution }>;
+
 /** Source-free recovery context passed only to a scoped reducible model stage. */
 export type AuditScopedStageContext = Readonly<{
+  phaseInputFingerprint: AuditContextOverflowLedger['phaseInputFingerprint'];
+  /** In-memory, content-free retention for a completed shared model stage. */
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
   priorContextOverflowLedger?: AuditContextOverflowLedger;
   priorEvidenceMapRecoveryLeaves?: readonly AuditEvidenceMapRecoveryLeaf[];
   priorSourcePostureRecoveryLeaves?: readonly AuditSourcePostureRecoveryLeaf[];
@@ -206,29 +385,51 @@ export type AuditContextOverflowTransition = Readonly<{
   vectorId: string;
   phase: AuditContextOverflowLedger['phase'];
   parentStageId: AuditContextOverflowLedger['parentStageId'];
+  phaseInputFingerprint: AuditContextOverflowLedger['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditContextOverflowLedger['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditContextOverflowLedger['rootScopeFingerprint'];
   event: Omit<AuditContextOverflowLedger['events'][number], 'ordinal' | 'savedAt'>;
 }>;
 
 /** A validated, redacted evidence-map child result ready for exact reuse. */
-export type AuditEvidenceMapRecoveryLeafUpdate = Readonly<{
+type AuditEvidenceMapRecoveryLeafUpdateBase = Readonly<{
   vectorId: string;
   parentStageId: AuditEvidenceMapRecoveryLeaf['parentStageId'];
+  phaseInputFingerprint: AuditEvidenceMapRecoveryLeaf['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditEvidenceMapRecoveryLeaf['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditEvidenceMapRecoveryLeaf['rootScopeFingerprint'];
   childKey: AuditEvidenceMapRecoveryLeaf['childKey'];
   scopeFingerprint: AuditEvidenceMapRecoveryLeaf['scopeFingerprint'];
-  evidenceMap: AuditEvidenceMapRecoveryLeaf['evidenceMap'];
+  execution: AuditEvidenceMapRecoveryLeaf['execution'];
 }>;
+
+export type AuditEvidenceMapRecoveryLeafUpdate =
+  | (AuditEvidenceMapRecoveryLeafUpdateBase &
+      Readonly<{
+        phase: 'evidence-mapping';
+        evidenceMap: Extract<
+          AuditEvidenceMapRecoveryLeaf,
+          { phase: 'evidence-mapping' }
+        >['evidenceMap'];
+      }>)
+  | (AuditEvidenceMapRecoveryLeafUpdateBase &
+      Readonly<{
+        phase: 'evidence-map-repair';
+        evidenceMap: Extract<
+          AuditEvidenceMapRecoveryLeaf,
+          { phase: 'evidence-map-repair' }
+        >['evidenceMap'];
+      }>);
 
 export type AuditSourcePostureRecoveryLeafUpdate = Readonly<{
   vectorId: string;
   parentStageId: AuditSourcePostureRecoveryLeaf['parentStageId'];
+  phaseInputFingerprint: AuditSourcePostureRecoveryLeaf['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditSourcePostureRecoveryLeaf['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditSourcePostureRecoveryLeaf['rootScopeFingerprint'];
   childKey: AuditSourcePostureRecoveryLeaf['childKey'];
   scopeFingerprint: AuditSourcePostureRecoveryLeaf['scopeFingerprint'];
+  execution: AuditSourcePostureRecoveryLeaf['execution'];
   sourcePosture: AuditSourcePostureRecoveryLeaf['sourcePosture'];
 }>;
 
@@ -236,10 +437,12 @@ export type AuditSourcePostureRecoveryLeafUpdate = Readonly<{
 export type AuditCandidateGroundingRecoveryLeafUpdate = Readonly<{
   vectorId: string;
   parentStageId: AuditCandidateGroundingRecoveryLeaf['parentStageId'];
+  phaseInputFingerprint: AuditCandidateGroundingRecoveryLeaf['phaseInputFingerprint'];
   recoveryProtocolFingerprint: AuditCandidateGroundingRecoveryLeaf['recoveryProtocolFingerprint'];
   rootScopeFingerprint: AuditCandidateGroundingRecoveryLeaf['rootScopeFingerprint'];
   childKey: AuditCandidateGroundingRecoveryLeaf['childKey'];
   scopeFingerprint: AuditCandidateGroundingRecoveryLeaf['scopeFingerprint'];
+  execution: AuditCandidateGroundingRecoveryLeaf['execution'];
   groundings: AuditCandidateGroundingRecoveryLeaf['groundings'];
 }>;
 
@@ -257,6 +460,7 @@ export type AuditInput = Readonly<{
   runId: string;
   generatedAt: string;
   mapEvidence?: AuditEvidenceMapper;
+  repairEvidenceMap?: AuditEvidenceMapRepairer;
   assessSourcePosture?: AuditSourcePostureAssessor;
   groundCandidates?: AuditCandidateGrounder;
   investigate: AuditInvestigator;
@@ -267,26 +471,24 @@ export type AuditInput = Readonly<{
   resumeState?: AuditResumeState;
   /** Re-executes only terminal candidate-aware incompleteness when explicitly requested. */
   retryUnfinished?: boolean;
-  onEvidenceMapDraft?: (
-    draft: Pick<AuditEvidenceMapDraft, 'vectorId' | 'evidenceMap' | 'modelObservation'>,
-  ) => Promise<void>;
+  onEvidenceMapDraft?: (draft: AuditEvidenceMapDraftUpdate) => Promise<void>;
   onCandidateGroundingDraft?: (
     draft: Pick<
       AuditCandidateGroundingDraft,
       | 'vectorId'
-      | 'findings'
+      | 'groundings'
       | 'closures'
       | 'hypothesisGroundingFunnel'
       | 'candidateIntegrityRejections'
       | 'discoveryObservation'
       | 'modelObservation'
+      | 'evidenceMapFingerprint'
+      | 'sourcePostureFingerprint'
     >,
   ) => Promise<void>;
   onVerifiedDiscoverySeed?: (update: AuditVerifiedDiscoverySeedUpdate) => Promise<void>;
   onCandidateAwareCheckpoint?: (update: CandidateAwareCheckpointUpdate) => Promise<void>;
-  onSourcePostureDraft?: (
-    draft: Pick<AuditSourcePostureDraft, 'vectorId' | 'sourcePosture' | 'modelObservation'>,
-  ) => Promise<void>;
+  onSourcePostureDraft?: (draft: AuditSourcePostureDraftUpdate) => Promise<void>;
   onContextOverflowTransition?: (update: AuditContextOverflowTransition) => Promise<void>;
   onEvidenceMapRecoveryLeaf?: (update: AuditEvidenceMapRecoveryLeafUpdate) => Promise<void>;
   onSourcePostureRecoveryLeaf?: (update: AuditSourcePostureRecoveryLeafUpdate) => Promise<void>;
@@ -294,6 +496,13 @@ export type AuditInput = Readonly<{
     update: AuditCandidateGroundingRecoveryLeafUpdate,
   ) => Promise<void>;
   onVectorResult?: (result: AuditVectorResult) => Promise<void>;
+}>;
+
+type VectorMapRepairState = Readonly<{
+  evidenceMap: EvidenceMap;
+  initialMapObservation?: ModelStageObservation;
+  repairObservations: readonly ModelStageObservation[];
+  repairAttempts: readonly AuditEvidenceMapRepairAttempt[];
 }>;
 
 /** Executes a matching strict plan without invoking model code directly. */
@@ -307,9 +516,16 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
     async (vector) => {
       const prior = input.resumeState?.vectorResult(vector.vectorId);
       if (prior !== undefined) return AuditVectorResultSchema.parse(prior);
-      const result = await executeVector(input, vector, candidateAwareDispatchPool);
-      await input.onVectorResult?.(result);
-      return result;
+      const result = materializeAuditVectorResultForPersistence(
+        await executeVector(input, vector, candidateAwareDispatchPool),
+      );
+      try {
+        await persistAuditCheckpoint(() => input.onVectorResult?.(result));
+        return result;
+      } catch (error) {
+        if (!isCheckpointPersistenceError(error)) throw error;
+        return checkpointPersistenceFailureResult(result, 'audit');
+      }
     },
   );
   const coverage = vectorResults.map((result) => result.coverage);
@@ -318,7 +534,7 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   const reviewRequired = vectorResults.flatMap((result) => result.reviewRequired);
   const findings = synthesizeFindings(proposed);
   return AuditReportSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 21,
     reportId: createStableId('report', `${input.plan.planId}\0${input.runId}`),
     runId: input.runId,
     planId: input.plan.planId,
@@ -335,6 +551,7 @@ async function executeVector(
   input: AuditInput,
   vector: AttackPlan['vectors'][number],
   candidateAwareDispatchPool: CandidateAwareDispatchPool,
+  repairState?: VectorMapRepairState,
 ): Promise<AuditVectorResult> {
   if (!vector.enabled) {
     return {
@@ -362,6 +579,8 @@ async function executeVector(
   let retainedSourcePostureObservation: ModelStageObservation | undefined;
   let retainedInvestigationObservation: ModelStageObservation | undefined;
   let retainedCandidateGroundingObservation: ModelStageObservation | undefined;
+  let retainedEvidenceMap: EvidenceMap | undefined;
+  let retainedSourcePosture: SourcePosture | undefined;
   let retainedVerificationObservations: readonly ModelStageObservation[] = [];
   let retainedCountercheckObservations: readonly ModelStageObservation[] = [];
   try {
@@ -370,28 +589,43 @@ async function executeVector(
       availableSourcePaths: scopedSources.map((source) => source.path),
       limitations: [...evidencePackage.limitations],
     };
-    const priorMapDraft = input.resumeState?.evidenceMapDraft(vector.vectorId);
+    const priorMapDraft =
+      repairState === undefined ? input.resumeState?.evidenceMapDraft(vector.vectorId) : undefined;
     activeStage = 'evidence-mapping';
     const mapped =
-      priorMapDraft === undefined
-        ? input.mapEvidence === undefined
-          ? {
-              evidenceMap: {
-                facts: [],
-                controlCoverage: [],
-                unansweredPlanObligations: [],
-                limitations: [],
-              },
-            }
-          : await input.mapEvidence(
-              mapRequest,
-              scopedStageContext(input, vector.vectorId, 'evidence-mapping'),
-            )
-        : {
-            evidenceMap: priorMapDraft.evidenceMap,
-            modelObservation: priorMapDraft.modelObservation,
-          };
-    retainedEvidenceMapObservation = mapped.modelObservation;
+      repairState !== undefined
+        ? {
+            evidenceMap: repairState.evidenceMap,
+            modelObservation: repairState.initialMapObservation,
+          }
+        : priorMapDraft === undefined
+          ? input.mapEvidence === undefined
+            ? {
+                evidenceMap: {
+                  facts: [],
+                  controlCoverage: [],
+                  unansweredPlanObligations: [],
+                  limitations: [],
+                },
+              }
+            : await input.mapEvidence(
+                mapRequest,
+                scopedStageContext(
+                  input,
+                  vector.vectorId,
+                  { phase: 'evidence-mapping' },
+                  (observation) => {
+                    retainedEvidenceMapObservation = observation;
+                  },
+                ),
+              )
+          : {
+              evidenceMap: priorMapDraft.evidenceMap,
+              modelObservation: modelObservationForAuditCheckpointExecution(
+                priorMapDraft.execution,
+              ),
+            };
+    retainedEvidenceMapObservation = mapped.modelObservation ?? retainedEvidenceMapObservation;
     if (mapped.modelObservation?.status === 'failed') {
       return failedEvidenceMapResult(
         vector,
@@ -402,6 +636,7 @@ async function executeVector(
       );
     }
     const verifiedMap = verifyEvidenceMap(vector, mapped.evidenceMap, scopedSources);
+    retainedEvidenceMap = verifiedMap.evidenceMap;
     const mapRequiresToolEvidence =
       verifiedMap.evidenceMap.facts.length > 0 &&
       mapped.modelObservation !== undefined &&
@@ -427,20 +662,29 @@ async function executeVector(
         modelObservation: mapped.modelObservation,
       });
     }
-    if (priorMapDraft === undefined) {
-      await input.onEvidenceMapDraft?.({
-        vectorId: vector.vectorId,
-        evidenceMap: verifiedMap.evidenceMap,
-        ...(mapped.modelObservation === undefined
-          ? {}
-          : { modelObservation: mapped.modelObservation }),
-      });
+    if (priorMapDraft === undefined && repairState === undefined) {
+      await persistAuditCheckpoint(() =>
+        input.onEvidenceMapDraft?.({
+          vectorId: vector.vectorId,
+          evidenceMap: verifiedMap.evidenceMap,
+          repairAttempts: [],
+          execution: auditCheckpointExecutionForModelObservation(mapped.modelObservation),
+        }),
+      );
     }
     const postureRequest = {
       ...mapRequest,
       evidenceMap: verifiedMap.evidenceMap,
     };
-    const priorSourcePostureDraft = input.resumeState?.sourcePostureDraft(vector.vectorId);
+    const currentEvidenceMapFingerprint = evidenceMapFingerprint(verifiedMap.evidenceMap);
+    const resumableSourcePostureDraft =
+      repairState === undefined
+        ? input.resumeState?.sourcePostureDraft(vector.vectorId)
+        : undefined;
+    const priorSourcePostureDraft =
+      resumableSourcePostureDraft?.evidenceMapFingerprint === currentEvidenceMapFingerprint
+        ? resumableSourcePostureDraft
+        : undefined;
     activeStage = 'source-posture';
     const assessed =
       priorSourcePostureDraft === undefined
@@ -453,13 +697,26 @@ async function executeVector(
             }
           : await input.assessSourcePosture(
               postureRequest,
-              scopedStageContext(input, vector.vectorId, 'source-posture'),
+              scopedStageContext(
+                input,
+                vector.vectorId,
+                {
+                  phase: 'source-posture',
+                  evidenceMapFingerprint: currentEvidenceMapFingerprint,
+                },
+                (observation) => {
+                  retainedSourcePostureObservation = observation;
+                },
+              ),
             )
         : {
             sourcePosture: priorSourcePostureDraft.sourcePosture,
-            modelObservation: priorSourcePostureDraft.modelObservation,
+            modelObservation: modelObservationForAuditCheckpointExecution(
+              priorSourcePostureDraft.execution,
+            ),
           };
-    retainedSourcePostureObservation = assessed.modelObservation;
+    retainedSourcePostureObservation =
+      assessed.modelObservation ?? retainedSourcePostureObservation;
     if (assessed.modelObservation?.status === 'failed') {
       return failedSourcePostureResult({
         vector,
@@ -488,6 +745,7 @@ async function executeVector(
         ? downgradeUninspectedSourcePosture(initialSourcePosture.sourcePosture)
         : initialSourcePosture.sourcePosture,
     };
+    retainedSourcePosture = verifiedSourcePosture.sourcePosture;
     if (!verifiedSourcePosture.complete) {
       return incompleteSourcePostureResult({
         vector,
@@ -505,34 +763,71 @@ async function executeVector(
       });
     }
     if (priorSourcePostureDraft === undefined) {
-      await input.onSourcePostureDraft?.({
-        vectorId: vector.vectorId,
-        sourcePosture: verifiedSourcePosture.sourcePosture,
-        ...(assessed.modelObservation === undefined
-          ? {}
-          : { modelObservation: assessed.modelObservation }),
-      });
+      await persistAuditCheckpoint(() =>
+        input.onSourcePostureDraft?.({
+          vectorId: vector.vectorId,
+          sourcePosture: verifiedSourcePosture.sourcePosture,
+          evidenceMapFingerprint: currentEvidenceMapFingerprint,
+          execution: auditCheckpointExecutionForModelObservation(assessed.modelObservation),
+        }),
+      );
     }
-    const priorDraft = input.resumeState?.candidateGroundingDraft(vector.vectorId);
+    const currentSourcePostureFingerprint = sourcePostureFingerprint(
+      verifiedSourcePosture.sourcePosture,
+    );
+    const resumableGroundingDraft =
+      repairState === undefined
+        ? input.resumeState?.candidateGroundingDraft(vector.vectorId)
+        : undefined;
+    const priorDraft =
+      resumableGroundingDraft?.evidenceMapFingerprint === currentEvidenceMapFingerprint &&
+      resumableGroundingDraft.sourcePostureFingerprint === currentSourcePostureFingerprint
+        ? resumableGroundingDraft
+        : undefined;
+    const groundingResumeBoundary = resolveGroundingResumeBoundary({
+      priorDraft,
+      retryUnfinished: input.retryUnfinished === true,
+    });
+    const reusedGroundingDraft =
+      groundingResumeBoundary.kind === 'candidate-aware'
+        ? groundingResumeBoundary.draft
+        : undefined;
     activeStage = 'investigation';
     const discovery =
-      priorDraft === undefined
+      groundingResumeBoundary.kind === 'discovery'
         ? await input.investigate(
             AuditInvestigationRequestSchema.parse({
               ...postureRequest,
               sourcePosture: verifiedSourcePosture.sourcePosture,
             }),
-            scopedStageContext(input, vector.vectorId, 'investigation'),
+            scopedStageContext(
+              input,
+              vector.vectorId,
+              {
+                phase: 'investigation',
+                evidenceMapFingerprint: currentEvidenceMapFingerprint,
+                sourcePostureFingerprint: currentSourcePostureFingerprint,
+              },
+              (observation) => {
+                retainedInvestigationObservation = observation;
+              },
+            ),
           )
         : undefined;
     const investigationObservation =
-      priorDraft?.discoveryObservation ?? discovery?.modelObservation;
+      reusedGroundingDraft !== undefined
+        ? reusedGroundingDraft.discoveryObservation
+        : priorDraft !== undefined && discovery?.modelObservation !== undefined
+          ? mergeModelStageObservations([
+              priorDraft.discoveryObservation,
+              discovery.modelObservation,
+            ])
+          : discovery?.modelObservation;
     retainedInvestigationObservation = investigationObservation;
     if (investigationObservation?.status === 'failed') {
       return failedVectorStageResult({
         vector,
         matchedSourcePaths: scopedSources.length,
-        deterministicCandidateCount: 0,
         limitations: evidencePackage.limitations,
         code: investigationObservation.errorCode ?? 'provider-failure',
         stage: 'investigation',
@@ -547,7 +842,7 @@ async function executeVector(
     }
     const verifiedClosures = verifyInvestigationClosures(
       vector,
-      priorDraft?.closures ?? discovery?.closures ?? [],
+      reusedGroundingDraft?.closures ?? discovery?.closures ?? [],
       verifiedMap.evidenceMap,
       verifiedSourcePosture.sourcePosture,
     );
@@ -583,15 +878,22 @@ async function executeVector(
       ),
     );
     for (const seed of verifiedSeeds.verified) {
-      await input.onVerifiedDiscoverySeed?.({
-        vectorId: vector.vectorId,
-        evidenceMapFactIds: seed.evidenceMapFactIds,
-      });
+      await persistAuditCheckpoint(() =>
+        input.onVerifiedDiscoverySeed?.({
+          vectorId: vector.vectorId,
+          evidenceMapFactIds: seed.evidenceMapFactIds,
+        }),
+      );
     }
     activeStage = 'candidate-grounding';
+    const groundingSeeds = retryGroundingSeeds({
+      seeds: verifiedSeeds.verified,
+      priorDraft,
+      retryUnfinished: input.retryUnfinished === true,
+    });
     const grounding =
-      priorDraft !== undefined ||
-      verifiedSeeds.verified.length === 0 ||
+      reusedGroundingDraft !== undefined ||
+      groundingSeeds.length === 0 ||
       input.groundCandidates === undefined
         ? undefined
         : await input.groundCandidates(
@@ -599,16 +901,26 @@ async function executeVector(
               vector,
               evidenceMap: verifiedMap.evidenceMap,
               sourcePosture: verifiedSourcePosture.sourcePosture,
-              seeds: verifiedSeeds.verified,
+              seeds: groundingSeeds,
               availableSourcePaths: scopedSources.map((source) => source.path),
             }),
-            scopedStageContext(input, vector.vectorId, 'candidate-grounding'),
+            scopedStageContext(
+              input,
+              vector.vectorId,
+              {
+                phase: 'candidate-grounding',
+                evidenceMapFingerprint: currentEvidenceMapFingerprint,
+                sourcePostureFingerprint: currentSourcePostureFingerprint,
+              },
+              (observation) => {
+                retainedCandidateGroundingObservation = observation;
+              },
+            ),
           );
     if (grounding?.modelObservation?.status === 'failed') {
       return failedVectorStageResult({
         vector,
         matchedSourcePaths: scopedSources.length,
-        deterministicCandidateCount: verifiedSeeds.verified.length,
         limitations: evidencePackage.limitations,
         code: grounding.modelObservation.errorCode ?? 'provider-failure',
         stage: 'candidate-grounding',
@@ -622,43 +934,80 @@ async function executeVector(
         countercheckObservations: [],
       });
     }
+    const groundingMapInsufficiencies = grounding?.mapInsufficiencies ?? [];
+    if (groundingMapInsufficiencies.length > 0) {
+      return repairAndRestartVector({
+        input,
+        vector,
+        candidateAwareDispatchPool,
+        scopedSources,
+        evidencePackageLimitations: evidencePackage.limitations,
+        evidenceMap: verifiedMap.evidenceMap,
+        initialMapObservation: mapped.modelObservation,
+        repairObservations: repairState?.repairObservations ?? [],
+        repairAttempts: repairState?.repairAttempts ?? priorMapDraft?.repairAttempts ?? [],
+        insufficiencies: groundingMapInsufficiencies,
+      });
+    }
+    const canonicalGroundings =
+      reusedGroundingDraft !== undefined
+        ? reusedGroundingDraft.groundings
+        : priorDraft !== undefined && input.retryUnfinished === true
+          ? mergeRetryGroundingOutcomes({
+              seeds: verifiedSeeds.verified,
+              prior: priorDraft.groundings,
+              recovered: canonicalGroundingOutput({
+                vector,
+                seeds: groundingSeeds,
+                grounding,
+                evidenceMap: verifiedMap.evidenceMap,
+                sourcePosture: verifiedSourcePosture.sourcePosture,
+                sources: scopedSources,
+              }),
+            })
+          : undefined;
     const selectedGroundings =
-      priorDraft !== undefined
+      reusedGroundingDraft !== undefined
         ? {
-            candidates: priorDraft.findings,
+            candidates: groundedHypotheses(reusedGroundingDraft.groundings),
             seedBoundCandidates: [],
-            submittedCount: priorDraft.findings.length,
+            submittedCount: groundedHypotheses(reusedGroundingDraft.groundings).length,
             nullCount: 0,
             rejectedCount: 0,
           }
-        : grounding === undefined
-          ? {
-              candidates: [],
-              seedBoundCandidates: [],
-              submittedCount: 0,
-              nullCount: 0,
-              rejectedCount: verifiedSeeds.verified.length,
-            }
-          : isCanonicalGroundingOutput(grounding.groundings)
-            ? selectCanonicalSeedBoundGroundings(verifiedSeeds.verified, grounding.groundings)
-            : selectSeedBoundGroundings(
-                verifiedSeeds.verified,
-                grounding.groundings,
-                verifiedMap.evidenceMap,
-              );
+        : canonicalGroundings !== undefined
+          ? selectCanonicalSeedBoundGroundings(verifiedSeeds.verified, canonicalGroundings)
+          : grounding === undefined
+            ? {
+                candidates: [],
+                seedBoundCandidates: [],
+                submittedCount: 0,
+                nullCount: 0,
+                rejectedCount: verifiedSeeds.verified.length,
+              }
+            : isCanonicalGroundingOutput(grounding.groundings)
+              ? selectCanonicalSeedBoundGroundings(verifiedSeeds.verified, grounding.groundings)
+              : selectSeedBoundGroundings(
+                  verifiedSeeds.verified,
+                  grounding.groundings,
+                  verifiedMap.evidenceMap,
+                );
     const traceBoundCandidates = {
-      candidates: priorDraft === undefined ? selectedGroundings.candidates : priorDraft.findings,
+      candidates: selectedGroundings.candidates,
       rejectedCount: 0,
     };
-    const hypothesisGroundingFunnel = priorDraft?.hypothesisGroundingFunnel ?? {
-      discoveredSeedCount: discovery?.seeds.length ?? 0,
-      discoveryBindingRejectedCount: verifiedSeeds.rejectedCount,
-      discoveryIntegrityRejections,
-      groundingNullCount: selectedGroundings.nullCount,
-      groundingBindingRejectedCount: selectedGroundings.rejectedCount,
-      submittedCandidateCount: traceBoundCandidates.candidates.length,
-    };
-    const initiallyVerified = verifyModelFindings(
+    const hypothesisGroundingFunnel =
+      reusedGroundingDraft !== undefined
+        ? reusedGroundingDraft.hypothesisGroundingFunnel
+        : {
+            discoveredSeedCount: discovery?.seeds.length ?? 0,
+            discoveryBindingRejectedCount: verifiedSeeds.rejectedCount,
+            discoveryIntegrityRejections,
+            groundingNullCount: selectedGroundings.nullCount,
+            groundingBindingRejectedCount: selectedGroundings.rejectedCount,
+            submittedCandidateCount: traceBoundCandidates.candidates.length,
+          };
+    const initiallyVerified = verifyModelFindings<UnverifiedAuditCandidate | VerifiableHypothesis>(
       vector,
       traceBoundCandidates.candidates,
       scopedSources,
@@ -670,7 +1019,7 @@ async function executeVector(
       rejectedCount: initiallyVerified.rejectedCount,
     };
     const candidateIntegrityRejections =
-      priorDraft?.candidateIntegrityRejections ??
+      reusedGroundingDraft?.candidateIntegrityRejections ??
       CandidateIntegrityRejectionLedgerSchema.parse(
         Object.fromEntries(
           CandidateStructuralRejectionReasonSchema.options.map((reason) => [
@@ -680,45 +1029,66 @@ async function executeVector(
         ),
       );
     const candidateGroundingObservation =
-      priorDraft?.modelObservation ?? grounding?.modelObservation;
+      reusedGroundingDraft !== undefined
+        ? reusedGroundingDraft.modelObservation
+        : priorDraft !== undefined && grounding?.modelObservation !== undefined
+          ? mergeModelStageObservations([priorDraft.modelObservation, grounding.modelObservation])
+          : (grounding?.modelObservation ?? priorDraft?.modelObservation);
     retainedCandidateGroundingObservation = candidateGroundingObservation;
-    if (priorDraft === undefined && grounding?.modelObservation?.status === 'completed') {
-      await input.onCandidateGroundingDraft?.({
-        vectorId: vector.vectorId,
-        findings: AuditCandidateGroundingDraftSchema.shape.findings.parse(
-          verifiedModel.verified.map(redactVerifiableHypothesis),
-        ),
-        closures: AuditCandidateGroundingDraftSchema.shape.closures.parse(
-          verifiedClosures.closures,
-        ),
-        hypothesisGroundingFunnel:
-          AuditCandidateGroundingDraftSchema.shape.hypothesisGroundingFunnel.parse(
-            hypothesisGroundingFunnel,
+    if (
+      reusedGroundingDraft === undefined &&
+      discovery?.modelObservation !== undefined &&
+      grounding?.modelObservation?.status === 'completed'
+    ) {
+      if (investigationObservation === undefined || candidateGroundingObservation === undefined) {
+        throw new AuditRuntimeError(
+          'artifact-invalid',
+          'A completed candidate-grounding draft must retain both phase observations.',
+        );
+      }
+      await persistAuditCheckpoint(() =>
+        input.onCandidateGroundingDraft?.({
+          vectorId: vector.vectorId,
+          evidenceMapFingerprint: currentEvidenceMapFingerprint,
+          sourcePostureFingerprint: currentSourcePostureFingerprint,
+          groundings: AuditCandidateGroundingDraftSchema.shape.groundings.parse(
+            canonicalGroundings ??
+              canonicalGroundingOutput({
+                vector,
+                seeds: verifiedSeeds.verified,
+                grounding,
+                evidenceMap: verifiedMap.evidenceMap,
+                sourcePosture: verifiedSourcePosture.sourcePosture,
+                sources: scopedSources,
+              }),
           ),
-        candidateIntegrityRejections:
-          AuditCandidateGroundingDraftSchema.shape.candidateIntegrityRejections.parse(
-            candidateIntegrityRejections,
+          closures: AuditCandidateGroundingDraftSchema.shape.closures.parse(
+            verifiedClosures.closures,
           ),
-        ...(discovery?.modelObservation === undefined
-          ? {}
-          : { discoveryObservation: discovery.modelObservation }),
-        ...(grounding.modelObservation === undefined
-          ? {}
-          : { modelObservation: grounding.modelObservation }),
-      });
+          hypothesisGroundingFunnel:
+            AuditCandidateGroundingDraftSchema.shape.hypothesisGroundingFunnel.parse(
+              hypothesisGroundingFunnel,
+            ),
+          candidateIntegrityRejections:
+            AuditCandidateGroundingDraftSchema.shape.candidateIntegrityRejections.parse(
+              candidateIntegrityRejections,
+            ),
+          discoveryObservation: investigationObservation,
+          modelObservation: candidateGroundingObservation,
+        }),
+      );
     }
     const errors: AuditError[] = [];
     if (verifiedModel.rejectedCount > 0) {
       errors.push({
         code: 'model-evidence-rejected',
         stage: 'verification',
-        message: `${verifiedModel.rejectedCount} model candidate finding(s) lacked valid in-scope source evidence.`,
         retryable: false,
       });
     }
     const verifiedFindings = verifiedModel.verified;
     activeStage = 'verification';
-    const verificationResults = await Promise.all(
+    const verificationCollection = await collectCandidateAwareResults(
       verifiedFindings.map(async (hypothesis, index) => {
         return runCandidateAwareStage({
           input,
@@ -727,6 +1097,8 @@ async function executeVector(
           phase: 'verification',
           candidateOrdinal: index + 1,
           hypothesis,
+          evidenceMapFingerprint: currentEvidenceMapFingerprint,
+          sourcePostureFingerprint: currentSourcePostureFingerprint,
           execute: async (stageContext) => {
             const verificationId = `verification-${vector.vectorId}-${index + 1}`;
             const request = AuditVerificationRequestSchema.parse({
@@ -742,12 +1114,32 @@ async function executeVector(
         });
       }),
     );
+    retainedVerificationObservations = verificationCollection.modelObservations;
+    if (verificationCollection.error !== undefined) throw verificationCollection.error;
+    const verificationResults = verificationCollection.results;
+    if (verificationResults.some((result) => result.checkpointPersistenceFailed === true)) {
+      return failedVectorStageResult({
+        vector,
+        matchedSourcePaths: scopedSources.length,
+        limitations: evidencePackage.limitations,
+        code: 'checkpoint-persistence-failed',
+        stage: 'verification',
+        evidenceMap: verifiedMap.evidenceMap,
+        sourcePosture: verifiedSourcePosture.sourcePosture,
+        evidenceMapObservation: mapped.modelObservation,
+        sourcePostureObservation: assessed.modelObservation,
+        investigationObservation,
+        candidateGroundingObservation,
+        verificationObservations: retainedVerificationObservations,
+        countercheckObservations: [],
+      });
+    }
     const verifierReconciled = verificationResults.map((result, index) => {
       const hypothesis = verifiedFindings[index];
       if (result.decision !== 'accepted' || hypothesis === undefined) return [];
-      const verifiedEvidence = result.verifiedEvidence;
+      const claimEvidenceBundles = result.claimEvidenceBundles;
       if (
-        verifiedEvidence === null ||
+        claimEvidenceBundles === null ||
         result.controlAssessment === null ||
         !hasValidSourceEvidence(result.controlAssessment.evidence, scopedSources) ||
         !hasCompleteMappedControlConsideration(
@@ -770,30 +1162,41 @@ async function executeVector(
         !hasExactPlanObligations(result.verifiedPlanObligations, hypothesis.planObligations)
       )
         return [];
-      return verifyModelFindings(
-        vector,
-        [
-          {
-            ...hypothesis,
-            evidence: verifiedEvidence,
-            planObligations: result.verifiedPlanObligations,
-          },
-        ],
-        scopedSources,
-        verifiedMap.evidenceMap,
-        verifiedSourcePosture.sourcePosture,
-        false,
-      ).verified;
+      return [
+        VerifiableHypothesisSchema.parse({
+          ...hypothesis,
+          claimEvidenceBundles,
+          planObligations: result.verifiedPlanObligations,
+        }),
+      ];
     });
-    retainedVerificationObservations = verificationResults.flatMap((result) =>
-      result.modelObservation === undefined ? [] : [result.modelObservation],
+    const verificationMapInsufficiencies = verificationResults.flatMap((result) =>
+      result.decision === 'incomplete' ? (result.mapInsufficiencies ?? []) : [],
     );
+    if (verificationMapInsufficiencies.length > 0) {
+      return repairAndRestartVector({
+        input,
+        vector,
+        candidateAwareDispatchPool,
+        scopedSources,
+        evidencePackageLimitations: evidencePackage.limitations,
+        evidenceMap: verifiedMap.evidenceMap,
+        initialMapObservation: mapped.modelObservation,
+        repairObservations: repairState?.repairObservations ?? [],
+        repairAttempts: repairState?.repairAttempts ?? priorMapDraft?.repairAttempts ?? [],
+        insufficiencies: verificationMapInsufficiencies,
+      });
+    }
     const countercheck = input.countercheck;
     activeStage = 'countercheck';
-    const countercheckResults =
+    const countercheckCollection =
       countercheck === undefined
-        ? verifierReconciled.map(() => undefined)
-        : await Promise.all(
+        ? {
+            results: verifierReconciled.map(() => undefined),
+            modelObservations: [],
+            error: undefined,
+          }
+        : await collectCandidateAwareResults(
             verifierReconciled.map(async (reconciledFinding, index) => {
               const hypothesis = reconciledFinding[0];
               if (hypothesis === undefined) return undefined;
@@ -804,6 +1207,8 @@ async function executeVector(
                 phase: 'countercheck',
                 candidateOrdinal: index + 1,
                 hypothesis,
+                evidenceMapFingerprint: currentEvidenceMapFingerprint,
+                sourcePostureFingerprint: currentSourcePostureFingerprint,
                 execute: async (stageContext) => {
                   const countercheckId = `countercheck-${vector.vectorId}-${index + 1}`;
                   const request = AuditCountercheckRequestSchema.parse({
@@ -819,114 +1224,39 @@ async function executeVector(
               });
             }),
           );
-    const counterchecked = countercheckResults.map((result, index) => {
-      const hypothesis = verifierReconciled[index]?.[0];
-      if (result?.decision !== 'accepted' || hypothesis === undefined) return [];
-      const verifiedEvidence = result.verifiedEvidence;
-      if (
-        verifiedEvidence === null ||
-        result.controlAssessment === null ||
-        !hasValidSourceEvidence(result.controlAssessment.evidence, scopedSources) ||
-        !hasCompleteMappedControlConsideration(
-          result.controlAssessment.consideredEvidenceMapFactIds ?? [],
-          result.controlAssessment.evidence,
-          hypothesis,
-          verifiedMap.evidenceMap,
-        ) ||
-        !hasCompletePlanObligationReconciliation(
-          result.obligationReconciliations,
-          hypothesis,
-          verifiedMap.evidenceMap,
-        ) ||
-        !hasCompletePostureReconciliation(
-          result.postureReconciliations,
-          hypothesis,
-          verifiedSourcePosture.sourcePosture,
-          verifiedMap.evidenceMap,
-        ) ||
-        !hasExactPlanObligations(result.verifiedPlanObligations, hypothesis.planObligations)
-      )
-        return [];
-      return verifyModelFindings(
-        vector,
-        [
-          {
-            ...hypothesis,
-            evidence: verifiedEvidence,
-            planObligations: result.verifiedPlanObligations,
-          },
-        ],
-        scopedSources,
-        verifiedMap.evidenceMap,
-        verifiedSourcePosture.sourcePosture,
-        false,
-      ).verified;
-    });
-    const postVerification =
-      countercheck === undefined ? verifierReconciled.flat() : counterchecked.flat();
-    const reviewRequired = postVerification.filter((hypothesis) =>
+    retainedCountercheckObservations = countercheckCollection.modelObservations;
+    // Counterchecks are evaluator-only measurements. They may challenge a
+    // verifier result, but never replace the verifier's independently
+    // reconciled admission decision or alter product finding coverage. Their
+    // own terminal state is held only in evaluator-owned candidate checkpoints
+    // and source-free model observations.
+    const postVerification = verifierReconciled.flat();
+    const reviewRequiredCandidates = postVerification.filter((hypothesis) =>
       hasCandidateBlindPostureContradiction(hypothesis, verifiedSourcePosture.sourcePosture),
     );
-    const accepted = postVerification.filter(
+    const acceptedCandidates = postVerification.filter(
       (hypothesis) =>
         !hasCandidateBlindPostureContradiction(hypothesis, verifiedSourcePosture.sourcePosture),
     );
-    if (reviewRequired.length > 0) {
-      errors.push({
-        code: 'candidate-blind-contradiction-review-required',
-        stage: 'verification',
-        message: `${reviewRequired.length} source-backed hypothesis(es) require human review because candidate-blind and candidate-aware review disagree.`,
-        retryable: false,
-      });
-    }
+    const canonicalAccepted = canonicalizeProposedFindings(acceptedCandidates);
+    const canonicalReviewRequired = canonicalizeProposedFindings(reviewRequiredCandidates);
+    const accepted = canonicalAccepted.findings;
+    const reviewRequired = canonicalReviewRequired.findings;
     for (const [index, result] of verificationResults.entries()) {
       if (result.decision === 'accepted') {
         if ((verifierReconciled[index]?.length ?? 0) > 0) continue;
         errors.push({
           code: 'verifier-evidence-rejected',
           stage: 'verification',
-          message: 'The verifier-selected source evidence failed integrity validation.',
           retryable: false,
         });
         continue;
       }
-      errors.push({
-        code: candidateAwareTerminalErrorCode(result, 'verification'),
-        stage: 'verification',
-        message:
-          result.decision === 'rejected'
-            ? 'The independent verifier rejected the hypothesis.'
-            : 'The independent verifier could not decide from bounded static evidence.',
-        retryable: candidateAwareResultIsRetryable(result),
-      });
-    }
-    for (const [index, result] of countercheckResults.entries()) {
-      if (result === undefined) continue;
-      if (result.decision === 'accepted') {
-        if ((counterchecked[index]?.length ?? 0) > 0) continue;
-        errors.push({
-          code: 'countercheck-evidence-rejected',
-          stage: 'countercheck',
-          message: 'The countercheck-selected source evidence failed integrity validation.',
-          retryable: false,
-        });
-        continue;
-      }
-      errors.push({
-        code: candidateAwareTerminalErrorCode(result, 'countercheck'),
-        stage: 'countercheck',
-        message:
-          result.decision === 'rejected'
-            ? 'The independent countercheck rejected the verifier-accepted hypothesis.'
-            : 'The independent countercheck could not decide from bounded static evidence.',
-        retryable: candidateAwareResultIsRetryable(result),
-      });
+      const operationalError = candidateAwareOperationalError(result, 'verification');
+      if (operationalError !== undefined) errors.push(operationalError);
     }
     const verificationObservations = retainedVerificationObservations;
-    const countercheckObservations = countercheckResults.flatMap((result) =>
-      result?.modelObservation === undefined ? [] : [result.modelObservation],
-    );
-    retainedCountercheckObservations = countercheckObservations;
+    const countercheckObservations = retainedCountercheckObservations;
     activeStage = 'synthesis';
     const admissionFunnel = createFindingAdmissionFunnel({
       modelCandidateCount: traceBoundCandidates.candidates.length,
@@ -935,6 +1265,8 @@ async function executeVector(
       verificationResults,
       verifierToolEvidenceRejectedCount: 0,
       verifierReconciledCount: verifierReconciled.filter((finding) => finding.length > 0).length,
+      duplicateCollapsedCount:
+        canonicalAccepted.duplicateCollapsedCount + canonicalReviewRequired.duplicateCollapsedCount,
       admittedFindingCount: accepted.length,
     });
     const obligationClosure = deriveObligationClosureMatrix({
@@ -966,7 +1298,6 @@ async function executeVector(
         planned: true,
         completed: closureComplete,
         matchedSourcePaths: scopedSources.length,
-        deterministicCandidateCount: 0,
         evidenceMapFactCount: verifiedMap.evidenceMap.facts.length,
         evidenceMapUnansweredObligationCount:
           verifiedMap.evidenceMap.unansweredPlanObligations.length,
@@ -992,6 +1323,9 @@ async function executeVector(
         ...(mapped.modelObservation === undefined
           ? {}
           : { evidenceMapObservation: mapped.modelObservation }),
+        ...(repairState === undefined || repairState.repairObservations.length === 0
+          ? {}
+          : { evidenceMapRepairObservations: [...repairState.repairObservations] }),
         ...(assessed.modelObservation === undefined
           ? {}
           : { sourcePostureObservation: assessed.modelObservation }),
@@ -1007,18 +1341,19 @@ async function executeVector(
         countercheckObservations: [...countercheckObservations],
       },
       errors,
-      proposed: accepted.map(redactVerifiedFinding),
-      reviewRequired: reviewRequired.map(redactVerifiedFinding),
+      proposed: [...accepted],
+      reviewRequired: [...reviewRequired],
     };
   } catch (error) {
     const code = errorCode(error);
     return failedVectorStageResult({
       vector,
       matchedSourcePaths: scopedSources.length,
-      deterministicCandidateCount: 0,
       limitations: evidencePackage.limitations,
       code,
       stage: activeStage,
+      ...(retainedEvidenceMap === undefined ? {} : { evidenceMap: retainedEvidenceMap }),
+      ...(retainedSourcePosture === undefined ? {} : { sourcePosture: retainedSourcePosture }),
       evidenceMapObservation: retainedEvidenceMapObservation,
       sourcePostureObservation: retainedSourcePostureObservation,
       investigationObservation: retainedInvestigationObservation,
@@ -1029,11 +1364,157 @@ async function executeVector(
   }
 }
 
+/**
+ * A later phase can request only generic neutral-map evidence. This boundary
+ * validates that request, dispatches the candidate-blind mapper, and restarts
+ * exactly the map-dependent phases when an append succeeds.
+ */
+async function repairAndRestartVector(input: {
+  input: AuditInput;
+  vector: AttackPlan['vectors'][number];
+  candidateAwareDispatchPool: CandidateAwareDispatchPool;
+  scopedSources: readonly SourceDocument[];
+  evidencePackageLimitations: readonly string[];
+  evidenceMap: EvidenceMap;
+  initialMapObservation?: ModelStageObservation;
+  repairObservations: readonly ModelStageObservation[];
+  repairAttempts: readonly AuditEvidenceMapRepairAttempt[];
+  insufficiencies: EvidenceMapInsufficiencies;
+}): Promise<AuditVectorResult> {
+  const insufficiencies = verifyEvidenceMapInsufficiencies(input.vector, input.insufficiencies);
+  const gapSignature = sha256(evidenceMapInsufficiencySignature(insufficiencies));
+  const inputMapFingerprint = evidenceMapFingerprint(input.evidenceMap);
+  const priorNoProgress = input.repairAttempts.some(
+    (attempt) =>
+      attempt.gapSignature === gapSignature &&
+      attempt.inputMapFingerprint === inputMapFingerprint &&
+      attempt.outputMapFingerprint === inputMapFingerprint &&
+      attempt.appendedFactCount === 0,
+  );
+  if (priorNoProgress) {
+    return incompleteEvidenceMapResult({
+      vector: input.vector,
+      matchedSourcePaths: input.scopedSources.length,
+      limitations: [
+        ...input.evidencePackageLimitations,
+        'The same candidate-blind evidence-map repair gap already completed without a new neutral fact.',
+      ],
+      errorCode: 'evidence-map-repair-no-progress',
+      modelObservation: input.initialMapObservation,
+      repairObservations: input.repairObservations,
+    });
+  }
+  const repairer = input.input.repairEvidenceMap;
+  if (repairer === undefined) {
+    return incompleteEvidenceMapResult({
+      vector: input.vector,
+      matchedSourcePaths: input.scopedSources.length,
+      limitations: [
+        ...input.evidencePackageLimitations,
+        'A later audit phase identified missing neutral evidence, but no mapper repair stage is configured.',
+      ],
+      errorCode: 'evidence-map-repair-unavailable',
+      modelObservation: input.initialMapObservation,
+    });
+  }
+  const repaired = await repairer(
+    {
+      vector: input.vector,
+      availableSourcePaths: input.scopedSources.map((source) => source.path),
+      limitations: [...input.evidencePackageLimitations],
+      evidenceMap: input.evidenceMap,
+      insufficiencies,
+    },
+    scopedStageContext(input.input, input.vector.vectorId, {
+      phase: 'evidence-map-repair',
+      evidenceMapFingerprint: inputMapFingerprint,
+    }),
+  );
+  if (repaired.modelObservation?.status === 'failed') {
+    return failedVectorStageResult({
+      vector: input.vector,
+      matchedSourcePaths: input.scopedSources.length,
+      limitations: input.evidencePackageLimitations,
+      code: repaired.modelObservation.errorCode ?? 'provider-failure',
+      stage: 'evidence-map-repair',
+      evidenceMap: input.evidenceMap,
+      evidenceMapObservation: input.initialMapObservation,
+      evidenceMapRepairObservations: [...input.repairObservations, repaired.modelObservation],
+      verificationObservations: [],
+      countercheckObservations: [],
+    });
+  }
+  const appended = applyCanonicalEvidenceMapRepair({
+    evidenceMap: input.evidenceMap,
+    repairedEvidenceMap: repaired.evidenceMap,
+  });
+  const attempt: AuditEvidenceMapRepairAttempt = {
+    gapSignature,
+    inputMapFingerprint,
+    outputMapFingerprint: evidenceMapFingerprint(appended.evidenceMap),
+    appendedFactCount: appended.appendedFactCount,
+    execution: auditCheckpointExecutionForModelObservation(repaired.modelObservation),
+  };
+  const repairAttempts = [...input.repairAttempts, attempt];
+  const repairObservations =
+    repaired.modelObservation === undefined
+      ? input.repairObservations
+      : [...input.repairObservations, repaired.modelObservation];
+  try {
+    await persistAuditCheckpoint(() =>
+      input.input.onEvidenceMapDraft?.({
+        vectorId: input.vector.vectorId,
+        evidenceMap: appended.evidenceMap,
+        repairAttempts,
+        execution: auditCheckpointExecutionForModelObservation(input.initialMapObservation),
+      }),
+    );
+  } catch (error) {
+    if (!isCheckpointPersistenceError(error)) throw error;
+    return failedVectorStageResult({
+      vector: input.vector,
+      matchedSourcePaths: input.scopedSources.length,
+      limitations: input.evidencePackageLimitations,
+      code: 'checkpoint-persistence-failed',
+      stage: 'evidence-map-repair',
+      evidenceMap: appended.evidenceMap,
+      evidenceMapObservation: input.initialMapObservation,
+      evidenceMapRepairObservations: repairObservations,
+      verificationObservations: [],
+      countercheckObservations: [],
+    });
+  }
+  if (appended.appendedFactCount === 0) {
+    return incompleteEvidenceMapResult({
+      vector: input.vector,
+      matchedSourcePaths: input.scopedSources.length,
+      limitations: [
+        ...input.evidencePackageLimitations,
+        'The candidate-blind mapper found no additional neutral source fact for the same declared evidence gap.',
+      ],
+      errorCode: 'evidence-map-repair-no-progress',
+      modelObservation: input.initialMapObservation,
+      repairObservations,
+    });
+  }
+  return executeVector(input.input, input.vector, input.candidateAwareDispatchPool, {
+    evidenceMap: appended.evidenceMap,
+    ...(input.initialMapObservation === undefined
+      ? {}
+      : { initialMapObservation: input.initialMapObservation }),
+    repairObservations,
+    repairAttempts,
+  });
+}
+
 function scopedStageContext(
   input: AuditInput,
   vectorId: string,
-  phase: AuditContextOverflowLedger['phase'],
+  phaseInput: Exclude<RecoveryPhaseInput, { phase: 'verification' | 'countercheck' }>,
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void,
 ): AuditScopedStageContext | undefined {
+  const phase = phaseInput.phase;
+  const phaseInputFingerprint = recoveryPhaseInputFingerprint(phaseInput);
   const prior = input.resumeState?.scopedArtifacts({ vectorId, phase });
   const priorContextOverflowLedger = prior?.contextOverflowLedger;
   const priorEvidenceMapRecoveryLeaves = prior?.evidenceMapRecoveryLeaves;
@@ -1047,10 +1528,13 @@ function scopedStageContext(
     input.onContextOverflowTransition === undefined &&
     input.onEvidenceMapRecoveryLeaf === undefined &&
     input.onSourcePostureRecoveryLeaf === undefined &&
-    input.onCandidateGroundingRecoveryLeaf === undefined
+    input.onCandidateGroundingRecoveryLeaf === undefined &&
+    onCompletedModelObservation === undefined
   )
     return undefined;
   return {
+    phaseInputFingerprint,
+    ...(onCompletedModelObservation === undefined ? {} : { onCompletedModelObservation }),
     ...(priorContextOverflowLedger === undefined ? {} : { priorContextOverflowLedger }),
     ...(priorEvidenceMapRecoveryLeaves === undefined ? {} : { priorEvidenceMapRecoveryLeaves }),
     ...(priorSourcePostureRecoveryLeaves === undefined ? {} : { priorSourcePostureRecoveryLeaves }),
@@ -1061,24 +1545,25 @@ function scopedStageContext(
       ? {}
       : {
           onContextOverflowTransition: async (update) =>
-            input.onContextOverflowTransition?.(update),
+            persistAuditCheckpoint(() => input.onContextOverflowTransition?.(update)),
         }),
     ...(input.onEvidenceMapRecoveryLeaf === undefined
       ? {}
       : {
-          onEvidenceMapRecoveryLeaf: async (update) => input.onEvidenceMapRecoveryLeaf?.(update),
+          onEvidenceMapRecoveryLeaf: async (update) =>
+            persistAuditCheckpoint(() => input.onEvidenceMapRecoveryLeaf?.(update)),
         }),
     ...(input.onSourcePostureRecoveryLeaf === undefined
       ? {}
       : {
           onSourcePostureRecoveryLeaf: async (update) =>
-            input.onSourcePostureRecoveryLeaf?.(update),
+            persistAuditCheckpoint(() => input.onSourcePostureRecoveryLeaf?.(update)),
         }),
     ...(input.onCandidateGroundingRecoveryLeaf === undefined
       ? {}
       : {
           onCandidateGroundingRecoveryLeaf: async (update) =>
-            input.onCandidateGroundingRecoveryLeaf?.(update),
+            persistAuditCheckpoint(() => input.onCandidateGroundingRecoveryLeaf?.(update)),
         }),
   };
 }
@@ -1100,9 +1585,13 @@ export async function runStaticAudit(
     }),
     verify: async () => ({
       decision: 'incomplete',
+      reasonCode: 'output-invalid',
       reason: 'Static audit has no verifier.',
-      verifiedEvidence: null,
+      claimEvidenceBundles: null,
+      contradictionEvidence: null,
+      inspectedEvidence: [],
       verifiedPlanObligations: [],
+      affectedPlanObligations: [],
       controlAssessment: null,
       obligationReconciliations: [],
       postureReconciliations: [],
@@ -1240,7 +1729,6 @@ function skippedCoverage(
     planned: true,
     completed: true,
     matchedSourcePaths: 0,
-    deterministicCandidateCount: 0,
     evidenceMapFactCount: 0,
     evidenceMapUnansweredObligationCount: 0,
     ...emptySourcePostureCoverage(),
@@ -1273,13 +1761,13 @@ function emptyScopeCoverage(
 function failedVectorStageResult(input: {
   vector: AttackPlan['vectors'][number];
   matchedSourcePaths: number;
-  deterministicCandidateCount: number;
   limitations: readonly string[];
   code: string;
   stage: AuditError['stage'];
   evidenceMap?: EvidenceMap;
   sourcePosture?: SourcePosture;
   evidenceMapObservation?: ModelStageObservation;
+  evidenceMapRepairObservations?: readonly ModelStageObservation[];
   sourcePostureObservation?: ModelStageObservation;
   investigationObservation?: ModelStageObservation;
   candidateGroundingObservation?: ModelStageObservation;
@@ -1292,7 +1780,6 @@ function failedVectorStageResult(input: {
       planned: true,
       completed: false,
       matchedSourcePaths: input.matchedSourcePaths,
-      deterministicCandidateCount: input.deterministicCandidateCount,
       evidenceMapFactCount: input.evidenceMap?.facts.length ?? 0,
       evidenceMapUnansweredObligationCount:
         input.evidenceMap?.unansweredPlanObligations.length ?? 0,
@@ -1314,6 +1801,9 @@ function failedVectorStageResult(input: {
       ...(input.evidenceMapObservation === undefined
         ? {}
         : { evidenceMapObservation: input.evidenceMapObservation }),
+      ...(input.evidenceMapRepairObservations === undefined
+        ? {}
+        : { evidenceMapRepairObservations: [...input.evidenceMapRepairObservations] }),
       ...(input.sourcePostureObservation === undefined
         ? {}
         : { sourcePostureObservation: input.sourcePostureObservation }),
@@ -1326,10 +1816,9 @@ function failedVectorStageResult(input: {
     },
     errors: [
       {
-        code: input.code,
+        code: materializeAuditErrorCode(input.code),
         stage: input.stage,
-        message: 'The approved vector could not complete its recorded audit phase.',
-        retryable: isRetryableSecurityReviewerErrorCode(input.code),
+        retryable: isRetryableAuditErrorCode(materializeAuditErrorCode(input.code)),
       },
     ],
     proposed: [],
@@ -1350,7 +1839,6 @@ function failedEvidenceMapResult(
       planned: true,
       completed: false,
       matchedSourcePaths,
-      deterministicCandidateCount: 0,
       evidenceMapFactCount: 0,
       evidenceMapUnansweredObligationCount: 0,
       ...emptySourcePostureCoverage(),
@@ -1365,10 +1853,9 @@ function failedEvidenceMapResult(
     },
     errors: [
       {
-        code,
+        code: materializeAuditErrorCode(code),
         stage: 'evidence-mapping',
-        message: 'The source evidence mapping for this approved vector did not complete.',
-        retryable: isRetryableSecurityReviewerErrorCode(code),
+        retryable: isRetryableAuditErrorCode(materializeAuditErrorCode(code)),
       },
     ],
     proposed: [],
@@ -1382,6 +1869,7 @@ function incompleteEvidenceMapResult(input: {
   limitations: readonly string[];
   errorCode: string;
   modelObservation?: ModelStageObservation;
+  repairObservations?: readonly ModelStageObservation[];
 }): AuditVectorResult {
   return {
     coverage: {
@@ -1389,7 +1877,6 @@ function incompleteEvidenceMapResult(input: {
       planned: true,
       completed: false,
       matchedSourcePaths: input.matchedSourcePaths,
-      deterministicCandidateCount: 0,
       evidenceMapFactCount: 0,
       evidenceMapUnansweredObligationCount: 0,
       ...emptySourcePostureCoverage(),
@@ -1403,13 +1890,15 @@ function incompleteEvidenceMapResult(input: {
       ...(input.modelObservation === undefined
         ? {}
         : { evidenceMapObservation: input.modelObservation }),
+      ...(input.repairObservations === undefined
+        ? {}
+        : { evidenceMapRepairObservations: [...input.repairObservations] }),
     },
     errors: [
       {
-        code: input.errorCode,
+        code: materializeAuditErrorCode(input.errorCode),
         stage: 'evidence-mapping',
-        message: 'The source evidence map could not establish a bounded basis for investigation.',
-        retryable: true,
+        retryable: isRetryableAuditErrorCode(materializeAuditErrorCode(input.errorCode)),
       },
     ],
     proposed: [],
@@ -1432,7 +1921,6 @@ function failedSourcePostureResult(input: {
       planned: true,
       completed: false,
       matchedSourcePaths: input.matchedSourcePaths,
-      deterministicCandidateCount: 0,
       evidenceMapFactCount: input.evidenceMap.facts.length,
       evidenceMapUnansweredObligationCount: input.evidenceMap.unansweredPlanObligations.length,
       ...emptySourcePostureCoverage(),
@@ -1455,10 +1943,9 @@ function failedSourcePostureResult(input: {
     },
     errors: [
       {
-        code: input.errorCode,
+        code: materializeAuditErrorCode(input.errorCode),
         stage: 'source-posture',
-        message: 'The candidate-blind source posture for this approved vector did not complete.',
-        retryable: isRetryableSecurityReviewerErrorCode(input.errorCode),
+        retryable: isRetryableAuditErrorCode(materializeAuditErrorCode(input.errorCode)),
       },
     ],
     proposed: [],
@@ -1482,7 +1969,6 @@ function incompleteSourcePostureResult(input: {
       planned: true,
       completed: false,
       matchedSourcePaths: input.matchedSourcePaths,
-      deterministicCandidateCount: 0,
       evidenceMapFactCount: input.evidenceMap.facts.length,
       evidenceMapUnansweredObligationCount: input.evidenceMap.unansweredPlanObligations.length,
       ...sourcePostureCoverage(input.sourcePosture),
@@ -1506,11 +1992,9 @@ function incompleteSourcePostureResult(input: {
     },
     errors: [
       {
-        code: input.errorCode,
+        code: materializeAuditErrorCode(input.errorCode),
         stage: 'source-posture',
-        message:
-          'The candidate-blind source posture could not establish every approved obligation.',
-        retryable: true,
+        retryable: isRetryableAuditErrorCode(materializeAuditErrorCode(input.errorCode)),
       },
     ],
     proposed: [],
@@ -1539,7 +2023,6 @@ function incompleteInvestigationClosureResult(input: {
       planned: true,
       completed: false,
       matchedSourcePaths: input.matchedSourcePaths,
-      deterministicCandidateCount: 0,
       evidenceMapFactCount: input.evidenceMap.facts.length,
       evidenceMapUnansweredObligationCount: input.evidenceMap.unansweredPlanObligations.length,
       ...sourcePostureCoverage(input.sourcePosture),
@@ -1562,9 +2045,7 @@ function incompleteInvestigationClosureResult(input: {
       {
         code: 'obligation-closure-incomplete',
         stage: 'investigation',
-        message:
-          'The investigator did not provide a valid terminal closure for every review obligation.',
-        retryable: true,
+        retryable: isRetryableAuditErrorCode('obligation-closure-incomplete'),
       },
     ],
     proposed: [],
@@ -1634,24 +2115,6 @@ function uniqueSorted(values: readonly string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
-function redactVerifiableHypothesis(hypothesis: VerifiableHypothesis): VerifiableHypothesis {
-  const { evidenceMapFactIds, sourcePostureAssessmentIds, ...finding } = hypothesis;
-  return VerifiableHypothesisSchema.parse({
-    ...redactProposedFinding(finding),
-    evidenceMapFactIds,
-    sourcePostureAssessmentIds,
-  });
-}
-
-function redactVerifiedFinding(hypothesis: VerifiableHypothesis): ProposedFinding {
-  const {
-    evidenceMapFactIds: _evidenceMapFactIds,
-    sourcePostureAssessmentIds: _sourcePostureAssessmentIds,
-    ...finding
-  } = hypothesis;
-  return redactProposedFinding(finding);
-}
-
 /**
  * Runs exactly one candidate-aware unit through the audit-wide pool. Its
  * state transitions are durable when the caller supplies the output callback;
@@ -1664,15 +2127,25 @@ async function runCandidateAwareStage(input: {
   phase: AuditCandidateAwareCheckpoint['phase'];
   candidateOrdinal: number;
   hypothesis: VerifiableHypothesis;
+  evidenceMapFingerprint: string;
+  sourcePostureFingerprint: string;
   execute: (
     context: CandidateAwareModelStageContext,
   ) => Promise<AuditVerificationResultWithObservation>;
 }): Promise<NormalizedCandidateAwareResult> {
+  const phaseInputFingerprint = recoveryPhaseInputFingerprint({
+    phase: input.phase,
+    candidateFingerprint: candidateAwareFingerprint(input.hypothesis),
+    evidenceMapFingerprint: input.evidenceMapFingerprint,
+    sourcePostureFingerprint: input.sourcePostureFingerprint,
+  });
   const priorCheckpoint = input.input.resumeState?.candidateAwareCheckpoint({
     vectorId: input.vector.vectorId,
     phase: input.phase,
     candidateOrdinal: input.candidateOrdinal,
     candidate: input.hypothesis,
+    evidenceMapFingerprint: input.evidenceMapFingerprint,
+    sourcePostureFingerprint: input.sourcePostureFingerprint,
   });
   const prior = reusableCandidateAwareResult({
     checkpoint: priorCheckpoint,
@@ -1680,26 +2153,58 @@ async function runCandidateAwareStage(input: {
   });
   if (prior !== undefined) return prior;
   let contextOverflowTopology = priorCheckpoint?.contextOverflowTopology;
+  if (
+    contextOverflowTopology !== undefined &&
+    contextOverflowTopology.phaseInputFingerprint !== phaseInputFingerprint
+  ) {
+    throw new AuditRuntimeError(
+      'artifact-invalid',
+      'The candidate-aware context-overflow topology is bound to a different phase input.',
+    );
+  }
   const update = async (
     state: AuditCandidateAwareCheckpoint['state'],
     result?: PersistedCandidateAwareResult,
   ): Promise<void> =>
-    input.input.onCandidateAwareCheckpoint?.({
-      vectorId: input.vector.vectorId,
-      phase: input.phase,
-      candidateOrdinal: input.candidateOrdinal,
-      candidate: input.hypothesis,
-      state,
-      ...(result === undefined ? {} : { result }),
-      ...(contextOverflowTopology === undefined ? {} : { contextOverflowTopology }),
-    });
-  await update('pending');
+    persistAuditCheckpoint(() =>
+      input.input.onCandidateAwareCheckpoint?.({
+        vectorId: input.vector.vectorId,
+        phase: input.phase,
+        candidateOrdinal: input.candidateOrdinal,
+        candidate: input.hypothesis,
+        evidenceMapFingerprint: input.evidenceMapFingerprint,
+        sourcePostureFingerprint: input.sourcePostureFingerprint,
+        state,
+        ...(result === undefined ? {} : { result }),
+        ...(contextOverflowTopology === undefined ? {} : { contextOverflowTopology }),
+      }),
+    );
+  try {
+    await update('pending');
+  } catch (error) {
+    if (isCheckpointPersistenceError(error)) {
+      return checkpointPersistenceFailedCandidateAwareResult();
+    }
+    throw error;
+  }
   return input.candidateAwareDispatchPool.run(async () => {
-    await update('running');
+    try {
+      await update('running');
+    } catch (error) {
+      if (isCheckpointPersistenceError(error)) {
+        return checkpointPersistenceFailedCandidateAwareResult();
+      }
+      throw error;
+    }
+    let completedModelObservation: ModelStageObservation | undefined;
     let result: NormalizedCandidateAwareResult;
     try {
       result = normalizeCandidateAwareResult(
         await input.execute({
+          phaseInputFingerprint,
+          onCompletedModelObservation: (observation) => {
+            completedModelObservation = observation;
+          },
           ...(contextOverflowTopology === undefined
             ? {}
             : {
@@ -1709,7 +2214,10 @@ async function runCandidateAwareStage(input: {
           onContextOverflowTransition: async (transition) => {
             contextOverflowTopology = appendCandidateAwareContextOverflowEvent(
               contextOverflowTopology,
-              transition,
+              {
+                ...transition,
+                phaseInputFingerprint,
+              },
             );
             await update('running');
           },
@@ -1720,11 +2228,24 @@ async function runCandidateAwareStage(input: {
         input.candidateAwareDispatchPool.cancel(error);
         throw error;
       }
-      result = incompleteCandidateAwareResult('wrapper-contract-invalid');
+      if (isCheckpointPersistenceError(error)) {
+        return checkpointPersistenceFailedCandidateAwareResult();
+      }
+      result = incompleteCandidateAwareResult(
+        'wrapper-contract-invalid',
+        completedModelObservation,
+      );
     }
-    await update('completed', persistCandidateAwareResult(result));
+    try {
+      await update('completed', persistCandidateAwareResult(result));
+    } catch (error) {
+      if (isCheckpointPersistenceError(error)) {
+        return checkpointPersistenceFailedCandidateAwareResult(result.modelObservation);
+      }
+      throw error;
+    }
     if (result.modelObservation?.errorCode === 'provider-cancelled') {
-      const error = new SecurityReviewerError(
+      const error = new AuditRuntimeError(
         'provider-cancelled',
         'The candidate-aware model stage was cancelled by the provider.',
       );
@@ -1746,9 +2267,11 @@ function reusableCandidateAwareResult(input: {
     (input.retryUnfinished && checkpoint.result.decision === 'incomplete')
   )
     return undefined;
+  const { execution, ...result } = checkpoint.result;
+  const modelObservation = modelObservationForAuditCheckpointExecution(execution);
   return {
-    ...checkpoint.result,
-    reason: 'The exact persisted candidate-aware terminal result was reused.',
+    ...result,
+    ...(modelObservation === undefined ? {} : { modelObservation }),
   };
 }
 
@@ -1756,6 +2279,7 @@ function runtimeContextOverflowTopology(
   topology: CandidateAwareContextOverflowTopology,
 ): ContextOverflowTopology {
   return {
+    phaseInputFingerprint: topology.phaseInputFingerprint,
     recoveryProtocolFingerprint: topology.recoveryProtocolFingerprint,
     rootScopeFingerprint: topology.rootScopeFingerprint,
     events: topology.events.map(({ ordinal: _ordinal, savedAt: _savedAt, ...event }) => event),
@@ -1765,6 +2289,7 @@ function runtimeContextOverflowTopology(
 function appendCandidateAwareContextOverflowEvent(
   previous: CandidateAwareContextOverflowTopology | undefined,
   input: Readonly<{
+    phaseInputFingerprint: string;
     recoveryProtocolFingerprint: string;
     rootScopeFingerprint: string;
     event: ContextOverflowTopologyEvent;
@@ -1772,15 +2297,17 @@ function appendCandidateAwareContextOverflowEvent(
 ): CandidateAwareContextOverflowTopology {
   if (
     previous !== undefined &&
-    (previous.recoveryProtocolFingerprint !== input.recoveryProtocolFingerprint ||
+    (previous.phaseInputFingerprint !== input.phaseInputFingerprint ||
+      previous.recoveryProtocolFingerprint !== input.recoveryProtocolFingerprint ||
       previous.rootScopeFingerprint !== input.rootScopeFingerprint)
   ) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'artifact-invalid',
       'Candidate-aware context-overflow topology changed its exact recovery binding.',
     );
   }
   return {
+    phaseInputFingerprint: input.phaseInputFingerprint,
     recoveryProtocolFingerprint: input.recoveryProtocolFingerprint,
     rootScopeFingerprint: input.rootScopeFingerprint,
     events: [
@@ -1794,19 +2321,70 @@ function appendCandidateAwareContextOverflowEvent(
   };
 }
 
-/** Stores the canonical decision and telemetry, never the model-authored rationale. */
+/** Stores the already source-minimal canonical decision and telemetry. */
 function persistCandidateAwareResult(
   result: NormalizedCandidateAwareResult,
 ): PersistedCandidateAwareResult {
-  const { reason: _reason, ...persisted } = result;
-  return persisted;
+  const { modelObservation, ...persisted } = result;
+  return {
+    ...persisted,
+    execution: auditCheckpointExecutionForModelObservation(modelObservation),
+  };
+}
+
+/** Makes the ownership choice explicit at the durable audit boundary. */
+function auditCheckpointExecutionForModelObservation(
+  modelObservation: ModelStageObservation | undefined,
+): AuditCheckpointExecution {
+  return modelObservation === undefined
+    ? { kind: 'deterministic' }
+    : { kind: 'provider', modelObservation };
 }
 
 type NormalizedCandidateAwareResult = AuditVerificationResult &
   Readonly<{
     modelObservation?: ModelStageObservation;
     terminalLane: VerificationTerminalLane;
+    /** In-memory terminal signal; never included in a persisted verdict. */
+    checkpointPersistenceFailed?: true;
   }>;
+
+/**
+ * Waits for already-dispatched siblings to settle after cancellation so their
+ * completed, content-free observations remain visible in vector coverage.
+ * The shared pool rejects queued siblings and prevents any later dispatch.
+ */
+async function collectCandidateAwareResults<
+  Result extends Readonly<{ modelObservation?: ModelStageObservation }> | undefined,
+>(
+  work: readonly Promise<Result>[],
+): Promise<
+  Readonly<{
+    results: readonly Result[];
+    modelObservations: readonly ModelStageObservation[];
+    error: Error | undefined;
+  }>
+> {
+  const settled = await Promise.allSettled(work);
+  const results = settled.flatMap((entry) => (entry.status === 'fulfilled' ? [entry.value] : []));
+  const modelObservations = results.flatMap((result) =>
+    result?.modelObservation === undefined ? [] : [result.modelObservation],
+  );
+  const rejection = settled.find((entry) => entry.status === 'rejected');
+  return {
+    results,
+    modelObservations,
+    error:
+      rejection === undefined
+        ? undefined
+        : rejection.reason instanceof Error
+          ? rejection.reason
+          : new AuditRuntimeError(
+              'provider-failure',
+              'A candidate-aware stage rejected without an Error object.',
+            ),
+  };
+}
 
 /**
  * Creates the one source-free fallback for a verifier/countercheck wrapper
@@ -1818,9 +2396,12 @@ function incompleteCandidateAwareResult(
 ): NormalizedCandidateAwareResult {
   return {
     decision: 'incomplete',
-    reason: 'The candidate-aware stage did not produce a valid terminal result.',
-    verifiedEvidence: null,
+    reasonCode: 'output-invalid',
+    claimEvidenceBundles: null,
+    contradictionEvidence: null,
+    inspectedEvidence: [],
     verifiedPlanObligations: [],
+    affectedPlanObligations: [],
     controlAssessment: null,
     obligationReconciliations: [],
     postureReconciliations: [],
@@ -1829,26 +2410,40 @@ function incompleteCandidateAwareResult(
   };
 }
 
+/** Preserves a completed candidate-aware call when its required checkpoint cannot be written. */
+function checkpointPersistenceFailedCandidateAwareResult(
+  modelObservation?: ModelStageObservation,
+): NormalizedCandidateAwareResult {
+  return {
+    ...incompleteCandidateAwareResult('wrapper-contract-invalid', modelObservation),
+    checkpointPersistenceFailed: true,
+  };
+}
+
 /**
  * Keeps a provider-normalized terminal stage code visible in the vector error
  * ledger instead of collapsing an overflow, cancellation, or cost stop into
  * generic candidate incompleteness.
  */
-function candidateAwareTerminalErrorCode(
+function candidateAwareOperationalError(
   result: AuditVerificationResultWithObservation,
   phase: 'verification' | 'countercheck',
-): string {
-  const label = phase === 'verification' ? 'verifier' : 'countercheck';
-  if (result.decision === 'rejected') return `${label}-rejected`;
-  if (result.modelObservation?.status === 'failed' && result.modelObservation.errorCode !== null) {
-    return result.modelObservation.errorCode;
+): AuditError | undefined {
+  if (result.terminalLane === 'rejected' || result.terminalLane === 'model-incomplete') {
+    return undefined;
   }
-  return `${label}-incomplete`;
-}
-
-function candidateAwareResultIsRetryable(result: AuditVerificationResultWithObservation): boolean {
-  if (result.decision !== 'incomplete') return false;
-  return result.modelObservation?.errorCode !== 'provider-cancelled';
+  const label = phase === 'verification' ? 'verifier' : 'countercheck';
+  return {
+    code: materializeAuditErrorCode(
+      result.modelObservation?.status === 'failed' && result.modelObservation.errorCode !== null
+        ? result.modelObservation.errorCode
+        : `${label}-${result.terminalLane}`,
+    ),
+    stage: phase,
+    retryable: isRetryableAuditErrorCode(
+      materializeAuditErrorCode(result.modelObservation?.errorCode ?? ''),
+    ),
+  };
 }
 
 /**
@@ -1889,16 +2484,69 @@ function isCompatibleTerminalLane(
 }
 
 function errorCode(error: unknown): string {
-  return error instanceof SecurityReviewerError ? error.code : 'provider-failure';
+  return error instanceof AuditRuntimeError ? error.code : 'audit-continuation-failed';
 }
 
-function isProviderCancelled(error: unknown): error is SecurityReviewerError {
-  return error instanceof SecurityReviewerError && error.code === 'provider-cancelled';
+function isProviderCancelled(error: unknown): error is AuditRuntimeError {
+  return error instanceof AuditRuntimeError && error.code === 'provider-cancelled';
 }
 
 /** Preserves the provider-neutral stop signal without inspecting provider text. */
 function terminalFailureOutcome(errorCode: string): 'failed' | 'cancelled' {
   return errorCode === 'provider-cancelled' ? 'cancelled' : 'failed';
+}
+
+/**
+ * Makes checkpoint failures explicit without retaining the callback error or
+ * any source/model content. The already completed model stage remains valid
+ * work and is returned in the vector's terminal coverage.
+ */
+async function persistAuditCheckpoint(callback: () => Promise<void> | undefined): Promise<void> {
+  try {
+    await callback();
+  } catch {
+    throw new AuditRuntimeError(
+      'checkpoint-persistence-failed',
+      'A required audit checkpoint could not be persisted.',
+    );
+  }
+}
+
+function isCheckpointPersistenceError(error: unknown): error is AuditRuntimeError {
+  return error instanceof AuditRuntimeError && error.code === 'checkpoint-persistence-failed';
+}
+
+/**
+ * A terminal vector result could not be checkpointed. Keep its already
+ * inspected coverage and model observations for the caller, but never retain
+ * its findings as a successfully persisted audit outcome.
+ */
+function checkpointPersistenceFailureResult(
+  result: AuditVectorResult,
+  stage: AuditError['stage'],
+): AuditVectorResult {
+  const { admissionFunnel: _admissionFunnel, ...coverage } = result.coverage;
+  return AuditVectorResultSchema.parse({
+    coverage: {
+      ...coverage,
+      completed: false,
+      findingCount: 0,
+      reviewRequiredCount: 0,
+      outcome: 'failed',
+      errorCode: 'checkpoint-persistence-failed',
+      limitations: uniqueSorted([...coverage.limitations, 'checkpoint-persistence-failed']),
+    },
+    errors: [
+      ...result.errors,
+      {
+        code: 'checkpoint-persistence-failed',
+        stage,
+        retryable: false,
+      },
+    ],
+    proposed: [],
+    reviewRequired: [],
+  });
 }
 
 async function mapWithConcurrency<T, Result>(

@@ -1,13 +1,29 @@
-import { hasExactPlanObligations } from '../../attack-planning/plan.schema.js';
+import {
+  hasExactPlanObligations,
+  type SourceEvidenceRole,
+} from '../../attack-planning/plan.schema.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
-import { redactArtifactText } from '../investigation/redaction.js';
 import type { SourcePosture } from '../source-posture/contract.js';
 import type {
   AuditVerificationResult,
   UnverifiedAuditVerificationResult,
   VerifiableHypothesis,
 } from './contract.js';
-import { createVerificationEvidenceSelectionBasis, selectionIsInBasis } from './evidence-basis.js';
+import { preservesClaimEvidenceSelectionLineage } from './contract.js';
+import {
+  createVerificationEvidenceSelectionBasis,
+  selectionIsInBasis,
+  type VerificationEvidenceSelectionBasis,
+} from './evidence-basis.js';
+
+type AcceptedUnverifiedAuditVerificationResult = Extract<
+  UnverifiedAuditVerificationResult,
+  { decision: 'accepted' }
+>;
+type ResolvedUnverifiedAuditVerificationResult = Exclude<
+  UnverifiedAuditVerificationResult,
+  { decision: 'incomplete' }
+>;
 
 /**
  * Projects a verifier's selected neutral-map evidence into the canonical
@@ -19,26 +35,72 @@ export function materializeVerificationResult(
   evidenceMap: EvidenceMap,
   sourcePosture: SourcePosture,
 ): AuditVerificationResult | undefined {
-  if (output.decision !== 'accepted') {
-    return {
-      decision: output.decision,
-      reason: redactArtifactText(output.reason),
-      verifiedEvidence: null,
-      verifiedPlanObligations: [],
-      controlAssessment: null,
-      obligationReconciliations: [],
-      postureReconciliations: [],
-    };
-  }
   const evidenceSelectionBasis = createVerificationEvidenceSelectionBasis({
     hypothesis,
     evidenceMap,
     sourcePosture,
   });
+  const facts = new Map(evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
+  if (output.decision === 'incomplete') {
+    const inspectedEvidence = (output.inspectedEvidenceSelections ?? []).map((selection) =>
+      selectedEvidence(selection, allEvidenceSelections(evidenceSelectionBasis), facts, 'source'),
+    );
+    if (inspectedEvidence.some((evidence) => evidence === undefined)) return undefined;
+    return {
+      decision: 'incomplete',
+      reasonCode: output.reasonCode,
+      claimEvidenceBundles: null,
+      contradictionEvidence: null,
+      inspectedEvidence: inspectedEvidence.filter(
+        (evidence): evidence is NonNullable<typeof evidence> => evidence !== undefined,
+      ),
+      verifiedPlanObligations: [],
+      affectedPlanObligations: [],
+      controlAssessment: null,
+      obligationReconciliations: [],
+      postureReconciliations: [],
+      ...(output.mapInsufficiencies === undefined
+        ? {}
+        : { mapInsufficiencies: output.mapInsufficiencies }),
+    };
+  }
+  if (output.decision === 'rejected') {
+    const contradictionEvidence = output.contradictionEvidenceSelections.map((selection) =>
+      selectedEvidence(
+        selection,
+        allEvidenceSelections(evidenceSelectionBasis),
+        facts,
+        'counterevidence',
+      ),
+    );
+    if (
+      contradictionEvidence.some((evidence) => evidence === undefined) ||
+      !hasExactPlanObligations(output.affectedPlanObligations, hypothesis.planObligations)
+    ) {
+      return undefined;
+    }
+    const reconciliations = materializeReconciliations(
+      output,
+      hypothesis,
+      evidenceSelectionBasis,
+      facts,
+    );
+    if (reconciliations === undefined) return undefined;
+    return {
+      decision: 'rejected',
+      reasonCode: output.reasonCode,
+      claimEvidenceBundles: null,
+      contradictionEvidence: contradictionEvidence.filter(
+        (evidence): evidence is NonNullable<typeof evidence> => evidence !== undefined,
+      ),
+      inspectedEvidence: [],
+      verifiedPlanObligations: [],
+      affectedPlanObligations: output.affectedPlanObligations,
+      controlAssessment: null,
+      ...reconciliations,
+    };
+  }
   if (
-    output.operationEvidence === null ||
-    output.unsafeConditionEvidence === null ||
-    output.controlAssessment === null ||
     output.obligationReconciliations.some(
       (reconciliation) => reconciliation.disposition === 'unresolved',
     ) ||
@@ -48,25 +110,24 @@ export function materializeVerificationResult(
   ) {
     return undefined;
   }
-  const facts = new Map(evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
-  const operation = selectedEvidence(
-    output.operationEvidence,
+  const claimEvidenceBundles = materializeClaimEvidenceBundles(
+    output.claimEvidenceBundles,
     evidenceSelectionBasis.hypothesisSelections,
     facts,
-    'operation',
   );
-  const unsafeCondition = selectedEvidence(
-    output.unsafeConditionEvidence,
-    evidenceSelectionBasis.hypothesisSelections,
-    facts,
-    'unsafe-condition',
-  );
+  if (
+    claimEvidenceBundles === undefined ||
+    !preservesClaimEvidenceSelectionLineage(
+      hypothesis.claimEvidenceSelections,
+      output.claimEvidenceBundles,
+    )
+  ) {
+    return undefined;
+  }
   const controlEvidence = output.controlAssessment.evidenceSelections.map((selection) =>
     selectedEvidence(selection, evidenceSelectionBasis.controlSelections, facts, 'source'),
   );
   if (
-    operation === undefined ||
-    unsafeCondition === undefined ||
     controlEvidence.some((evidence) => evidence === undefined) ||
     !everyRequiredControlHasSelection(
       output.controlAssessment.evidenceSelections,
@@ -78,6 +139,67 @@ export function materializeVerificationResult(
   const resolvedControlEvidence = controlEvidence.filter(
     (evidence): evidence is NonNullable<typeof evidence> => evidence !== undefined,
   );
+  const reconciliations = materializeReconciliations(
+    output,
+    hypothesis,
+    evidenceSelectionBasis,
+    facts,
+  );
+  if (reconciliations === undefined) return undefined;
+  return {
+    decision: 'accepted',
+    reasonCode: output.reasonCode,
+    claimEvidenceBundles,
+    contradictionEvidence: null,
+    inspectedEvidence: [],
+    verifiedPlanObligations: hypothesis.planObligations,
+    affectedPlanObligations: [],
+    controlAssessment: {
+      conclusion: output.controlAssessment.conclusion,
+      evidence: resolvedControlEvidence,
+      consideredEvidenceMapFactIds: evidenceSelectionBasis.requiredControlFactIds,
+    },
+    ...reconciliations,
+  };
+}
+
+function selectedEvidence(
+  selection: { factId: string; evidenceIndex: number },
+  allowedSelections: readonly { factId: string; evidenceIndex: number }[],
+  facts: ReadonlyMap<string, EvidenceMap['facts'][number]>,
+  role: SourceEvidenceRole,
+) {
+  if (!selectionIsInBasis(allowedSelections, selection)) return undefined;
+  const evidence = facts.get(selection.factId)?.evidence[selection.evidenceIndex];
+  return evidence === undefined ? undefined : { ...evidence, role };
+}
+
+function materializeClaimEvidenceBundles(
+  bundles: AcceptedUnverifiedAuditVerificationResult['claimEvidenceBundles'],
+  allowedSelections: readonly { factId: string; evidenceIndex: number }[],
+  facts: ReadonlyMap<string, EvidenceMap['facts'][number]>,
+) {
+  const materialized = bundles.map((bundle) => {
+    const evidence = bundle.selections.map((selection) =>
+      selectedEvidence(selection, allowedSelections, facts, bundle.role),
+    );
+    if (evidence.some((item) => item === undefined)) return undefined;
+    return {
+      role: bundle.role,
+      evidence: evidence.filter((item): item is NonNullable<typeof item> => item !== undefined),
+    };
+  });
+  return materialized.some((bundle) => bundle === undefined)
+    ? undefined
+    : materialized.filter((bundle): bundle is NonNullable<typeof bundle> => bundle !== undefined);
+}
+
+function materializeReconciliations(
+  output: ResolvedUnverifiedAuditVerificationResult,
+  hypothesis: VerifiableHypothesis,
+  evidenceSelectionBasis: VerificationEvidenceSelectionBasis,
+  facts: ReadonlyMap<string, EvidenceMap['facts'][number]>,
+) {
   const obligationReconciliations = output.obligationReconciliations.map((reconciliation) => {
     if (
       !hypothesis.planObligations.some(
@@ -97,7 +219,6 @@ export function materializeVerificationResult(
     return {
       planObligation: reconciliation.planObligation,
       disposition: reconciliation.disposition,
-      explanation: redactArtifactText(reconciliation.explanation),
       evidence: evidence.filter((item): item is NonNullable<typeof item> => item !== undefined),
     };
   });
@@ -122,7 +243,6 @@ export function materializeVerificationResult(
     return {
       assessmentId: reconciliation.assessmentId,
       disposition: reconciliation.disposition,
-      explanation: redactArtifactText(reconciliation.explanation),
       evidence: evidence.filter((item): item is NonNullable<typeof item> => item !== undefined),
     };
   });
@@ -136,16 +256,6 @@ export function materializeVerificationResult(
     return undefined;
   }
   return {
-    decision: 'accepted',
-    reason: redactArtifactText(output.reason),
-    verifiedEvidence: [operation, unsafeCondition],
-    verifiedPlanObligations: hypothesis.planObligations,
-    controlAssessment: {
-      conclusion: output.controlAssessment.conclusion,
-      explanation: redactArtifactText(output.controlAssessment.explanation),
-      evidence: resolvedControlEvidence,
-      consideredEvidenceMapFactIds: evidenceSelectionBasis.requiredControlFactIds,
-    },
     obligationReconciliations: obligationReconciliations.filter(
       (reconciliation): reconciliation is NonNullable<typeof reconciliation> =>
         reconciliation !== undefined,
@@ -157,15 +267,15 @@ export function materializeVerificationResult(
   };
 }
 
-function selectedEvidence(
-  selection: { factId: string; evidenceIndex: number },
-  allowedSelections: readonly { factId: string; evidenceIndex: number }[],
-  facts: ReadonlyMap<string, EvidenceMap['facts'][number]>,
-  role: 'operation' | 'unsafe-condition' | 'source',
-) {
-  if (!selectionIsInBasis(allowedSelections, selection)) return undefined;
-  const evidence = facts.get(selection.factId)?.evidence[selection.evidenceIndex];
-  return evidence === undefined ? undefined : { ...evidence, role };
+function allEvidenceSelections(
+  basis: VerificationEvidenceSelectionBasis,
+): readonly { factId: string; evidenceIndex: number }[] {
+  return [
+    ...basis.hypothesisSelections,
+    ...basis.controlSelections,
+    ...basis.obligationSelections.flatMap((item) => item.selections),
+    ...basis.postureSelections.flatMap((item) => item.selections),
+  ];
 }
 
 function everyRequiredControlHasSelection(

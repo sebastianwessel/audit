@@ -32,6 +32,7 @@ export function emptyFindingAdmissionFunnel(): FindingAdmissionFunnel {
     verifierEvidenceRejectedCount: 0,
     verifierReconciledCount: 0,
     postVerificationRejectedCount: 0,
+    duplicateCollapsedCount: 0,
     admittedFindingCount: 0,
     verificationTerminalLanes: emptyVerificationTerminalLaneCounts(),
   });
@@ -109,6 +110,7 @@ export function createFindingAdmissionFunnel(input: {
   })[];
   verifierToolEvidenceRejectedCount: number;
   verifierReconciledCount: number;
+  duplicateCollapsedCount: number;
   admittedFindingCount: number;
 }): FindingAdmissionFunnel {
   const verifierAcceptedCount = input.verificationResults.filter(
@@ -133,7 +135,9 @@ export function createFindingAdmissionFunnel(input: {
       input.verifierToolEvidenceRejectedCount -
       input.verifierReconciledCount,
     verifierReconciledCount: input.verifierReconciledCount,
-    postVerificationRejectedCount: input.verifierReconciledCount - input.admittedFindingCount,
+    postVerificationRejectedCount:
+      input.verifierReconciledCount - input.duplicateCollapsedCount - input.admittedFindingCount,
+    duplicateCollapsedCount: input.duplicateCollapsedCount,
     admittedFindingCount: input.admittedFindingCount,
     verificationTerminalLanes: countVerificationTerminalLanes(
       input.verificationResults.map((result) => result.terminalLane),
@@ -162,6 +166,7 @@ export function aggregateFindingAdmissionFunnels(
         verifierReconciledCount: aggregate.verifierReconciledCount + funnel.verifierReconciledCount,
         postVerificationRejectedCount:
           aggregate.postVerificationRejectedCount + funnel.postVerificationRejectedCount,
+        duplicateCollapsedCount: aggregate.duplicateCollapsedCount + funnel.duplicateCollapsedCount,
         admittedFindingCount: aggregate.admittedFindingCount + funnel.admittedFindingCount,
         verificationTerminalLanes: aggregateVerificationTerminalLaneCounts([
           aggregate.verificationTerminalLanes,

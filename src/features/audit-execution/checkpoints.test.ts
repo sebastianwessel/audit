@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 
-import { createPlan as createDraftPlan } from '../attack-planning/plan.js';
+import { createPlan as createDraftPlan, resealPlan } from '../attack-planning/plan.js';
 import { observeModelStage } from '../model-operations/model-operations.js';
 import {
   emptyCandidateIntegrityRejectionLedger,
@@ -36,8 +36,23 @@ import {
   reusableContextOverflowModelStages,
 } from './checkpoints.js';
 
+function checkpointNarrative() {
+  return {
+    statement: 'The reviewed operation may be reached with an unsafe condition.',
+    roleExplanations: [
+      { role: 'operation' as const, explanation: 'The operation evidence identifies the action.' },
+      {
+        role: 'unsafe-condition' as const,
+        explanation: 'The condition evidence identifies the unsafe state.',
+      },
+    ],
+    limitations: [],
+  };
+}
+
 const targetFingerprint = 'a'.repeat(64);
 const contextDigest = 'b'.repeat(64);
+const phaseInputFingerprint = 'f'.repeat(64);
 const approvePlan = <T>(plan: T, ..._reviewMetadata: readonly [string, string, string]): T => plan;
 
 const plan = approvePlan(
@@ -95,7 +110,6 @@ const result = {
     planned: true,
     completed: true,
     matchedSourcePaths: 1,
-    deterministicCandidateCount: 0,
     evidenceMapFactCount: vector.reviewObligations.length,
     evidenceMapUnansweredObligationCount: 0,
     sourcePostureAssessmentCount: vector.reviewObligations.length,
@@ -146,6 +160,7 @@ test('loads a context-overflow topology only under its exact sealed vector bindi
     plan,
     phase: 'evidence-mapping',
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: '1'.repeat(64),
     rootScopeFingerprint: '2'.repeat(64),
     events: [
@@ -174,6 +189,20 @@ test('loads a context-overflow topology only under its exact sealed vector bindi
         scopeFingerprint: '2'.repeat(64),
         state: 'overflowed',
         errorCode: 'provider-context-overflow',
+        execution: {
+          kind: 'provider',
+          modelObservation: observeModelStage({
+            stage: 'evidence-mapping',
+            route: 'primary',
+            stageId: 'overflow-topology-01',
+            status: 'failed',
+            durationMs: 1,
+            errorCode: 'provider-context-overflow',
+            requests: [],
+            pricing: {},
+            cacheRoutingEnabled: false,
+          }),
+        },
         savedAt: '2026-08-03T12:00:02.000Z',
       },
       {
@@ -201,17 +230,20 @@ test('loads a context-overflow topology only under its exact sealed vector bindi
         scopeFingerprint: '3'.repeat(64),
         state: 'completed',
         errorCode: null,
-        modelObservation: observeModelStage({
-          stage: 'evidence-mapping',
-          route: 'primary',
-          stageId: `${vector.vectorId}:recovered-child`,
-          status: 'completed',
-          durationMs: 1,
-          errorCode: null,
-          requests: [],
-          pricing: {},
-          cacheRoutingEnabled: false,
-        }),
+        execution: {
+          kind: 'provider',
+          modelObservation: observeModelStage({
+            stage: 'evidence-mapping',
+            route: 'primary',
+            stageId: `${vector.vectorId}:recovered-child`,
+            status: 'completed',
+            durationMs: 1,
+            errorCode: null,
+            requests: [],
+            pricing: {},
+            cacheRoutingEnabled: false,
+          }),
+        },
         savedAt: '2026-08-03T12:00:05.000Z',
       },
     ],
@@ -224,7 +256,7 @@ test('loads a context-overflow topology only under its exact sealed vector bindi
       sourcePostureDrafts: [],
       candidateGroundingDrafts: [],
     }),
-  ).toHaveLength(1);
+  ).toHaveLength(2);
   expect(
     reusableContextOverflowModelStages({
       ledgers: [ledger],
@@ -263,6 +295,7 @@ test('reuses only an exact validated evidence-map recovery leaf linked to a comp
     plan,
     phase: 'evidence-mapping',
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: '6'.repeat(64),
     rootScopeFingerprint,
     events: [
@@ -291,6 +324,20 @@ test('reuses only an exact validated evidence-map recovery leaf linked to a comp
         scopeFingerprint: rootScopeFingerprint,
         state: 'overflowed',
         errorCode: 'provider-context-overflow',
+        execution: {
+          kind: 'provider',
+          modelObservation: observeModelStage({
+            stage: 'evidence-mapping',
+            route: 'primary',
+            stageId: 'overflow-evidence-map-leaf-01',
+            status: 'failed',
+            durationMs: 1,
+            errorCode: 'provider-context-overflow',
+            requests: [],
+            pricing: {},
+            cacheRoutingEnabled: false,
+          }),
+        },
         savedAt: '2026-08-03T12:00:02.000Z',
       },
       {
@@ -318,6 +365,7 @@ test('reuses only an exact validated evidence-map recovery leaf linked to a comp
         scopeFingerprint,
         state: 'completed',
         errorCode: null,
+        execution: { kind: 'deterministic' },
         savedAt: '2026-08-03T12:00:05.000Z',
       },
     ],
@@ -325,11 +373,14 @@ test('reuses only an exact validated evidence-map recovery leaf linked to a comp
   const leaf = createAuditEvidenceMapRecoveryLeaf({
     binding,
     plan,
+    phase: 'evidence-mapping',
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: ledger.recoveryProtocolFingerprint,
     rootScopeFingerprint,
     childKey: 'root/left',
     scopeFingerprint,
+    execution: { kind: 'deterministic' },
     evidenceMap: {
       facts: [],
       unansweredPlanObligations: [
@@ -344,6 +395,8 @@ test('reuses only an exact validated evidence-map recovery leaf linked to a comp
     auditEvidenceMapRecoveryLeafPath({
       runId: binding.runId,
       vectorId: binding.vectorId,
+      phase: 'evidence-mapping',
+      phaseInputFingerprint,
       scopeFingerprint,
     })
       ? leaf
@@ -366,6 +419,7 @@ test('reuses only an exact validated source-posture leaf linked to a completed t
     plan,
     phase: 'source-posture',
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: '9'.repeat(64),
     rootScopeFingerprint,
     events: [
@@ -394,6 +448,7 @@ test('reuses only an exact validated source-posture leaf linked to a completed t
         scopeFingerprint,
         state: 'completed',
         errorCode: null,
+        execution: { kind: 'deterministic' },
         savedAt: '2026-08-03T12:00:02.000Z',
       },
     ],
@@ -402,10 +457,12 @@ test('reuses only an exact validated source-posture leaf linked to a completed t
     binding,
     plan,
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: ledger.recoveryProtocolFingerprint,
     rootScopeFingerprint,
     childKey: 'root',
     scopeFingerprint,
+    execution: { kind: 'deterministic' },
     sourcePosture: {
       assessments: [
         {
@@ -425,6 +482,7 @@ test('reuses only an exact validated source-posture leaf linked to a completed t
     auditSourcePostureRecoveryLeafPath({
       runId: binding.runId,
       vectorId: binding.vectorId,
+      phaseInputFingerprint,
       scopeFingerprint,
     })
       ? leaf
@@ -447,6 +505,7 @@ test('reuses only an exact canonical grounding leaf linked to a completed topolo
     plan,
     phase: 'candidate-grounding',
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: 'c'.repeat(64),
     rootScopeFingerprint,
     events: [
@@ -457,6 +516,7 @@ test('reuses only an exact canonical grounding leaf linked to a completed topolo
         scopeFingerprint,
         state: 'completed',
         errorCode: null,
+        execution: { kind: 'deterministic' },
         savedAt: '2026-08-03T12:00:00.000Z',
       },
     ],
@@ -465,10 +525,12 @@ test('reuses only an exact canonical grounding leaf linked to a completed topolo
     binding,
     plan,
     parentStageId: vector.vectorId,
+    phaseInputFingerprint,
     recoveryProtocolFingerprint: ledger.recoveryProtocolFingerprint,
     rootScopeFingerprint,
     childKey: 'root',
     scopeFingerprint,
+    execution: { kind: 'deterministic' },
     groundings: { groundings: [] },
     savedAt: '2026-08-03T12:00:00.000Z',
   });
@@ -477,6 +539,7 @@ test('reuses only an exact canonical grounding leaf linked to a completed topolo
     auditCandidateGroundingRecoveryLeafPath({
       runId: binding.runId,
       vectorId: binding.vectorId,
+      phaseInputFingerprint,
       scopeFingerprint,
     })
       ? leaf
@@ -551,6 +614,91 @@ test('fails closed instead of reusing a checkpoint after workflow protocol drift
       reader: async () => checkpoint,
     }),
   ).rejects.toThrow('does not match');
+});
+
+test('rejects checkpoint reuse for every behavior-affecting identity mutation', async () => {
+  const obligation = vector.reviewObligations[0];
+  if (obligation === undefined)
+    throw new Error('The fixture vector requires one review obligation.');
+  const checkpoint = createAuditVectorCheckpoint({
+    binding,
+    plan,
+    result,
+    savedAt: '2026-08-04T12:02:00.000Z',
+  });
+  const reader = async () => checkpoint;
+  const bindingMutations = [
+    { label: 'target snapshot', binding: { ...baseBinding, targetFingerprint: '1'.repeat(64) } },
+    { label: 'provider', binding: { ...baseBinding, provider: 'another-provider' } },
+    { label: 'model', binding: { ...baseBinding, model: 'another-model' } },
+    {
+      label: 'verification route',
+      binding: { ...baseBinding, verificationRouteFingerprint: '2'.repeat(64) },
+    },
+    {
+      label: 'evidence-map protocol',
+      binding: { ...baseBinding, evidenceMapProtocolFingerprint: '3'.repeat(64) },
+    },
+    {
+      label: 'workflow protocol',
+      binding: { ...baseBinding, reviewWorkflowProtocolFingerprint: '4'.repeat(64) },
+    },
+  ];
+  for (const mutation of bindingMutations) {
+    await expect(
+      loadReusableAuditVectorResults({
+        binding: mutation.binding,
+        plan,
+        retryUnfinished: false,
+        reader,
+      }),
+      mutation.label,
+    ).rejects.toThrow('does not match');
+  }
+
+  const changedPlans = [
+    resealPlan({
+      ...plan,
+      contextDigest: '5'.repeat(64),
+    }),
+    resealPlan({
+      ...plan,
+      vectors: [
+        {
+          ...vector,
+          scopeGlobs: ['app/**'],
+        },
+      ],
+    }),
+    resealPlan({
+      ...plan,
+      vectors: [
+        {
+          ...vector,
+          reviewObligations: [
+            {
+              ...obligation,
+              riskStatement: 'A changed approved risk statement must invalidate checkpoint reuse.',
+            },
+          ],
+        },
+      ],
+    }),
+  ];
+  for (const changedPlan of changedPlans) {
+    await expect(
+      loadReusableAuditVectorResults({
+        binding: {
+          ...baseBinding,
+          planId: changedPlan.planId,
+          targetFingerprint: changedPlan.targetFingerprint,
+        },
+        plan: changedPlan,
+        retryUnfinished: false,
+        reader,
+      }),
+    ).rejects.toThrow('does not match');
+  }
 });
 
 test('retries incomplete terminal work only when unfinished recovery is explicitly requested', async () => {
@@ -639,32 +787,56 @@ test('reuses only a matching canonical candidate-grounding draft', async () => {
     binding,
     candidateGroundingProtocolFingerprint,
     plan,
-    findings: [
-      {
-        vectorId: vector.vectorId,
-        statement: 'Potential query issue',
-        evidence: [
-          {
-            path: 'src/query.ts',
-            startLine: 1,
-            snippet: 'SELECT value',
-            kind: 'source',
-            role: 'operation',
+    evidenceMapFingerprint: '1'.repeat(64),
+    sourcePostureFingerprint: '2'.repeat(64),
+    groundings: {
+      groundings: [
+        {
+          seedId: 'checkpoint-seed-01',
+          disposition: 'grounded',
+          hypothesis: {
+            vectorId: vector.vectorId,
+            narrative: checkpointNarrative(),
+            claimEvidenceBundles: [
+              {
+                role: 'operation',
+                evidence: [
+                  {
+                    path: 'src/query.ts',
+                    startLine: 1,
+                    contentDigest: 'a'.repeat(64),
+                    kind: 'source',
+                    role: 'operation',
+                  },
+                ],
+              },
+              {
+                role: 'unsafe-condition',
+                evidence: [
+                  {
+                    path: 'src/query.ts',
+                    startLine: 1,
+                    contentDigest: 'a'.repeat(64),
+                    kind: 'source',
+                    role: 'unsafe-condition',
+                  },
+                ],
+              },
+            ],
+            planObligations: [{ obligationId: 'checkpoint-obligation-01' }],
+            evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+            claimEvidenceSelections: [
+              { role: 'operation', selections: [{ factId: 'fact-query-01', evidenceIndex: 0 }] },
+              {
+                role: 'unsafe-condition',
+                selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+              },
+            ],
+            sourcePostureAssessmentIds: ['posture-question-01'],
           },
-          {
-            path: 'src/query.ts',
-            startLine: 1,
-            snippet: 'request value',
-            kind: 'source',
-            role: 'unsafe-condition',
-          },
-        ],
-        planObligations: [{ obligationId: 'checkpoint-obligation-01' }],
-        evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
-        sourcePostureAssessmentIds: ['posture-question-01'],
-        limitations: [],
-      },
-    ],
+        },
+      ],
+    },
     closures: [
       {
         planObligation: { obligationId: 'checkpoint-obligation-01' },
@@ -676,6 +848,28 @@ test('reuses only a matching canonical candidate-grounding draft', async () => {
     ],
     hypothesisGroundingFunnel: emptyHypothesisGroundingFunnel(),
     candidateIntegrityRejections: emptyCandidateIntegrityRejectionLedger(),
+    discoveryObservation: observeModelStage({
+      stage: 'investigation',
+      stageId: 'checkpoint-discovery-01',
+      route: 'primary',
+      status: 'completed',
+      durationMs: 1,
+      errorCode: null,
+      requests: [],
+      pricing: {},
+      cacheRoutingEnabled: false,
+    }),
+    modelObservation: observeModelStage({
+      stage: 'candidate-grounding',
+      stageId: 'checkpoint-grounding-01',
+      route: 'primary',
+      status: 'completed',
+      durationMs: 1,
+      errorCode: null,
+      requests: [],
+      pricing: {},
+      cacheRoutingEnabled: false,
+    }),
     savedAt: '2026-07-30T12:02:00.000Z',
   });
   const reader = async (path: string) =>
@@ -704,32 +898,56 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
     binding,
     candidateGroundingProtocolFingerprint,
     plan,
-    findings: [
-      {
-        vectorId: vector.vectorId,
-        statement: 'Potential query issue',
-        evidence: [
-          {
-            path: 'src/query.ts',
-            startLine: 1,
-            snippet: 'SELECT value',
-            kind: 'source',
-            role: 'operation',
+    evidenceMapFingerprint: '1'.repeat(64),
+    sourcePostureFingerprint: '2'.repeat(64),
+    groundings: {
+      groundings: [
+        {
+          seedId: 'checkpoint-seed-01',
+          disposition: 'grounded',
+          hypothesis: {
+            vectorId: vector.vectorId,
+            narrative: checkpointNarrative(),
+            claimEvidenceBundles: [
+              {
+                role: 'operation',
+                evidence: [
+                  {
+                    path: 'src/query.ts',
+                    startLine: 1,
+                    contentDigest: 'a'.repeat(64),
+                    kind: 'source',
+                    role: 'operation',
+                  },
+                ],
+              },
+              {
+                role: 'unsafe-condition',
+                evidence: [
+                  {
+                    path: 'src/query.ts',
+                    startLine: 1,
+                    contentDigest: 'a'.repeat(64),
+                    kind: 'source',
+                    role: 'unsafe-condition',
+                  },
+                ],
+              },
+            ],
+            planObligations: [{ obligationId: 'checkpoint-obligation-01' }],
+            evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
+            claimEvidenceSelections: [
+              { role: 'operation', selections: [{ factId: 'fact-query-01', evidenceIndex: 0 }] },
+              {
+                role: 'unsafe-condition',
+                selections: [{ factId: 'fact-input-01', evidenceIndex: 0 }],
+              },
+            ],
+            sourcePostureAssessmentIds: ['posture-question-01'],
           },
-          {
-            path: 'src/query.ts',
-            startLine: 1,
-            snippet: 'request value',
-            kind: 'source',
-            role: 'unsafe-condition',
-          },
-        ],
-        planObligations: [{ obligationId: 'checkpoint-obligation-01' }],
-        evidenceMapFactIds: ['fact-input-01', 'fact-query-01'],
-        sourcePostureAssessmentIds: ['posture-question-01'],
-        limitations: [],
-      },
-    ],
+        },
+      ],
+    },
     closures: [
       {
         planObligation: { obligationId: 'checkpoint-obligation-01' },
@@ -741,9 +959,34 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
     ],
     hypothesisGroundingFunnel: emptyHypothesisGroundingFunnel(),
     candidateIntegrityRejections: emptyCandidateIntegrityRejectionLedger(),
+    discoveryObservation: observeModelStage({
+      stage: 'investigation',
+      stageId: 'checkpoint-discovery-02',
+      route: 'primary',
+      status: 'completed',
+      durationMs: 1,
+      errorCode: null,
+      requests: [],
+      pricing: {},
+      cacheRoutingEnabled: false,
+    }),
+    modelObservation: observeModelStage({
+      stage: 'candidate-grounding',
+      stageId: 'checkpoint-grounding-02',
+      route: 'primary',
+      status: 'completed',
+      durationMs: 1,
+      errorCode: null,
+      requests: [],
+      pricing: {},
+      cacheRoutingEnabled: false,
+    }),
     savedAt: '2026-07-30T12:02:00.000Z',
   });
-  const candidate = draft.findings[0];
+  const candidate =
+    draft.groundings.groundings[0]?.disposition === 'grounded'
+      ? draft.groundings.groundings[0].hypothesis
+      : undefined;
   if (candidate === undefined) throw new Error('Missing canonical candidate.');
   const completed = createAuditCandidateAwareCheckpoint({
     binding,
@@ -752,15 +995,58 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
     phase: 'verification',
     candidateOrdinal: 1,
     candidate,
+    evidenceMapFingerprint: draft.evidenceMapFingerprint,
+    sourcePostureFingerprint: draft.sourcePostureFingerprint,
     state: 'completed',
     result: {
       decision: 'rejected',
-      verifiedEvidence: null,
+      reasonCode: 'claim-contradicted',
+      claimEvidenceBundles: null,
+      contradictionEvidence: [
+        {
+          path: 'src/query.ts',
+          startLine: 1,
+          contentDigest: 'a'.repeat(64),
+          kind: 'source',
+          role: 'counterevidence',
+        },
+      ],
+      inspectedEvidence: [],
       verifiedPlanObligations: [],
+      affectedPlanObligations: [{ obligationId: 'checkpoint-obligation-01' }],
       controlAssessment: null,
-      obligationReconciliations: [],
-      postureReconciliations: [],
+      obligationReconciliations: [
+        {
+          planObligation: { obligationId: 'checkpoint-obligation-01' },
+          disposition: 'contradicts-claim',
+          evidence: [
+            {
+              path: 'src/query.ts',
+              startLine: 1,
+              contentDigest: 'a'.repeat(64),
+              kind: 'source',
+              role: 'source',
+            },
+          ],
+        },
+      ],
+      postureReconciliations: [
+        {
+          assessmentId: 'posture-question-01',
+          disposition: 'contradicts-claim',
+          evidence: [
+            {
+              path: 'src/query.ts',
+              startLine: 1,
+              contentDigest: 'a'.repeat(64),
+              kind: 'source',
+              role: 'source',
+            },
+          ],
+        },
+      ],
       terminalLane: 'rejected',
+      execution: { kind: 'deterministic' },
     },
     savedAt: '2026-07-30T12:03:00.000Z',
   });
@@ -771,6 +1057,8 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
     phase: 'countercheck',
     candidateOrdinal: 1,
     candidate,
+    evidenceMapFingerprint: draft.evidenceMapFingerprint,
+    sourcePostureFingerprint: draft.sourcePostureFingerprint,
     state: 'pending',
     savedAt: '2026-07-30T12:03:01.000Z',
   });
@@ -807,9 +1095,8 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
       plan,
       drafts: [draft],
       reader,
-      retryUnfinished: false,
     }),
-  ).resolves.toEqual([completed]);
+  ).resolves.toEqual([completed, pending]);
   await expect(
     loadReusableAuditCandidateAwareCheckpoints({
       binding: baseBinding,
@@ -817,7 +1104,47 @@ test('reuses only an exact completed candidate-aware result and reschedules inte
       plan,
       drafts: [draft],
       reader: async () => ({ ...completed, candidateFingerprint: 'f'.repeat(64) }),
-      retryUnfinished: false,
+    }),
+  ).rejects.toThrow('does not match');
+  await expect(
+    loadReusableAuditCandidateAwareCheckpoints({
+      binding: baseBinding,
+      candidateGroundingProtocolFingerprint,
+      plan,
+      drafts: [draft],
+      reader: async () => ({ ...completed, evidenceMapFingerprint: 'f'.repeat(64) }),
+    }),
+  ).rejects.toThrow('does not match');
+  await expect(
+    loadReusableAuditCandidateAwareCheckpoints({
+      binding: baseBinding,
+      candidateGroundingProtocolFingerprint,
+      plan,
+      drafts: [draft],
+      reader: async () => ({ ...completed, sourcePostureFingerprint: 'f'.repeat(64) }),
+    }),
+  ).rejects.toThrow('does not match');
+  const countercheck = {
+    ...completed,
+    phase: 'countercheck' as const,
+    candidateFingerprint: 'f'.repeat(64),
+  };
+  await expect(
+    loadReusableAuditCandidateAwareCheckpoints({
+      binding: baseBinding,
+      candidateGroundingProtocolFingerprint,
+      plan,
+      drafts: [draft],
+      reader: async (path) =>
+        path ===
+        auditCandidateAwareCheckpointPath({
+          runId: binding.runId,
+          vectorId: binding.vectorId,
+          phase: 'countercheck',
+          candidateOrdinal: 1,
+        })
+          ? countercheck
+          : undefined,
     }),
   ).rejects.toThrow('does not match');
 });
@@ -826,6 +1153,7 @@ test('reuses a matching candidate-blind source posture without rerunning that ph
   const draft = createAuditSourcePostureDraft({
     binding,
     plan,
+    evidenceMapFingerprint: '1'.repeat(64),
     sourcePosture: {
       assessments: [
         {
@@ -838,6 +1166,7 @@ test('reuses a matching candidate-blind source posture without rerunning that ph
       ],
       limitations: [],
     },
+    execution: { kind: 'deterministic' },
     savedAt: '2026-07-30T12:02:00.000Z',
   });
   const reusable = await loadReusableAuditSourcePostureDrafts({

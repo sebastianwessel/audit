@@ -1,32 +1,43 @@
 import type { ModelProvider } from '@purista/harness';
-import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
-import type { SourceDocument } from '../../audit-execution/audit.schema.js';
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
+import type {
+  AuditCheckpointExecution,
+  SourceDocument,
+} from '../../audit-execution/audit.schema.js';
 import {
   type EvidenceMap,
-  mappedControlFactIdsForObligation,
-  type UnverifiedEvidenceMap,
+  EvidenceMapSchema,
 } from '../../audit-execution/evidence-map/contract.js';
 import { verifyEvidenceMap } from '../../audit-execution/evidence-map/verify.js';
 import type { EvidenceMapRequest } from '../../audit-execution/phase-input/contract.js';
-import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
+import type {
+  ModelCostCeiling,
+  ModelPricing,
+  ModelStageObservation,
+} from '../../model-operations/model-operations.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
+import type { EvidenceMapModelOutput } from '../agents/evidence-map/contract.js';
 import type {
   ContextOverflowRecoveredLeaf,
-  ContextOverflowTopology,
-  ContextOverflowTopologyEvent,
+  ContextRecoveryScope,
 } from '../runtime/context-overflow.js';
+import { invalidModelOutput } from '../runtime/retry-guidance.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
-import { runScopedModelStage } from './scoped-model-stage.js';
+import {
+  type EvaluatorFailureDiagnosticSink,
+  runScopedModelStage,
+  type ScopedModelStageOverflowTopologyBase,
+} from './scoped-model-stage.js';
 
 /** Maps scoped source facts before a separate stage may form a hypothesis. */
 export async function runEvidenceMapStage(input: {
   modelProvider: ModelProvider;
   filesystem: SourceRepository;
   request: EvidenceMapRequest;
-  /** Internal immutable snapshot projection used to validate persisted leaves. */
-  sources?: readonly SourceDocument[];
+  /** Immutable approved source snapshot used to canonicalize model locations. */
+  sources: readonly SourceDocument[];
   context: readonly ContextDocument[];
   sessionId: string;
   modelName: string | undefined;
@@ -35,16 +46,18 @@ export async function runEvidenceMapStage(input: {
   modelPricing: ModelPricing;
   modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
-  overflowTopology?: Readonly<{
-    prior?: ContextOverflowTopology;
-    priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<EvidenceMap>[];
-    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
-    onRecoveredLeafCompleted?: (input: {
-      childKey: string;
-      scopeFingerprint: string;
-      output: EvidenceMap;
-    }) => Promise<void>;
-  }>;
+  overflowTopology?: ScopedModelStageOverflowTopologyBase &
+    Readonly<{
+      priorRecoveredLeaves?: readonly ContextOverflowRecoveredLeaf<EvidenceMap>[];
+      onRecoveredLeafCompleted?: (input: {
+        childKey: string;
+        scopeFingerprint: string;
+        execution: AuditCheckpointExecution;
+        output: EvidenceMap;
+      }) => Promise<void>;
+    }>;
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
 }) {
   const overflowTopology = (() => {
     if (input.overflowTopology === undefined) return undefined;
@@ -54,41 +67,31 @@ export async function runEvidenceMapStage(input: {
       ...(priorRecoveredLeaves === undefined
         ? {}
         : {
-            priorRecoveredLeaves: priorRecoveredLeaves.map((leaf) => ({
-              ...leaf,
-              output: evidenceMapRecoveryOutput(leaf.output, input.request),
-            })),
+            priorRecoveredLeaves,
           }),
       ...(onRecoveredLeafCompleted === undefined
         ? {}
         : {
             onRecoveredLeafCompleted: async (leaf: {
               childKey: string;
-              scope: {
-                sourcePaths: readonly string[];
-                lineRanges: readonly { path: string; startLine: number; endLine: number }[];
-              };
+              attempt: number;
+              scope: ContextRecoveryScope;
               scopeFingerprint: string;
-              output: UnverifiedEvidenceMap;
+              execution: AuditCheckpointExecution;
+              output: EvidenceMap;
             }) => {
-              const evidenceMap = verifyEvidenceMap(
-                input.request.vector,
-                leaf.output,
-                (input.sources ?? []).filter((source) =>
-                  leaf.scope.sourcePaths.includes(source.path),
-                ),
-              ).evidenceMap;
-              assertEvidenceMapWithinScope(evidenceMap, leaf.scope);
+              assertEvidenceMapWithinScope(leaf.output, leaf.scope);
               await onRecoveredLeafCompleted({
                 childKey: leaf.childKey,
                 scopeFingerprint: leaf.scopeFingerprint,
-                output: evidenceMap,
+                execution: leaf.execution,
+                output: leaf.output,
               });
             },
           }),
     };
   })();
-  const result = await runScopedModelStage<UnverifiedEvidenceMap>({
+  const result = await runScopedModelStage<EvidenceMap, EvidenceMapModelOutput>({
     stage: 'evidence-mapping',
     route: 'primary',
     stageId: input.request.vector.vectorId,
@@ -103,53 +106,35 @@ export async function runEvidenceMapStage(input: {
     modelPricing: input.modelPricing,
     modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
+    evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
+    onCompletedModelObservation: input.onCompletedModelObservation,
     ...(overflowTopology === undefined ? {} : { overflowTopology }),
     requireScopedSourceInspection: true,
-    invoke: (session, _attempt, scope) =>
+    invoke: (session, _attempt, scope, retryGuidance) =>
       session.workflows.map_vector_evidence.prompt({
         ...input.request,
         availableSourcePaths: [...scope.sourcePaths],
         context: [...scope.context],
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
+        retryGuidance,
       }),
-    reduceRecoveredOutputs: (leaves) => ({
-      facts: mergeRecoveredFacts(leaves.flatMap((leaf) => leaf.output.facts)),
-      controlCoverage: input.request.vector.reviewObligations.map((obligation) => ({
-        obligationId: obligation.obligationId,
-        controlFactIds: uniqueSorted(
-          leaves.flatMap((leaf) =>
-            leaf.output.controlCoverage
-              .filter((coverage) => coverage.obligationId === obligation.obligationId)
-              .flatMap((coverage) => coverage.controlFactIds),
-          ),
+    projectOutput: (output) => {
+      const verified = verifyEvidenceMap(input.request.vector, output, input.sources);
+      if (verified.rejectedFactCount > 0) {
+        invalidModelOutput(['facts']);
+      }
+      return verified.evidenceMap;
+    },
+    reduceRecoveredOutputs: (leaves) =>
+      EvidenceMapSchema.parse({
+        facts: mergeRecoveredFacts(leaves.flatMap((leaf) => leaf.output.facts)),
+        unansweredPlanObligations: uniqueByKey(
+          leaves.flatMap((leaf) => leaf.output.unansweredPlanObligations),
         ),
-      })),
-      unansweredPlanObligations: uniqueByKey(
-        leaves.flatMap((leaf) => leaf.output.unansweredPlanObligations),
-      ),
-      limitations: uniqueSorted([
-        ...leaves.flatMap((leaf) => leaf.output.limitations),
-        'The provider context window required deterministic approved-scope recovery.',
-      ]),
-    }),
+        limitations: uniqueSorted(leaves.flatMap((leaf) => leaf.output.limitations)),
+      }),
   });
   return result;
-}
-
-/** Rehydrates a validated map fragment only at the model-workflow boundary. */
-export function evidenceMapRecoveryOutput(
-  evidenceMap: EvidenceMap,
-  request: EvidenceMapRequest,
-): UnverifiedEvidenceMap {
-  return {
-    facts: evidenceMap.facts,
-    controlCoverage: request.vector.reviewObligations.map((obligation) => ({
-      obligationId: obligation.obligationId,
-      controlFactIds: mappedControlFactIdsForObligation(evidenceMap, obligation.obligationId),
-    })),
-    unansweredPlanObligations: evidenceMap.unansweredPlanObligations,
-    limitations: evidenceMap.limitations,
-  };
 }
 
 function assertEvidenceMapWithinScope(
@@ -167,7 +152,7 @@ function assertEvidenceMapWithinScope(
       (range !== undefined &&
         (evidence.startLine < range.startLine || evidence.startLine > range.endLine))
     ) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'artifact-invalid',
         'A recovery evidence-map artifact contains evidence outside its exact approved scope.',
       );
@@ -195,7 +180,7 @@ function mergeRecoveredFacts<T extends { factId: string }>(facts: readonly T[]):
   for (const fact of facts) {
     const existing = byId.get(fact.factId);
     if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(fact)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'provider-context-overflow',
         'Context recovery produced conflicting evidence-map fact identities.',
       );

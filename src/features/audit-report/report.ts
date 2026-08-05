@@ -1,40 +1,62 @@
-import type { AuditReport } from '../audit-execution/audit.schema.js';
-import {
-  redactArtifactText,
-  redactEvidenceSnippet,
-} from '../audit-execution/investigation/redaction.js';
+import type { ClaimEvidenceRole } from '../attack-planning/plan.schema.js';
+import { classifyAuditTerminal } from '../audit-execution/terminal-classification.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
+import type { PublicAuditReport } from './public-contract.js';
 
 function markdownEscape(value: string): string {
-  return redactArtifactText(value)
-    .replaceAll('|', '\\|')
-    .replaceAll(/\r?\n|\r/gu, ' ');
+  return value.replaceAll('|', '\\|').replaceAll(/\r?\n|\r/gu, ' ');
 }
 
 /** Uses a deterministic safe label because paths and identifiers are rendered inside Markdown code spans. */
 function markdownCode(value: string): string {
-  return `\`${redactArtifactText(value).replaceAll('`', '´')}\``;
+  return `\`${value.replaceAll('`', '´')}\``;
 }
 
-function evidenceRows(
-  evidence: ReadonlyArray<AuditReport['findings'][number]['evidence'][number]>,
-): string[] {
-  return evidence.map(
-    (item) =>
-      `| ${markdownEscape(item.role ?? 'supporting')} | ${markdownCode(
-        `${item.path}:${item.startLine}${item.endLine === undefined ? '' : `-${item.endLine}`}`,
-      )} | ${markdownEscape(redactEvidenceSnippet(item.snippet))} |`,
+function evidenceRows(finding: PublicAuditReport['findings'][number]): string[] {
+  return finding.claimEvidenceBundles.flatMap((bundle) =>
+    bundle.evidence.map(
+      (item) =>
+        `| ${bundle.role} | ${markdownCode(
+          `${item.path}:${item.startLine}${item.endLine === undefined ? '' : `-${item.endLine}`}`,
+        )} | ${markdownCode(`sha256:${item.contentDigest}`)} |`,
+    ),
   );
+}
+
+function findingNarrativeLines(finding: PublicAuditReport['findings'][number]): string[] {
+  const roleExplanation = (role: ClaimEvidenceRole) =>
+    finding.narrative.roleExplanations.find((item) => item.role === role)?.explanation ??
+    'No explanation was retained.';
+  return [
+    'Claim:',
+    '',
+    markdownEscape(finding.narrative.statement),
+    '',
+    'Why these locations matter:',
+    '',
+    `- Operation: ${markdownEscape(roleExplanation('operation'))}`,
+    `- Unsafe condition: ${markdownEscape(roleExplanation('unsafe-condition'))}`,
+    '',
+    ...(finding.narrative.limitations.length === 0
+      ? []
+      : [
+          'Limitations:',
+          '',
+          ...finding.narrative.limitations.map((item) => `- ${markdownEscape(item)}`),
+          '',
+        ]),
+  ];
 }
 
 function costText(stage: ModelStageObservation): string {
   return stage.cost.estimatedCostUsd === null ? 'Unavailable' : `$${stage.cost.estimatedCostUsd}`;
 }
 
-function operationalRows(report: AuditReport): string[] {
+function operationalRows(report: PublicAuditReport): string[] {
   return report.coverage.flatMap((coverage) => {
     const stages = [
       ...(coverage.evidenceMapObservation === undefined ? [] : [coverage.evidenceMapObservation]),
+      ...(coverage.evidenceMapRepairObservations ?? []),
       ...(coverage.sourcePostureObservation === undefined
         ? []
         : [coverage.sourcePostureObservation]),
@@ -57,10 +79,11 @@ type OperationalStage = Readonly<{
   stage: ModelStageObservation;
 }>;
 
-function operationalStages(report: AuditReport): readonly OperationalStage[] {
+function operationalStages(report: PublicAuditReport): readonly OperationalStage[] {
   return report.coverage.flatMap((coverage) =>
     [
       ...(coverage.evidenceMapObservation === undefined ? [] : [coverage.evidenceMapObservation]),
+      ...(coverage.evidenceMapRepairObservations ?? []),
       ...(coverage.sourcePostureObservation === undefined
         ? []
         : [coverage.sourcePostureObservation]),
@@ -74,7 +97,7 @@ function operationalStages(report: AuditReport): readonly OperationalStage[] {
   );
 }
 
-function operationalSummaryRows(report: AuditReport): string[] {
+function operationalSummaryRows(report: PublicAuditReport): string[] {
   const summaries = new Map<
     string,
     {
@@ -129,7 +152,7 @@ function operationalSummaryRows(report: AuditReport): string[] {
     });
 }
 
-function operationalHotspotRows(report: AuditReport): string[] {
+function operationalHotspotRows(report: PublicAuditReport): string[] {
   return [...operationalStages(report)]
     .sort((left, right) => {
       const leftCost = left.stage.cost.estimatedCostUsd ?? -1;
@@ -151,17 +174,17 @@ function operationalHotspotRows(report: AuditReport): string[] {
     );
 }
 
-function admissionRows(report: AuditReport): string[] {
+function admissionRows(report: PublicAuditReport): string[] {
   return report.coverage.flatMap((coverage) => {
     const funnel = coverage.admissionFunnel;
     if (funnel === undefined) return [];
     return [
-      `| \`${coverage.vectorId}\` | ${funnel.modelCandidateCount} | ${funnel.integrityRejectedCount} | ${funnel.toolEvidenceRejectedCount} | ${funnel.verifierAcceptedCount}/${funnel.verifierRejectedCount}/${funnel.verifierIncompleteCount} | ${funnel.verifierToolEvidenceRejectedCount} | ${funnel.verifierEvidenceRejectedCount} | ${funnel.verifierReconciledCount} | ${funnel.postVerificationRejectedCount} | ${funnel.admittedFindingCount} |`,
+      `| \`${coverage.vectorId}\` | ${funnel.modelCandidateCount} | ${funnel.integrityRejectedCount} | ${funnel.toolEvidenceRejectedCount} | ${funnel.verifierAcceptedCount}/${funnel.verifierRejectedCount}/${funnel.verifierIncompleteCount} | ${funnel.verifierToolEvidenceRejectedCount} | ${funnel.verifierEvidenceRejectedCount} | ${funnel.verifierReconciledCount} | ${funnel.postVerificationRejectedCount} | ${funnel.duplicateCollapsedCount} | ${funnel.admittedFindingCount} |`,
     ];
   });
 }
 
-function verificationTerminalLaneRows(report: AuditReport): string[] {
+function verificationTerminalLaneRows(report: PublicAuditReport): string[] {
   return report.coverage.flatMap((coverage) => {
     const lanes = coverage.admissionFunnel?.verificationTerminalLanes;
     if (lanes === undefined) return [];
@@ -171,67 +194,190 @@ function verificationTerminalLaneRows(report: AuditReport): string[] {
   });
 }
 
-function closureRows(report: AuditReport): string[] {
+function closureRows(report: PublicAuditReport): string[] {
   return report.coverage.flatMap((coverage) =>
     (coverage.obligationClosure ?? []).map(
       (row) =>
-        `| \`${coverage.vectorId}\` | \`${row.obligationId}\` | ${row.mapState} (${row.evidenceMapFactCount}) | ${row.sourcePostureConclusion ?? 'not-reached'} | ${row.investigationState} | ${row.candidateCount} | ${row.admittedFindingCount} | ${row.terminalDisposition} | ${markdownEscape(row.notApplicableReason ?? '—')} |`,
+        `| \`${coverage.vectorId}\` | \`${row.obligationId}\` | ${markdownEscape(reviewObligationRiskStatement(report, coverage.vectorId, row.obligationId))} | ${row.mapState} (${row.evidenceMapFactCount}) | ${row.sourcePostureConclusion ?? 'not-reached'} | ${row.investigationState} | ${row.candidateCount} | ${row.admittedFindingCount} | ${row.terminalDisposition} |`,
     ),
   );
 }
 
-export function renderAuditReportMarkdown(report: AuditReport): string {
+function reviewObligationContext(
+  report: PublicAuditReport,
+  vectorId: string,
+  obligationId: string,
+) {
+  return report.reviewContext.vectors
+    .find((vector) => vector.vectorId === vectorId)
+    ?.reviewObligations.find((obligation) => obligation.obligationId === obligationId);
+}
+
+function reviewObligationRiskStatement(
+  report: PublicAuditReport,
+  vectorId: string,
+  obligationId: string,
+): string {
+  return reviewObligationContext(report, vectorId, obligationId)?.riskStatement ?? 'Unavailable';
+}
+
+function applicabilityReasonText(
+  reason: 'no-relevant-operation-in-scope' | 'external-component-not-represented-in-scope',
+): string {
+  switch (reason) {
+    case 'no-relevant-operation-in-scope':
+      return 'The reviewed scope contains no operation relevant to this obligation.';
+    case 'external-component-not-represented-in-scope':
+      return 'The reviewed source shows this obligation belongs to a component not represented in this scope.';
+  }
+}
+
+function applicabilityRows(report: PublicAuditReport): string[] {
+  return report.coverage.flatMap((coverage) =>
+    (coverage.obligationClosure ?? []).flatMap((closure) => {
+      if (
+        closure.terminalDisposition !== 'not-applicable' ||
+        closure.notApplicableReason === undefined ||
+        closure.notApplicableReason === null ||
+        closure.notApplicableEvidence === undefined
+      ) {
+        return [];
+      }
+      const evidence = closure.notApplicableEvidence
+        .map((item) =>
+          markdownCode(
+            `${item.path}:${item.startLine}${item.endLine === undefined ? '' : `-${item.endLine}`}`,
+          ),
+        )
+        .join(', ');
+      return [
+        `| ${markdownCode(coverage.vectorId)} | ${markdownCode(closure.obligationId)} | ${markdownEscape(reviewObligationRiskStatement(report, coverage.vectorId, closure.obligationId))} | ${markdownEscape(applicabilityReasonText(closure.notApplicableReason))} | ${evidence} |`,
+      ];
+    }),
+  );
+}
+
+function outcomeText(report: PublicAuditReport): string {
+  const terminal = classifyAuditTerminal(report);
+  if (terminal.outcome !== 'completed') {
+    return 'This run has incomplete, failed, or cancelled review work. Resume or investigate that work before treating the scope as covered.';
+  }
+  if (report.findings.length > 0) {
+    return `${report.findings.length} accepted source-backed finding${report.findings.length === 1 ? '' : 's'} require human triage and remediation planning.`;
+  }
+  if (report.reviewRequired.length > 0) {
+    return 'No accepted finding was produced, but source-backed items require human review because independent static-review stages disagreed.';
+  }
+  return 'No accepted source-backed finding was produced by this completed bounded static run. This is not proof that the target is secure.';
+}
+
+/**
+ * Human follow-up is intentionally a terminal-state projection. It must not
+ * reinterpret source evidence, limitations, or a model claim as a security conclusion.
+ */
+export function auditVectorNextAction(
+  coverage: Pick<PublicAuditReport['coverage'][number], 'outcome' | 'errorCode'>,
+): string {
+  const error =
+    coverage.errorCode === null ? '' : ` Recorded terminal code: ${coverage.errorCode}.`;
+  switch (coverage.outcome) {
+    case 'completed':
+      return 'Audit execution is complete for this vector. Continue with normal report review.';
+    case 'not-applicable':
+      return 'Keep this as a neutral not-applicable outcome; do not treat it as a passed check.';
+    case 'skipped':
+      return 'This vector did not execute. Review the plan configuration if coverage is required.';
+    case 'incomplete':
+      return `Investigate the recorded terminal state, then explicitly resume the same run before treating this vector as covered.${error}`;
+    case 'failed':
+      return `Investigate the recorded terminal state and explicitly resume the same run only after it is resolved.${error}`;
+    case 'cancelled':
+      return `Explicitly resume the same run if this vector still requires review; it is not covered.${error}`;
+  }
+}
+
+function developerNextSteps(
+  report: PublicAuditReport,
+  finding: PublicAuditReport['findings'][number],
+): string {
+  const locations = finding.claimEvidenceBundles.flatMap((bundle) =>
+    bundle.evidence.map((evidence) => `${evidence.path}:${evidence.startLine}`),
+  );
+  const obligations = finding.planObligations.map((obligation) => obligation.obligationId);
+  const reviewQuestions = finding.planObligations
+    .map((obligation) =>
+      reviewObligationRiskStatement(report, finding.vectorId, obligation.obligationId),
+    )
+    .join(' ');
+  return `Review the cited source at ${locations.join(', ')}, validate the claim against plan obligation${obligations.length === 1 ? '' : 's'} ${obligations.join(', ')} (${reviewQuestions}), then implement and test an appropriate fix in the target's product context.`;
+}
+
+export function renderAuditReportMarkdown(report: PublicAuditReport): string {
   const lines = [
-    '# Security review report',
+    '# Audit report',
     '',
     `- Report: \`${report.reportId}\``,
     `- Plan: \`${report.planId}\``,
     `- Generated: ${report.generatedAt}`,
     '',
-    '## Coverage',
+    '## Outcome',
     '',
-    '| Vector | Outcome | Files | Candidates | Map facts | Unanswered plan items | Findings | Limitations |',
-    '| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |',
-    ...report.coverage.map(
-      (coverage) =>
-        `| \`${coverage.vectorId}\` | ${coverage.outcome} | ${coverage.matchedSourcePaths} | ${coverage.deterministicCandidateCount} | ${coverage.evidenceMapFactCount} | ${coverage.evidenceMapUnansweredObligationCount} | ${coverage.findingCount} | ${markdownEscape(coverage.limitations.join(' ')) || 'None'} |`,
-    ),
+    outcomeText(report),
     '',
-    '## Findings',
+    '## Actionable findings',
     '',
   ];
   if (report.findings.length === 0) {
-    lines.push('No source-backed findings were produced by this static run.');
-  }
-  const closures = closureRows(report);
-  if (closures.length > 0) {
     lines.push(
-      '## Review-obligation closure',
-      '',
-      'Each row is a source-free account of the planned review work. A no-source-backed-candidate result means the bounded review retained no candidate; it does not prove the target secure. A not-applicable result is neutral, not a passed check or finding. Incomplete and not-reached rows require follow-up.',
-      '',
-      '| Vector | Obligation | Map facts | Source posture | Investigation | Candidates | Findings admitted | Terminal disposition | Not-applicable reason |',
-      '| --- | --- | --- | --- | --- | ---: | ---: | --- | --- |',
-      ...closures,
+      'No accepted source-backed findings were produced. Read the outcome and coverage sections before drawing any conclusion.',
       '',
     );
   }
   for (const finding of report.findings) {
     lines.push(
-      `### Confirmed finding: ${markdownEscape(finding.statement)}`,
+      `### Accepted source-backed finding ${markdownCode(finding.findingId)}`,
       '',
+      'Human triage is required. This is static-review evidence, not proof that an exploit works in production.',
+      '',
+      ...findingNarrativeLines(finding),
       'Evidence:',
       '',
-      '| Role | Location | Redacted source evidence |',
+      '| Role | Location | Content digest |',
       '| --- | --- | --- |',
-      ...evidenceRows(finding.evidence),
+      ...evidenceRows(finding),
       '',
-      `Verification: ${finding.verification.status} — ${markdownEscape(finding.verification.reason)}`,
+      `Verification: ${finding.verification.status}. The verifier independently re-established this claim from local source and the sealed plan.`,
       '',
-      `Limitations: ${markdownEscape(finding.limitations.join(' ')) || 'None recorded.'}`,
+      'Developer next step:',
+      '',
+      markdownEscape(developerNextSteps(report, finding)),
       '',
     );
   }
+  lines.push(
+    '## Coverage and review state',
+    '',
+    '| Vector | Outcome | Files | Map facts | Unanswered plan items | Findings | Limitations |',
+    '| --- | --- | ---: | ---: | ---: | ---: | --- |',
+    ...report.coverage.map(
+      (coverage) =>
+        `| \`${coverage.vectorId}\` | ${coverage.outcome} | ${coverage.matchedSourcePaths} | ${coverage.evidenceMapFactCount} | ${coverage.evidenceMapUnansweredObligationCount} | ${coverage.findingCount} | ${coverage.limitations.length === 0 ? 'None' : coverage.limitations.join(', ')} |`,
+    ),
+    '',
+  );
+  lines.push(
+    '## What to do next',
+    '',
+    'Each action is derived only from the vector terminal state and its retained error code. It is not a security conclusion.',
+    '',
+    '| Vector | Terminal state | Next action |',
+    '| --- | --- | --- |',
+    ...report.coverage.map(
+      (coverage) =>
+        `| ${markdownCode(coverage.vectorId)} | ${coverage.outcome} | ${markdownEscape(auditVectorNextAction(coverage))} |`,
+    ),
+    '',
+  );
   if (report.reviewRequired.length > 0) {
     lines.push(
       '## Human review required',
@@ -241,26 +387,55 @@ export function renderAuditReportMarkdown(report: AuditReport): string {
     );
     for (const finding of report.reviewRequired) {
       lines.push(
-        `### REVIEW REQUIRED: ${markdownEscape(finding.statement)}`,
+        `### REVIEW REQUIRED ${markdownCode(finding.findingId)}`,
         '',
+        ...findingNarrativeLines(finding),
         'Evidence:',
         '',
-        '| Role | Location | Redacted source evidence |',
+        '| Role | Location | Content digest |',
         '| --- | --- | --- |',
-        ...evidenceRows(finding.evidence),
+        ...evidenceRows(finding),
         '',
-        `Reason: ${markdownEscape(finding.verification.reason)}`,
-        '',
-        `Limitations: ${markdownEscape(finding.limitations.join(' ')) || 'None recorded.'}`,
+        'The static-review stages disagree. Re-inspect the listed locations against the private plan before making a security decision.',
         '',
       );
     }
+  }
+  const notApplicable = applicabilityRows(report);
+  if (notApplicable.length > 0) {
+    lines.push(
+      '## Not applicable (neutral)',
+      '',
+      'These obligations were completed with source-backed evidence that the stated review does not apply in this approved scope. They are neither passed checks nor findings.',
+      '',
+      '| Vector | Obligation | Review question | Reason | Selected evidence |',
+      '| --- | --- | --- | --- | --- |',
+      ...notApplicable,
+      '',
+    );
   }
   if (report.errors.length > 0) {
     lines.push(
       '## Errors',
       '',
-      ...report.errors.map((error) => `- ${error.code}: ${markdownEscape(error.message)}`),
+      ...report.errors.map(
+        (error) => `- ${error.stage}: ${error.code} (retryable: ${error.retryable})`,
+      ),
+      '',
+    );
+  }
+  const closures = closureRows(report);
+  if (closures.length > 0) {
+    lines.push(
+      '## Technical appendix',
+      '',
+      '### Review-obligation closure',
+      '',
+      'Each row is a source-minimal account of planned review work. A no-source-backed-candidate result means the bounded review retained no candidate; it does not prove the target secure. A not-applicable result is neutral, not a passed check or finding. Inspect the private plan for the local rationale. Incomplete and not-reached rows require follow-up.',
+      '',
+      '| Vector | Obligation | Review question | Map facts | Source posture | Investigation | Candidates | Findings admitted | Terminal disposition |',
+      '| --- | --- | --- | --- | --- | --- | ---: | ---: | --- |',
+      ...closures,
       '',
     );
   }
@@ -271,8 +446,8 @@ export function renderAuditReportMarkdown(report: AuditReport): string {
       '',
       'This numeric funnel explains how hypotheses reached a terminal result. It contains no source, prompt, tool output, or model text.',
       '',
-      '| Vector | Model candidates | Integrity rejected | Tool evidence rejected | Verifier accepted/rejected/incomplete | Verifier tool evidence rejected | Verifier evidence rejected | Verifier reconciled | Post-verification rejected | Findings admitted |',
-      '| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |',
+      '| Vector | Model candidates | Integrity rejected | Tool evidence rejected | Verifier accepted/rejected/incomplete | Verifier tool evidence rejected | Verifier evidence rejected | Verifier reconciled | Post-verification rejected | Duplicates collapsed | Findings admitted |',
+      '| --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |',
       ...funnels,
       '',
     );

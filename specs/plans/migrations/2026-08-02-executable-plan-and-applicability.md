@@ -4,7 +4,7 @@ Status: implemented.
 
 ## Decision
 
-Security Reviewer owns plan generation and plan execution, not organizational approval workflow. A strict plan is executable when its target and context fingerprints match the current audit input. Human review, editing, extension, approval, ownership, and change-management records remain external.
+Audit owns plan generation and plan execution, not organizational approval workflow. A strict plan is executable when its target and context fingerprints match the current audit input. Human review, editing, extension, approval, ownership, and change-management records remain external.
 
 Every plan-owned review obligation closes as one of: confirmed claim, rejected candidate, no source-backed candidate, review required, incomplete, not reached, or `not-applicable`. `not-applicable` requires a candidate-blind, tool-inspected, source-backed posture assessment and a crisp reason. It is neutral: it is neither a finding nor a passed check. A vector whose every obligation is not applicable has the `not-applicable` outcome; mixed vectors retain the per-obligation closure rows.
 

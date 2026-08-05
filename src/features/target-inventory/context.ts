@@ -1,5 +1,5 @@
 import { sha256 } from '../../shared/contracts/core.js';
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 
 import { type ContextDocument, ContextDocumentSchema } from './inventory.schema.js';
 
@@ -9,7 +9,7 @@ const allowedKeys = new Set(['title', 'kind', 'sensitivity', 'appliesTo']);
 export function parseContextDocument(path: string, text: string): ContextDocument {
   const matched = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]+)$/u.exec(text);
   if (matched === null) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'context-invalid',
       `Context document ${path} must begin with strict YAML frontmatter.`,
     );
@@ -18,7 +18,7 @@ export function parseContextDocument(path: string, text: string): ContextDocumen
   const rawFrontmatter = matched[1];
   const rawBody = matched[2];
   if (rawFrontmatter === undefined || rawBody === undefined) {
-    throw new SecurityReviewerError('context-invalid', `Context document ${path} is incomplete.`);
+    throw new AuditRuntimeError('context-invalid', `Context document ${path} is incomplete.`);
   }
   const frontmatter = parseFrontmatter(path, rawFrontmatter);
   // Markdown is evidence. Preserve its exact text after the frontmatter
@@ -84,7 +84,7 @@ function parseFrontmatter(path: string, frontmatter: string): ParsedFrontmatter 
     typeof sensitivity !== 'string' ||
     !Array.isArray(appliesTo)
   ) {
-    throw new SecurityReviewerError(
+    throw new AuditRuntimeError(
       'context-invalid',
       `Context document ${path} is missing required metadata.`,
     );
@@ -108,8 +108,8 @@ function parseScalar(value: string, path: string, line: number): string {
   return trimmed;
 }
 
-function invalid(path: string, line: number): SecurityReviewerError {
-  return new SecurityReviewerError(
+function invalid(path: string, line: number): AuditRuntimeError {
+  return new AuditRuntimeError(
     'context-invalid',
     `Invalid context frontmatter in ${path} at line ${line}.`,
   );

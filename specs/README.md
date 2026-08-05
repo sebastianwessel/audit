@@ -1,4 +1,4 @@
-# Security Reviewer specifications
+# Audit specifications
 
 These files are the normative source of truth for the v1 implementation. They are internal contributor artifacts; end-user explanations live in docs/.
 
@@ -11,7 +11,8 @@ These files are the normative source of truth for the v1 implementation. They ar
 5. Artifact contracts
 6. Security model
 7. Verification and operations
-8. Dependency research
-9. Readiness and traceability
+8. Evaluation strategy and reliability
+9. Dependency research
+10. Readiness and traceability
 
-Change normative behavior here first, then update implementation guidance, generated artifacts, code, tests, and public documentation.
+Change normative behavior here first, then update implementation guidance, owning Zod contracts, code, tests, and public documentation.

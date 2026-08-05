@@ -1,9 +1,12 @@
 import type { ModelProvider } from '@purista/harness';
-import type { HarnessExecutionConfiguration } from '../../../platform/harness/security-reviewer-harness.js';
-import { SecurityReviewerError } from '../../../shared/errors/security-reviewer-error.js';
+import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
+import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { AuditInvestigationRequest } from '../../audit-execution/audit.schema.js';
 import {
+  type HypothesisSeed,
   HypothesisSeedSchema,
+  InvestigationLimitationCodeSchema,
+  type InvestigationObligationClosure,
   InvestigationObligationClosureSchema,
   type UnverifiedHypothesisSeed,
   type UnverifiedInvestigationObligationClosure,
@@ -12,15 +15,21 @@ import {
   deriveSourcePostureProvenance,
   mergeUniqueIdentifiers,
 } from '../../audit-execution/source-posture/provenance.js';
-import type { ModelCostCeiling, ModelPricing } from '../../model-operations/model-operations.js';
+import type {
+  ModelCostCeiling,
+  ModelPricing,
+  ModelStageObservation,
+} from '../../model-operations/model-operations.js';
 import type { ContextDocument } from '../../target-inventory/inventory.schema.js';
 import type { SourceRepository } from '../../target-inventory/source-snapshot.js';
-import type {
-  ContextOverflowTopology,
-  ContextOverflowTopologyEvent,
-} from '../runtime/context-overflow.js';
+import { AuditModelOutputSchema } from '../agents/investigation/contract.js';
 import { scopedInspectionRequirement } from '../tools/contract.js';
-import { runScopedModelStage } from './scoped-model-stage.js';
+import {
+  type EvaluatorFailureDiagnosticSink,
+  projectScopedModelOutput,
+  runScopedModelStage,
+  type ScopedModelStageOverflowTopologyBase,
+} from './scoped-model-stage.js';
 
 /** Executes only the investigator's scoped model stage and records its own numeric ledger. */
 export async function runInvestigationStage(input: {
@@ -35,10 +44,9 @@ export async function runInvestigationStage(input: {
   modelPricing: ModelPricing;
   modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
-  overflowTopology?: Readonly<{
-    prior?: ContextOverflowTopology;
-    onTransition: (event: ContextOverflowTopologyEvent) => Promise<void>;
-  }>;
+  overflowTopology?: ScopedModelStageOverflowTopologyBase;
+  evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
+  onCompletedModelObservation?: (observation: ModelStageObservation) => void;
 }) {
   const result = await runScopedModelStage({
     stage: 'investigation',
@@ -55,14 +63,25 @@ export async function runInvestigationStage(input: {
     modelPricing: input.modelPricing,
     modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
+    evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
+    onCompletedModelObservation: input.onCompletedModelObservation,
     ...(input.overflowTopology === undefined ? {} : { overflowTopology: input.overflowTopology }),
     requireScopedSourceInspection: true,
-    invoke: (session, _attempt, scope) =>
+    invoke: (session, _attempt, scope, retryGuidance) =>
       session.workflows.review_vector.prompt({
         ...input.request,
         availableSourcePaths: [...scope.sourcePaths],
         context: [...scope.context],
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
+        retryGuidance,
+      }),
+    projectOutput: (output) =>
+      projectScopedModelOutput(() => {
+        const normalizedOutput = AuditModelOutputSchema.parse(output);
+        return {
+          seeds: projectSeeds(normalizedOutput.seeds, input.request),
+          closures: projectClosures(normalizedOutput.closures, input.request),
+        };
       }),
     reduceRecoveredOutputs: (leaves) => ({
       seeds: mergeSeeds(leaves.flatMap((leaf) => leaf.output.seeds)),
@@ -71,8 +90,8 @@ export async function runInvestigationStage(input: {
   });
   if (result.status === 'completed') {
     return {
-      seeds: projectSeeds(result.output.seeds, input.request),
-      closures: projectClosures(result.output.closures, input.request),
+      seeds: result.output.seeds,
+      closures: result.output.closures,
       modelObservation: result.modelObservation,
     };
   }
@@ -82,7 +101,7 @@ export async function runInvestigationStage(input: {
 function projectSeeds(
   seeds: readonly UnverifiedHypothesisSeed[],
   request: AuditInvestigationRequest,
-) {
+): HypothesisSeed[] {
   return seeds.map((seed) => {
     const provenance = deriveSourcePostureProvenance(seed.planObligations, request.sourcePosture);
     return HypothesisSeedSchema.parse({
@@ -99,7 +118,7 @@ function projectSeeds(
 function projectClosures(
   closures: readonly UnverifiedInvestigationObligationClosure[],
   request: AuditInvestigationRequest,
-) {
+): InvestigationObligationClosure[] {
   return closures.map((closure) => {
     const provenance = deriveSourcePostureProvenance(
       [closure.planObligation],
@@ -112,6 +131,8 @@ function projectClosures(
         provenance.evidenceMapFactIds,
       ),
       sourcePostureAssessmentIds: provenance.sourcePostureAssessmentIds,
+      limitations:
+        closure.limitations.length === 0 ? [] : [InvestigationLimitationCodeSchema.value],
     });
   });
 }
@@ -121,7 +142,7 @@ function mergeSeeds<T extends { seedId: string }>(seeds: readonly T[]): T[] {
   for (const seed of seeds) {
     const existing = byId.get(seed.seedId);
     if (existing !== undefined && JSON.stringify(existing) !== JSON.stringify(seed)) {
-      throw new SecurityReviewerError(
+      throw new AuditRuntimeError(
         'provider-context-overflow',
         'Context recovery produced conflicting discovery seed identities.',
       );
@@ -132,9 +153,9 @@ function mergeSeeds<T extends { seedId: string }>(seeds: readonly T[]): T[] {
 }
 
 function mergeClosures(
-  closures: readonly UnverifiedInvestigationObligationClosure[],
-): UnverifiedInvestigationObligationClosure[] {
-  const byObligation = new Map<string, UnverifiedInvestigationObligationClosure[]>();
+  closures: readonly InvestigationObligationClosure[],
+): InvestigationObligationClosure[] {
+  const byObligation = new Map<string, InvestigationObligationClosure[]>();
   for (const closure of closures) {
     const key = closure.planObligation.obligationId;
     byObligation.set(key, [...(byObligation.get(key) ?? []), closure]);
@@ -145,7 +166,7 @@ function mergeClosures(
       const first = grouped[0];
       if (first === undefined) throw new Error('Expected a recovered closure.');
       const dispositions = new Set(grouped.map((closure) => closure.disposition));
-      const disposition: UnverifiedInvestigationObligationClosure['disposition'] = dispositions.has(
+      const disposition: InvestigationObligationClosure['disposition'] = dispositions.has(
         'incomplete',
       )
         ? 'incomplete'
@@ -162,16 +183,14 @@ function mergeClosures(
         planObligation: first.planObligation,
         disposition,
         evidenceMapFactIds: uniqueSorted(grouped.flatMap((closure) => closure.evidenceMapFactIds)),
-        limitations: uniqueSorted([
-          ...grouped.flatMap((closure) => closure.limitations),
-          ...(disposition === 'incomplete' && dispositions.size > 1
-            ? ['Approved-scope context recovery produced conflicting obligation closures.']
-            : []),
-        ]),
+        sourcePostureAssessmentIds: uniqueSorted(
+          grouped.flatMap((closure) => closure.sourcePostureAssessmentIds),
+        ),
+        limitations: uniqueSorted(grouped.flatMap((closure) => closure.limitations)),
       };
     });
 }
 
-function uniqueSorted(values: readonly string[]): string[] {
+function uniqueSorted<T extends string>(values: readonly T[]): T[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }

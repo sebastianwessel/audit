@@ -1,11 +1,11 @@
 import { expect, test } from 'bun:test';
 
-import { SecurityReviewerError } from '../../shared/errors/security-reviewer-error.js';
+import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import { createCandidateAwareDispatchPool } from './candidate-aware-dispatch.js';
 
 test('rejects new candidate-aware work after a provider-neutral cancellation', async () => {
   const pool = createCandidateAwareDispatchPool(1);
-  const cancellation = new SecurityReviewerError(
+  const cancellation = new AuditRuntimeError(
     'provider-cancelled',
     'The provider cancelled the current model stage.',
   );

@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 2,
+  "qualification": "diagnostic",
+  "packs": [
+    {
+      "diagnosticId": "openssf-map",
+      "failureClass": "evidence-mapping",
+      "diagnosticQuestion": "Can neutral mapping retain the approved mutation-boundary roles?",
+      "qualification": "diagnostic",
+      "semanticPackPath": "packs/openssf-map.json",
+      "corpusRoot": "corpora",
+      "corpusPackId": "audit-real-world-seed",
+      "corpusPackVersion": "0.3.0",
+      "corpusManifestFingerprint": "4bbad8420bf70452425c1d5936155a2a54f25ee30b3fc47ee71e1d1d971d0952",
+      "caseId": "ossf-cve-2018-16492",
+      "variant": "vulnerable",
+      "corpusSourceDigest": "9e3223748b8de0385b1d6ba28f33328245c04064e86f72ed039dabd24bb25363",
+      "targetFingerprint": "5d29adaf3313cdf9e754ed5e8ada6ed1629e3cdf641428956ea776f90413085b",
+      "stage": "evidence-mapping",
+      "planProfile": "audit-reviewed-plan",
+      "canonicalPredecessor": { "vectorIndex": 0, "evidenceAnchors": [] }
+    },
+    {
+      "diagnosticId": "codeql-grounding",
+      "failureClass": "candidate-grounding",
+      "diagnosticQuestion": "Does a closed investigation outcome become a map-bound grounding result?",
+      "qualification": "diagnostic",
+      "semanticPackPath": "packs/codeql-grounding.json",
+      "corpusRoot": "corpora",
+      "corpusPackId": "audit-real-world-seed",
+      "corpusPackVersion": "0.3.0",
+      "corpusManifestFingerprint": "4bbad8420bf70452425c1d5936155a2a54f25ee30b3fc47ee71e1d1d971d0952",
+      "caseId": "codeql-prototype-polluting-assignment-001",
+      "variant": "vulnerable",
+      "corpusSourceDigest": "c3a16d764af8600e76b734c1864f8025812d11e00267c58073c247a02398e1ec",
+      "targetFingerprint": "e5bdb17b6edde9c90aa6a7971870cd5452099ca660812848bddc6ac0d5c604ba",
+      "stage": "investigation-grounding",
+      "planProfile": "audit-reviewed-plan",
+      "canonicalPredecessor": {
+        "vectorIndex": 0,
+        "evidenceAnchors": [
+          { "role": "operation", "path": "app.js", "startLine": 7 },
+          { "role": "unsafe-condition", "path": "app.js", "startLine": 2 }
+        ]
+      }
+    },
+    {
+      "diagnosticId": "juliet-verification",
+      "failureClass": "verification",
+      "diagnosticQuestion": "Does verification close a supplied valid hypothesis with a terminal decision?",
+      "qualification": "diagnostic",
+      "semanticPackPath": "packs/juliet-verification.json",
+      "corpusRoot": "corpora",
+      "corpusPackId": "audit-real-world-seed",
+      "corpusPackVersion": "0.3.0",
+      "corpusManifestFingerprint": "4bbad8420bf70452425c1d5936155a2a54f25ee30b3fc47ee71e1d1d971d0952",
+      "caseId": "nist-juliet-cwe121-01",
+      "variant": "vulnerable",
+      "corpusSourceDigest": "5de40d05f1db6eb1963fbe5069b6c3623b8ecedc6c99d6e7dd9cb5ce7afd09f8",
+      "targetFingerprint": "eb2441299310cfda32d0365147bb09dcf3f00458df413493a1c07b1c73b339a2",
+      "stage": "verification",
+      "planProfile": "audit-reviewed-plan",
+      "canonicalPredecessor": {
+        "vectorIndex": 0,
+        "evidenceAnchors": [
+          {
+            "role": "operation",
+            "path": "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_declare_memcpy_01.c",
+            "startLine": 37
+          },
+          {
+            "role": "unsafe-condition",
+            "path": "CWE121_Stack_Based_Buffer_Overflow__CWE805_char_declare_memcpy_01.c",
+            "startLine": 26
+          }
+        ]
+      }
+    },
+    {
+      "diagnosticId": "decamelize-planning",
+      "failureClass": "planning-speculation",
+      "diagnosticQuestion": "Does planning keep the required review executable and adjacent concerns observational?",
+      "qualification": "diagnostic",
+      "semanticPackPath": "packs/decamelize-planning.json",
+      "corpusRoot": "research-corpora/ai-assisted-real-world-v1",
+      "corpusPackId": "ai-assisted-real-world-development",
+      "corpusPackVersion": "0.1.0",
+      "corpusManifestFingerprint": "e4cc73c3d5732a6d11e9f848fcb0f8c49ff7bc6c79ab479ac9b2664c631316ea",
+      "caseId": "openssf-cve-2017-16023-decamelize",
+      "variant": "vulnerable",
+      "corpusSourceDigest": "f20b47c03c6fea90d45fae57165dc62efa25cf08886087a8b50479df374e4259",
+      "targetFingerprint": "7abe007da35d4fad3a9e1b8be4c53f3614faacb39e389d707f5ceb8f9abe3601",
+      "stage": "planning",
+      "planProfile": "planning-generated",
+      "canonicalPredecessor": { "vectorIndex": 0, "evidenceAnchors": [] }
+    }
+  ]
+}

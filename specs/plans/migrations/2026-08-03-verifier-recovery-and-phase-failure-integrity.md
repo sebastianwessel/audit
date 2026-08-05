@@ -1,5 +1,11 @@
 # Verifier recovery and phase-failure integrity
 
+Status: implemented and regression-verified on 2026-08-04. The source-free
+continuation smoke subsequently confirmed that a later verifier failure retains
+the completed map, posture, investigation, and grounding observations and their
+catalogue-backed cost. It is operational evidence only, not a finding-quality
+claim.
+
 ## Problem
 
 The shared context-overflow lifecycle can partition map, posture, investigation, and grounding phases, but verification has no lossless reducer, no durable topology, and collapses an overflow into a generic failed verifier result. Separately, `runAudit` converts any unexpected vector error into an investigation failure, losing the actual failed phase and prior completed observations.
