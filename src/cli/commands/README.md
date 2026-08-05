@@ -1,3 +1,5 @@
 # CLI commands
 
-One command module per public command: plan, audit, and report. Keep parser unit tests next to each command module.
+`main.ts` owns process startup, generic parsing, configuration resolution, root preparation, and dispatch. It does not own command lifecycle logic.
+
+The four command facades are `planning/` (`plan`, `plan-draft`, `plan-reseal`), `audit/` (`audit`, `discard`, recovery), `guidance/`, and `reporting/` (`report`, `lineage`). They receive typed dependencies from `main.ts`, never import it, and use feature-root facades for cross-feature behavior.

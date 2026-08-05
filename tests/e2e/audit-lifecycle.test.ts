@@ -3,8 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
+import { runAudit } from '../../src/cli/commands/audit/index.js';
 import { prepareConfiguredProductRoots } from '../../src/cli/configured-roots.js';
-import { runAudit } from '../../src/cli/main.js';
 import { AttackPlanSchema, createPlan } from '../../src/features/attack-planning/index.js';
 import {
   AuditRunAttemptSchema,
@@ -93,7 +93,15 @@ test('audit resume uses the retained snapshot after the target changes', async (
   const options = { plan: `plans/${plan.planId}.json`, 'run-id': runId };
   const provider = new FakeModelProvider();
 
-  await expect(runAudit(options, runtime, provider, rootsTopology)).resolves.toBe(3);
+  await expect(
+    runAudit(options, {
+      runtime,
+      provider,
+      roots: rootsTopology,
+      providerName: runtime.provider,
+      model: runtime.model,
+    }),
+  ).resolves.toBe(3);
   const reportId = createStableId('report', `${plan.planId}\0${runId}`);
   await expect(
     readJsonArtifact(
@@ -124,9 +132,13 @@ test('audit resume uses the retained snapshot after the target changes', async (
   await expect(
     runAudit(
       { ...options, resume: 'true', 'retry-unfinished': 'true' },
-      runtime,
-      provider,
-      rootsTopology,
+      {
+        runtime,
+        provider,
+        roots: rootsTopology,
+        providerName: runtime.provider,
+        model: runtime.model,
+      },
     ),
   ).resolves.toBe(3);
   const retained = await loadRetainedTargetSnapshot({
@@ -148,9 +160,13 @@ test('audit resume uses the retained snapshot after the target changes', async (
     await expect(
       runAudit(
         { plan: `plans/${plan.planId}.json`, 'run-id': blockedRunId },
-        runtime,
-        provider,
-        rootsTopology,
+        {
+          runtime,
+          provider,
+          roots: rootsTopology,
+          providerName: runtime.provider,
+          model: runtime.model,
+        },
       ),
     ).rejects.toMatchObject({ code: 'artifact-lease-unavailable' });
     await expect(
@@ -231,9 +247,13 @@ test('a manifest publication failure retains private ownership after report file
   await expect(
     runAudit(
       { plan: `plans/${plan.planId}.json`, 'run-id': runId },
-      runtime,
-      new FakeModelProvider(),
-      rootsTopology,
+      {
+        runtime,
+        provider: new FakeModelProvider(),
+        roots: rootsTopology,
+        providerName: runtime.provider,
+        model: runtime.model,
+      },
     ),
   ).rejects.toMatchObject({ code: 'artifact-invalid-output-path' });
   await expect(
