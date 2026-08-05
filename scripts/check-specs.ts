@@ -192,6 +192,7 @@ const requiredFeatureFacades = [
   'src/features/review-workflow/model-contracts/index.ts',
   'src/features/review-workflow/instructions/index.ts',
   'src/features/review-workflow/stage-lifecycle/index.ts',
+  'src/features/review-workflow/tools/index.ts',
 ] as const;
 for (const path of requiredFeatureFacades) {
   if (!(await Bun.file(path).exists())) {

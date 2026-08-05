@@ -55,7 +55,7 @@ import {
   ReviewRepositoryToolDescriptions,
   type ReviewRepositoryToolset,
   scopedInspectionRequirement,
-} from '../../features/review-workflow/tools/contract.js';
+} from '../../features/review-workflow/tools/index.js';
 import {
   EffectivelyUnboundedHarnessAgentIterations,
   type HarnessExecutionConfiguration,

@@ -2,8 +2,10 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 
-import { ModelPricingSchema } from '../../features/model-operations/model-operations.schema.js';
-import { catalogueModelPricing } from '../../features/model-operations/model-pricing-catalogue.js';
+import {
+  catalogueModelPricing,
+  ModelPricingSchema,
+} from '../../features/model-operations/index.js';
 import {
   DefaultMaxParallelVectors,
   MaxParallelVectorsSchema,

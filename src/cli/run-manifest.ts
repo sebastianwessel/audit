@@ -1,7 +1,7 @@
 import {
   type AuditRunManifest,
   AuditRunManifestSchema,
-} from '../features/audit-execution/audit.schema.js';
+} from '../features/audit-execution/index.js';
 import { writeJsonArtifact } from '../platform/artifact-store/json-artifact-store.js';
 
 /** Writes the single source-free command manifest projection. */

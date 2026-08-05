@@ -1,7 +1,7 @@
 import type { ModelProvider } from '@purista/harness';
 import { anthropic } from '@purista/harness-anthropic';
 import { openai } from '@purista/harness-openai';
-import type { ModelPricing } from '../../features/model-operations/model-operations.js';
+import type { ModelPricing } from '../../features/model-operations/index.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 import type { ProviderName } from '../configuration/environment.js';
 
