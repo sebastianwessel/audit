@@ -425,7 +425,7 @@ export async function runProviderEvaluation(input: {
       );
     }
     let checkpoint: ProviderEvaluationCheckpoint = existing ?? {
-      schemaVersion: 15,
+      schemaVersion: 16,
       runId: options.runId,
       configFingerprint,
       packId: pack.manifest.packId,

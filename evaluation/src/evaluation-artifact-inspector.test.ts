@@ -31,7 +31,7 @@ afterEach(async () => {
 
 function completeRun(runId: string) {
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 16,
     runId,
     packId: 'inspector-pack',
     packVersion: '1.0.0',

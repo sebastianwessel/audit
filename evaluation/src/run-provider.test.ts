@@ -36,7 +36,7 @@ import {
 } from './run-provider.js';
 
 const providerCheckpoint = ProviderEvaluationCheckpointSchema.parse({
-  schemaVersion: 15,
+  schemaVersion: 16,
   runId: 'provider-checkpoint-terminal-fixture',
   configFingerprint: 'a'.repeat(64),
   packId: 'fixture-pack',

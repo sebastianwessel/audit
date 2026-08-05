@@ -23,7 +23,7 @@ const semanticObservation = observeModelStage({
 
 function generatedRun(runId: string) {
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 16,
     runId,
     packId: 'comparison-pack',
     packVersion: '1.0.0',

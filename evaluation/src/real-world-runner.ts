@@ -401,7 +401,7 @@ export async function runCorpusEvaluation(
         }));
   const finishedAt = new Date().toISOString();
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 16,
     runId: input.runId,
     packId: input.pack.manifest.packId,
     packVersion: input.pack.manifest.packVersion,

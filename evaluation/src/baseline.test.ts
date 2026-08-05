@@ -33,7 +33,7 @@ const semanticObservation = observeModelStage({
 
 function planningRun() {
   return RealWorldEvaluationRunSchema.parse({
-    schemaVersion: 15,
+    schemaVersion: 16,
     runId: 'planning-run-001',
     packId: 'seed-pack',
     packVersion: '1.0.0',

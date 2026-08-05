@@ -823,7 +823,7 @@ export const EvaluationTrialSchema = z
     pathReachability: PathReachabilityScoreSchema.nullable(),
     /**
      * Never affects audit admission, finding scoring, coverage, or the workflow
-     * diagnostic gate. Newly written evaluation-run v15 artifacts always retain this state.
+     * diagnostic gate. Newly written evaluation-run v16 artifacts always retain this state.
      */
     semanticPlanMeasurement: PlanSemanticMeasurementSchema.optional(),
     findingScore: FindingScoreSchema.nullable(),
@@ -1086,7 +1086,7 @@ export const EvaluationBaselineSchema = z.discriminatedUnion('planProfile', [
 
 export const RealWorldEvaluationRunSchema = z
   .strictObject({
-    schemaVersion: z.literal(15),
+    schemaVersion: z.literal(16),
     runId: IdentifierSchema,
     packId: IdentifierSchema,
     packVersion: z.string().trim().min(1).max(32),
@@ -1225,7 +1225,7 @@ export const RealWorldEvaluationRunSchema = z
         context.addIssue({
           code: 'custom',
           path: ['trials', index, 'semanticPlanMeasurement'],
-          message: 'Evaluation-run v13 trials require a semantic plan measurement state.',
+          message: 'Evaluation-run v16 trials require a semantic plan measurement state.',
         });
       }
       if (
@@ -1572,7 +1572,7 @@ export const ProviderEvaluationTerminalManifestSchema = z
 
 export const ProviderEvaluationCheckpointSchema = z
   .strictObject({
-    schemaVersion: z.literal(15),
+    schemaVersion: z.literal(16),
     runId: IdentifierSchema,
     configFingerprint: Sha256Schema,
     packId: IdentifierSchema,
