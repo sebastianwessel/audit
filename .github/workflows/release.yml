@@ -25,8 +25,10 @@ jobs:
       - name: Read package identity
         id: package
         run: |
-          echo "name=$(bun -e \"console.log(require('./package.json').name)\")" >> "$GITHUB_OUTPUT"
-          echo "version=$(bun -e \"console.log(require('./package.json').version)\")" >> "$GITHUB_OUTPUT"
+          package_name="$(bun -e 'console.log(require("./package.json").name)')"
+          package_version="$(bun -e 'console.log(require("./package.json").version)')"
+          echo "name=$package_name" >> "$GITHUB_OUTPUT"
+          echo "version=$package_version" >> "$GITHUB_OUTPUT"
       - name: Check registry version
         id: registry
         run: |
