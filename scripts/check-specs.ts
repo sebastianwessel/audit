@@ -176,6 +176,7 @@ const requiredFeatureFacades = [
   'src/features/attack-planning/planner/agent/index.ts',
   'src/features/attack-planning/planner/stage/index.ts',
   'src/features/audit-execution/index.ts',
+  'src/features/audit-execution/candidate-aware/index.ts',
   'src/features/audit-execution/evidence-map/agent/index.ts',
   'src/features/audit-execution/evidence-map/stage/index.ts',
   'src/features/audit-execution/source-posture/agent/index.ts',

@@ -42,6 +42,7 @@ test('topic facades keep model contracts separate from executable stages', async
     'src/features/audit-execution/candidate-grounding/stage/index.ts',
     'src/features/audit-execution/verification/agent/index.ts',
     'src/features/audit-execution/verification/stage/index.ts',
+    'src/features/audit-execution/candidate-aware/index.ts',
     'src/features/review-workflow/tools/index.ts',
   ];
   for (const path of facades) expect(await Bun.file(path).exists()).toBe(true);
