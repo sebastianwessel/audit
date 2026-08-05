@@ -51,7 +51,9 @@ const required = [
 ];
 
 const evaluatorTopLevelEntries = new Set(await readdir('evaluation'));
-for (const requiredEntry of ['src', 'data', 'runs'] as const) {
+// `runs/` is intentionally Git-ignored generated output. It is created by the
+// evaluator when needed, so requiring it here would make a fresh checkout fail.
+for (const requiredEntry of ['src', 'data'] as const) {
   if (!evaluatorTopLevelEntries.has(requiredEntry)) {
     throw new Error(`Evaluation workspace is missing its required ${requiredEntry}/ directory.`);
   }
