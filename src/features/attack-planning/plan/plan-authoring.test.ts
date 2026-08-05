@@ -110,7 +110,7 @@ describe('plan authoring lifecycle', () => {
     ).toThrow('does not change');
   });
 
-  test('promotes one additional observation into executable human-approved work', () => {
+  test('promotes one additional observation into executable sealed-plan work', () => {
     const basePlan = createFixturePlan();
     const draft = createAttackPlanDraft(basePlan);
     const resealed = resealAttackPlanDraft({

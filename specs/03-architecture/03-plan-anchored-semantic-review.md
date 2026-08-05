@@ -7,7 +7,7 @@ security rule, benchmark condition, or answer-key dependency.
 ## Rationale
 
 A plan category alone is too broad to keep a model's analysis tied to the
-human-approved concern. Every enabled vector therefore contains one or more
+sealed-plan concern. Every enabled vector therefore contains one or more
 explicit, risk-positive review obligations. Each obligation has a stable
 `obligationId`, a `riskStatement`, and an `evidenceRequirement`. It is the
 only review-unit identity used after plan execution starts.

@@ -24,18 +24,18 @@ The default checks are local and do not require a provider credential.
 ## First plan
 
 ```bash
-bun run start plan --target ./path/to/repository
+bun run audit plan --target ./path/to/repository
 ```
 
 Private work is created automatically and receives two matching plan artifacts: executable `plans/<plan-id>.json` and readable `plans/<plan-id>.md`. Keep private work local: it also contains snapshots and resumable checkpoints. Read the Markdown projection in your normal engineering or governance workflow. If the plan needs changes, create a constrained draft and reseal it rather than editing the executable JSON directly:
 
 ```bash
-bun run start plan-draft \
+bun run audit plan-draft \
   --plan plans/<plan-id>.json \
   --draft plan-drafts/review.json
 
 # Edit only the draft's vectors, then publish a new plan pair.
-bun run start plan-reseal \
+bun run audit plan-reseal \
   --plan plans/<plan-id>.json \
   --draft plan-drafts/review.json
 ```
@@ -47,7 +47,7 @@ The new JSON plan has a new identity. Markdown is for review only; JSON is the o
 Run the saved plan when you are ready:
 
 ```bash
-bun run start audit \
+bun run audit audit \
   --target ./path/to/repository \
   --plan plans/<plan-id>.json \
   --run-id first-audit

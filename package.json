@@ -2,7 +2,7 @@
   "name": "@sebastianwessel/audit",
   "version": "0.1.0",
   "type": "module",
-  "description": "A human-gated, read-only agentic security audit workflow for source repositories.",
+  "description": "A human-reviewable, read-only agentic security audit workflow for source repositories.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -63,7 +63,7 @@
     "eval:compare": "bun run --bun evaluation/src/run-compare.ts",
     "update:model-pricing": "bun run scripts/update-model-pricing.ts",
     "update:model-pricing:write": "bun run scripts/update-model-pricing.ts --write",
-    "start": "bun run --bun src/cli/main.ts",
+    "audit": "bun run --bun src/cli/main.ts",
     "ci:scripts": "bun run scripts/check-ci-scripts.ts",
     "spec:check": "bun run scripts/check-specs.ts",
     "schema:check": "bun run spec:check"

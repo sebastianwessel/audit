@@ -15,7 +15,7 @@ An `AttackPlanDraft` contains `schemaVersion`, `basePlanId`, `basePlanDigest`, a
 
 - A valid changed draft reseals to a different plan ID and writes both JSON and Markdown.
 - A malformed draft, a draft linked to another base plan, or an unchanged draft fails without replacing the base plan.
-- A plan change never records approval. Executing the new valid plan remains the product's approval signal.
+- A plan change never records approval. Executing a matching valid plan is the product action; any approval workflow remains external.
 
 ## Refuse or stop
 

@@ -47,7 +47,7 @@ Options are command-specific. Unknown flags, including removed `--work` and `--p
 Add `--result-format json` to any product command when a script needs the artifact created by the command. The command writes one strict JSON object to stdout instead of human text. It contains the command, terminal status, exit-code meaning, stable IDs, and relative artifact paths only—never source, context, prompts, credentials, raw model output, or Markdown.
 
 ```bash
-bun run start plan --target ./repository --result-format json
+bun run audit plan --target ./repository --result-format json
 ```
 
 Use the returned `artifacts` paths directly in the next command. For example, capture the plan JSON path, pass it to `plan-draft`, then use the returned resealed plan JSON path for `audit`; do not discover private files or parse prose.
@@ -55,8 +55,8 @@ Use the returned `artifacts` paths directly in the next command. For example, ca
 To resolve a known-abandoned product lease, first inspect its source-free metadata using the configured `AUDIT_PRIVATE_WORK_DIR`. This command never accepts a root, target, context, provider, or model argument; it loads normal runtime configuration but does not construct a provider or open target input.
 
 ```bash
-bun run start lock --run-id audit-<run-id>
-bun run start lock --run-id audit-<run-id> --operation audit --release true
+bun run audit lock --run-id audit-<run-id>
+bun run audit lock --run-id audit-<run-id> --operation audit --release true
 ```
 
 Release succeeds only when the lease still has the inspected run id and operation with recognized strict metadata. It removes only that lease directory; checkpoints, plans, snapshots, and published artifacts remain untouched.
@@ -64,7 +64,7 @@ Release succeeds only when the lease still has the inspected run id and operatio
 If plan-pair publication stops after the planner has completed, resume its exact private publication without another model call or another target read:
 
 ```bash
-bun run start plan --run-id plan-release-01 --resume true
+bun run audit plan --run-id plan-release-01 --resume true
 ```
 
 Use `--run-id plan-release-01` on the initial `plan` command when that recovery guarantee is needed. The same form works for `plan-reseal`; recovery deliberately omits `--target`, `--context`, `--plan`, and `--draft`. Recovery validates the retained sealed plan and completes only missing JSON, Markdown, or plan-manifest artifacts; it never overwrites a mismatched existing file. The plan manifest and publication intent remain private-work artifacts and must not be uploaded as CI output.
@@ -78,9 +78,9 @@ The provider-evaluation preflight and one-case smoke commands finish through the
 The CLI can explain itself without reading configuration, opening the target or output roots, or contacting a provider:
 
 ```bash
-bun run start --help
-bun run start help audit
-bun run start audit --help
+bun run audit --help
+bun run audit help audit
+bun run audit audit --help
 ```
 
 Use the command-specific output for the accepted flags, required inputs, and a safe example. Errors for missing, unknown, or command-incompatible options name the flag and point back to the same help page; the CLI never silently corrects a flag.
@@ -90,7 +90,7 @@ Use the command-specific output for the accepted flags, required inputs, and a s
 `guidance` is an optional follow-up to a completed audit. It reads the sealed plan from private work and the validated public report from the public artifact root, re-inventories the supplied target/context, and refuses a mismatch before it dispatches model work. It writes a separate private JSON artifact under `guidance/`; it does not revise the report, finding identities, coverage, lineage, evaluation score, or CI exit code.
 
 ```bash
-bun run start guidance \
+bun run audit guidance \
   --target ./repository \
   --plan plans/<plan-id>.json \
   --report reports/<report-id>.json
@@ -110,13 +110,13 @@ Give a long-running guidance run a stable `--run-id`. Completed advisory items a
 To change the planned scope, obligations, or limitations, derive a constrained draft, edit that JSON, and reseal it. Resealing preserves the original target/context binding and inventory summary, validates the edited vectors, then creates a new immutable plan ID. It does not call a model or open the reviewed repository.
 
 ```bash
-bun run start plan-draft \
+bun run audit plan-draft \
   --plan plans/<plan-id>.json \
   --draft plan-drafts/review.json
 
 # Edit plan-drafts/review.json in a reviewer or plan-authoring workflow.
 
-bun run start plan-reseal \
+bun run audit plan-reseal \
   --plan plans/<plan-id>.json \
   --draft plan-drafts/review.json
 ```
@@ -150,7 +150,7 @@ For `independent-route`, also set `AUDIT_VERIFIER_PROVIDER`, `AUDIT_VERIFIER_MOD
 Use lineage to track exact, previously reported findings across two audit reports:
 
 ```bash
-bun run start lineage \
+bun run audit lineage \
   --previous reports/report-previous.json \
   --current reports/report-current.json
 ```

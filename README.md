@@ -38,11 +38,11 @@ Audit is released under the [Apache-2.0 license](./LICENSE).
 After completing `.env`, create a plan, review its Markdown projection, optionally create/reseal an editable draft, then audit the sealed JSON:
 
 ```bash
-bun run start plan --target ./target
-bun run start plan-draft --plan plans/<plan-id>.json --draft plan-drafts/review.json
+bun run audit plan --target ./target
+bun run audit plan-draft --plan plans/<plan-id>.json --draft plan-drafts/review.json
 # Edit the draft's vectors, then create a new plan pair.
-bun run start plan-reseal --plan plans/<plan-id>.json --draft plan-drafts/review.json
-bun run start audit --target ./target --plan plans/<plan-id>.json
+bun run audit plan-reseal --plan plans/<plan-id>.json --draft plan-drafts/review.json
+bun run audit audit --target ./target --plan plans/<plan-id>.json
 ```
 
 `plans/<plan-id>.json` is the only executable plan. Its matching Markdown file is a human review projection; YAML and Markdown are not executable plan inputs.
@@ -54,7 +54,7 @@ The local `.env` needs only `OPENAI_API_KEY` for the default OpenAI / `gpt-5.6-t
 After an audit, optionally create developer guidance for the accepted findings:
 
 ```bash
-bun run start guidance --target ./target --plan plans/<plan-id>.json --report reports/<report-id>.json
+bun run audit guidance --target ./target --plan plans/<plan-id>.json --report reports/<report-id>.json
 ```
 
 Guidance is a separate, non-gating artifact. It records advisory priority and a deterministic next action, but it never changes the audit result, stores model-authored advice, or proves exploitability.
@@ -62,7 +62,7 @@ Guidance is a separate, non-gating artifact. It records advisory priority and a 
 To compare two reports without calling a model or rereading the target:
 
 ```bash
-bun run start lineage --previous reports/report-previous.json --current reports/report-current.json
+bun run audit lineage --previous reports/report-previous.json --current reports/report-current.json
 ```
 
 ## Workflow

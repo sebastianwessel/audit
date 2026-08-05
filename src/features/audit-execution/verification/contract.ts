@@ -260,7 +260,7 @@ const PlanObligationReconciliationFields = {
   disposition: ClaimReconciliationDispositionSchema,
 };
 
-/** A verifier's source-backed disposition for one exact human-approved review obligation. */
+/** A verifier's source-backed disposition for one exact sealed-plan review obligation. */
 export const PlanObligationReconciliationSchema = z.strictObject({
   ...PlanObligationReconciliationFields,
   evidence: ReconciliationEvidenceSchema,
