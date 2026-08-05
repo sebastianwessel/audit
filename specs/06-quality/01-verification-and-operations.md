@@ -115,4 +115,4 @@ For one-to-one matched expected findings, `recall = TP / (TP + FN)` is available
 
 Human plan review may score each applicable vector from 0–2 for source-answerability, scope precision, obligation quality, success criteria, data-protection coverage, and limitation clarity. The product does not store or require plan approval: a user may edit a plan externally, then validate/reseal and execute it. Evaluation-owned reviewed plans are deterministic fixtures, not approval evidence.
 
-Commit package.json and bun.lock. CI uses a pinned Bun version and frozen installs. Optional providers are not imported until configured.
+Commit package.json and bun.lock. `package.json#packageManager` owns the exact Bun version; CI must install that same version and use frozen installs. `engines.bun` remains the supported minimum. Optional providers are not imported until configured.
