@@ -5,7 +5,7 @@ import { CandidateGroundingRequestSchema } from '../../src/features/audit-execut
 import { EvidenceMapSchema } from '../../src/features/audit-execution/evidence-map/contract.js';
 import { createSourceEvidenceReference } from '../../src/features/audit-execution/evidence-reference.js';
 import { HypothesisSeedSchema } from '../../src/features/audit-execution/investigation/contract.js';
-import { selectScopedSources } from '../../src/features/audit-execution/investigation/scope.js';
+import { selectScopedSourcePaths } from '../../src/features/audit-execution/investigation/scope.js';
 import { AuditInvestigationRequestSchema } from '../../src/features/audit-execution/phase-input/contract.js';
 import { SourcePostureSchema } from '../../src/features/audit-execution/source-posture/contract.js';
 import { VerifiableHypothesisSchema } from '../../src/features/audit-execution/verification/contract.js';
@@ -51,7 +51,11 @@ export async function prepareStageIsolatedCanonicalFixture(input: {
   const vector = plan.vectors[input.descriptor.canonicalPredecessor.vectorIndex];
   if (vector === undefined)
     throw invalidFixture('The canonical predecessor selects no reviewed vector.');
-  const scopedSources = selectScopedSources(vector, await captured.snapshot.documents());
+  const scopedSourcePaths = selectScopedSourcePaths(
+    vector,
+    admittedSourcePaths(captured.inventory.sourceSnapshot),
+  );
+  const scopedSources = await captured.snapshot.documents(scopedSourcePaths);
   if (scopedSources.length === 0) {
     throw invalidFixture(
       'The canonical predecessor reviewed vector has no admitted scoped source.',

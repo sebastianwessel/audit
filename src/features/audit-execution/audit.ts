@@ -12,6 +12,7 @@ import type {
   ContextOverflowTopology,
   ContextOverflowTopologyEvent,
 } from '../review-workflow/runtime/context-overflow.js';
+import type { SourceSnapshot } from '../target-inventory/source-snapshot.js';
 import { createFindingAdmissionFunnel, emptyFindingAdmissionFunnel } from './admission/funnel.js';
 import {
   type AuditCandidateAwareCheckpoint,
@@ -92,7 +93,7 @@ import {
   HypothesisSeedStructuralRejectionReasonSchema,
 } from './investigation/contract.js';
 import { buildInvestigationEvidencePackage } from './investigation/evidence-package.js';
-import { selectScopedSources } from './investigation/scope.js';
+import { selectScopedSourcePaths } from './investigation/scope.js';
 import { verifyHypothesisSeeds } from './investigation/seed.js';
 import { verifyModelFindings } from './investigation/verify.js';
 import type {
@@ -456,7 +457,8 @@ export type AuditInput = Readonly<{
   plan: AttackPlan;
   targetFingerprint: string;
   contextDigest: string;
-  sources: readonly SourceDocument[];
+  /** Immutable target view; vector scopes resolve before any source is read. */
+  sourceSnapshot: SourceSnapshot;
   runId: string;
   generatedAt: string;
   mapEvidence?: AuditEvidenceMapper;
@@ -511,6 +513,9 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
   const maxParallelVectors = MaxParallelVectorsSchema.parse(
     input.maxParallelVectors ?? DefaultMaxParallelVectors,
   );
+  const admittedSourcePaths = (
+    await input.sourceSnapshot.listFiles({ root: 'target' })
+  ).entries.map((entry) => entry.relativePath);
   const candidateAwareDispatchPool = createCandidateAwareDispatchPool(maxParallelVectors);
   const vectorResults = await mapWithConcurrency(
     input.plan.vectors,
@@ -519,7 +524,7 @@ export async function runAudit(input: AuditInput): Promise<AuditReport> {
       const prior = input.resumeState?.vectorResult(vector.vectorId);
       if (prior !== undefined) return AuditVectorResultSchema.parse(prior);
       const result = materializeAuditVectorResultForPersistence(
-        await executeVector(input, vector, candidateAwareDispatchPool),
+        await executeVector(input, vector, candidateAwareDispatchPool, admittedSourcePaths),
       );
       try {
         await persistAuditCheckpoint(() => input.onVectorResult?.(result));
@@ -553,6 +558,7 @@ async function executeVector(
   input: AuditInput,
   vector: AttackPlan['vectors'][number],
   candidateAwareDispatchPool: CandidateAwareDispatchPool,
+  admittedSourcePaths: readonly string[],
   repairState?: VectorMapRepairState,
 ): Promise<AuditVectorResult> {
   if (!vector.enabled) {
@@ -563,8 +569,8 @@ async function executeVector(
       reviewRequired: [],
     };
   }
-  const scopedSources = selectScopedSources(vector, input.sources);
-  if (scopedSources.length === 0) {
+  const scopedSourcePaths = selectScopedSourcePaths(vector, admittedSourcePaths);
+  if (scopedSourcePaths.length === 0) {
     return {
       coverage: emptyScopeCoverage(
         vector,
@@ -575,10 +581,8 @@ async function executeVector(
       reviewRequired: [],
     };
   }
-  const evidencePackage = buildInvestigationEvidencePackage(
-    scopedSources.map((source) => source.path),
-    [],
-  );
+  const scopedSources = await input.sourceSnapshot.documents(scopedSourcePaths);
+  const evidencePackage = buildInvestigationEvidencePackage(scopedSourcePaths, []);
   let activeStage: AuditError['stage'] = 'evidence-mapping';
   let retainedEvidenceMapObservation: ModelStageObservation | undefined;
   let retainedSourcePostureObservation: ModelStageObservation | undefined;
@@ -945,6 +949,7 @@ async function executeVector(
         input,
         vector,
         candidateAwareDispatchPool,
+        admittedSourcePaths,
         scopedSources,
         evidencePackageLimitations: evidencePackage.limitations,
         evidenceMap: verifiedMap.evidenceMap,
@@ -1187,6 +1192,7 @@ async function executeVector(
         input,
         vector,
         candidateAwareDispatchPool,
+        admittedSourcePaths,
         scopedSources,
         evidencePackageLimitations: evidencePackage.limitations,
         evidenceMap: verifiedMap.evidenceMap,
@@ -1382,6 +1388,7 @@ async function repairAndRestartVector(input: {
   input: AuditInput;
   vector: AttackPlan['vectors'][number];
   candidateAwareDispatchPool: CandidateAwareDispatchPool;
+  admittedSourcePaths: readonly string[];
   scopedSources: readonly SourceDocument[];
   evidencePackageLimitations: readonly string[];
   evidenceMap: EvidenceMap;
@@ -1506,14 +1513,20 @@ async function repairAndRestartVector(input: {
       repairObservations,
     });
   }
-  return executeVector(input.input, input.vector, input.candidateAwareDispatchPool, {
-    evidenceMap: appended.evidenceMap,
-    ...(input.initialMapObservation === undefined
-      ? {}
-      : { initialMapObservation: input.initialMapObservation }),
-    repairObservations,
-    repairAttempts,
-  });
+  return executeVector(
+    input.input,
+    input.vector,
+    input.candidateAwareDispatchPool,
+    input.admittedSourcePaths,
+    {
+      evidenceMap: appended.evidenceMap,
+      ...(input.initialMapObservation === undefined
+        ? {}
+        : { initialMapObservation: input.initialMapObservation }),
+      repairObservations,
+      repairAttempts,
+    },
+  );
 }
 
 function scopedStageContext(

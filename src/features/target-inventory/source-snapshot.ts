@@ -45,13 +45,11 @@ export class SourceSnapshot implements SourceRepository {
   }
 
   /**
-   * Explicit orchestration projection. Callers should prefer repository
-   * operations; this method reads sequentially and never caches source content
-   * in the snapshot itself.
+   * Explicit orchestration projection. A caller must name the manifest paths
+   * it is allowed to materialize; the snapshot never caches source content.
    */
-  public async documents(paths?: readonly string[]): Promise<readonly SourceDocument[]> {
-    const requestedPaths = paths ?? this.#entries.map((entry) => entry.relativePath);
-    return Promise.all(requestedPaths.map((path) => this.readDocument(path)));
+  public async documents(paths: readonly string[]): Promise<readonly SourceDocument[]> {
+    return Promise.all(paths.map((path) => this.readDocument(path)));
   }
 
   public async listFiles(input: ListFilesInput): Promise<ListFilesResult> {

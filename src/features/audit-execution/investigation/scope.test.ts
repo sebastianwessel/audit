@@ -1,9 +1,8 @@
 import { expect, test } from 'bun:test';
 
 import { AttackVectorSchema } from '../../attack-planning/index.js';
-import type { SourceDocument } from '../audit.schema.js';
 
-import { matchesGlob, selectScopedSourcePaths, selectScopedSources } from './scope.js';
+import { matchesGlob, selectScopedSourcePaths } from './scope.js';
 
 const vector = AttackVectorSchema.parse({
   vectorId: 'vector-injection-01',
@@ -22,15 +21,15 @@ const vector = AttackVectorSchema.parse({
   limitations: [],
 });
 
-const sources: SourceDocument[] = [
-  { path: 'src/deep/input.txt', content: 'evidence', languageHint: null },
-  { path: 'src/root.txt', content: 'evidence', languageHint: null },
-  { path: 'config/review.yaml', content: 'evidence', languageHint: 'yaml' },
-  { path: 'private/secret.txt', content: 'evidence', languageHint: null },
+const sourcePaths = [
+  'src/deep/input.txt',
+  'src/root.txt',
+  'config/review.yaml',
+  'private/secret.txt',
 ];
 
 test('selects only approved glob scope without using language hints as a filter', () => {
-  expect(selectScopedSources(vector, sources).map((source) => source.path)).toEqual([
+  expect(selectScopedSourcePaths(vector, sourcePaths)).toEqual([
     'src/deep/input.txt',
     'src/root.txt',
     'config/review.yaml',
@@ -39,10 +38,9 @@ test('selects only approved glob scope without using language hints as a filter'
 });
 
 test('selects the approved manifest without materializing source documents', () => {
-  expect(
-    selectScopedSourcePaths(
-      vector,
-      sources.map((source) => source.path),
-    ),
-  ).toEqual(['src/deep/input.txt', 'src/root.txt', 'config/review.yaml']);
+  expect(selectScopedSourcePaths(vector, sourcePaths)).toEqual([
+    'src/deep/input.txt',
+    'src/root.txt',
+    'config/review.yaml',
+  ]);
 });

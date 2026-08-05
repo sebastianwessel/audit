@@ -6,6 +6,7 @@ import {
   resealPlan,
 } from '../attack-planning/index.js';
 import { observeModelStage } from '../model-operations/model-operations.js';
+import { createSourceSnapshot, SourceSnapshot } from '../target-inventory/source-snapshot.js';
 import {
   emptyCandidateIntegrityRejectionLedger,
   emptyHypothesisGroundingFunnel,
@@ -18,10 +19,10 @@ import {
   type AuditSourcePostureAssessor,
   auditExitCode,
   type CandidateAwareCheckpointUpdate,
-  runAudit as runApprovedAudit,
-  runStaticAudit,
+  runAudit,
+  runStaticAudit as runStaticAuditProduction,
 } from './audit.js';
-import type { AuditEvidenceMapDraft } from './audit.schema.js';
+import type { AuditEvidenceMapDraft, SourceDocument } from './audit.schema.js';
 import { candidateAwareFingerprint } from './candidate-aware-identity.js';
 import { createAuditResumeState } from './checkpoints.js';
 import { evidenceMapFingerprint } from './evidence-map/repair.js';
@@ -38,6 +39,24 @@ import type {
 const targetFingerprint = 'a'.repeat(64);
 const contextDigest = 'b'.repeat(64);
 const approvePlan = <T>(plan: T, ..._reviewMetadata: readonly [string, string, string]): T => plan;
+
+/** Test-only source fixture adapter; production accepts immutable snapshots only. */
+type TestAuditInput = Omit<AuditInput, 'sourceSnapshot'> &
+  Readonly<{
+    sources: readonly SourceDocument[];
+  }>;
+
+async function runApprovedAudit(input: TestAuditInput) {
+  const { sources, ...auditInput } = input;
+  return runAudit({ ...auditInput, sourceSnapshot: createSourceSnapshot(sources) });
+}
+
+async function runStaticAudit(
+  input: Omit<TestAuditInput, 'investigate' | 'verify' | 'countercheck'>,
+) {
+  const { sources, ...auditInput } = input;
+  return runStaticAuditProduction({ ...auditInput, sourceSnapshot: createSourceSnapshot(sources) });
+}
 
 function completedStageObservation(
   stage:
@@ -549,6 +568,34 @@ describe('static audit', () => {
       ],
     });
     expect(auditExitCode(report)).toBe(3);
+  });
+
+  test('materializes only the paths admitted by each vector scope', async () => {
+    const readPaths: string[] = [];
+    const sourceSnapshot = new SourceSnapshot({
+      entries: [
+        { relativePath: 'private/outside.txt', sizeBytes: 1 },
+        { relativePath: 'src/query.ts', sizeBytes: 1 },
+      ],
+      readDocument: async (path) => {
+        readPaths.push(path);
+        if (path === 'private/outside.txt') {
+          throw new Error('The audit must not materialize source outside the vector scope.');
+        }
+        return { path, content: 'query', languageHint: 'typescript' };
+      },
+    });
+
+    await runStaticAuditProduction({
+      plan: approvedPlan(),
+      targetFingerprint,
+      contextDigest,
+      sourceSnapshot,
+      runId: 'run-scoped-materialization-01',
+      generatedAt: '2026-08-05T12:00:00.000Z',
+    });
+
+    expect(readPaths).toEqual(['src/query.ts']);
   });
 
   test('fails closed when a plan fingerprint does not match', async () => {

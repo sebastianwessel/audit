@@ -38,12 +38,9 @@ export async function retainTargetSnapshot(input: {
   );
   try {
     const { capture } = input;
-    const sourcesByPath = new Map(
-      (await capture.snapshot.documents()).map((source) => [source.path, source]),
-    );
     for (const row of capture.inventory.sourceSnapshot.rows) {
       if (row.disposition !== 'admitted') continue;
-      const source = sourcesByPath.get(row.path);
+      const [source] = await capture.snapshot.documents([row.path]);
       if (
         source === undefined ||
         sha256(source.content) !== row.contentDigest ||

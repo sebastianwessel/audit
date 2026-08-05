@@ -3,6 +3,7 @@ import { expect, test } from 'bun:test';
 import { createPlan as createDraftPlan } from '../attack-planning/index.js';
 import { runStaticAudit } from '../audit-execution/audit.js';
 import { AuditReportSchema } from '../audit-execution/audit.schema.js';
+import { createSourceSnapshot } from '../target-inventory/source-snapshot.js';
 import { createPublicAuditReport } from './public-contract.js';
 
 import { auditVectorNextAction, renderAuditReportMarkdown } from './report.js';
@@ -65,13 +66,13 @@ test('renders a stable human-readable projection of a validated report', async (
     plan,
     targetFingerprint,
     contextDigest,
-    sources: [
+    sourceSnapshot: createSourceSnapshot([
       {
         path: 'src/query.ts',
         content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
         languageHint: 'typescript',
       },
-    ],
+    ]),
     runId: 'run-report-01',
     generatedAt: '2026-07-27T12:02:00.000Z',
   });

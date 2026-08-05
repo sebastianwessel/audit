@@ -417,7 +417,7 @@ export function createReviewService(
         plan: input.plan,
         targetFingerprint: inventory.targetFingerprint,
         contextDigest: inventory.contextDigest,
-        sources: await sourceSnapshot.documents(),
+        sourceSnapshot,
         runId: input.runId,
         generatedAt: input.generatedAt,
         maxParallelVectors,
