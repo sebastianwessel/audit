@@ -46,6 +46,7 @@
     "format": "biome format --write .",
     "test": "bun test",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov && bun run scripts/check-coverage.ts",
+    "eval": "bun run eval:stages && bun run eval:candidates && bun run eval:acquisition && bun run eval:acquisition-snapshots && bun run eval:corpus:integration && bun run eval:corpus:readiness",
     "eval:stages": "bun run --bun evaluation/src/run-stage-conformance.ts",
     "eval:stage-semantic": "bun run --bun evaluation/src/run-stage-semantic.ts",
     "eval:stage-isolated:prepare": "bun run --bun evaluation/src/run-prepare-stage-isolated-packs.ts",
