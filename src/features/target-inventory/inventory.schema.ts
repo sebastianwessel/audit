@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { IdentifierSchema, RelativePathSchema, Sha256Schema } from '../../shared/contracts/core.js';
+import { RelativePathSchema, Sha256Schema } from '../../shared/contracts/core.js';
 
 export const ContextKindSchema = z.enum([
   'architecture',
@@ -88,41 +88,6 @@ export const SourceSnapshotManifestSchema = z
     }
   });
 
-/** Content-free ownership state for a retained private snapshot. */
-export const SourceSnapshotRetentionRecordSchema = z.strictObject({
-  runId: IdentifierSchema,
-  contextDigest: Sha256Schema,
-});
-
-export const SourceSnapshotRetentionIndexSchema = z
-  .strictObject({
-    schemaVersion: z.literal(2),
-    targetFingerprint: Sha256Schema,
-    retainedRuns: z.array(SourceSnapshotRetentionRecordSchema),
-  })
-  .superRefine((value, context) => {
-    const runIds = value.retainedRuns.map((record) => record.runId);
-    if (new Set(runIds).size !== runIds.length) {
-      context.addIssue({
-        code: 'custom',
-        path: ['retainedRuns'],
-        message: 'Snapshot retention run identifiers must be unique.',
-      });
-    }
-    if (
-      value.retainedRuns.some(
-        (record, index) =>
-          index > 0 && record.runId < (value.retainedRuns[index - 1]?.runId ?? record.runId),
-      )
-    ) {
-      context.addIssue({
-        code: 'custom',
-        path: ['retainedRuns'],
-        message: 'Snapshot retention run identifiers must be sorted.',
-      });
-    }
-  });
-
 export const ContextDocumentSchema = z.strictObject({
   path: RelativePathSchema,
   title: z.string().trim().min(1),
@@ -159,7 +124,6 @@ export type InventorySummary = z.infer<typeof InventorySummarySchema>;
 export type SourceAdmissionExclusionReason = z.infer<typeof SourceAdmissionExclusionReasonSchema>;
 export type SourceAdmissionPolicy = z.infer<typeof SourceAdmissionPolicySchema>;
 export type SourceSnapshotManifest = z.infer<typeof SourceSnapshotManifestSchema>;
-export type SourceSnapshotRetentionIndex = z.infer<typeof SourceSnapshotRetentionIndexSchema>;
 export type SourceSnapshotRow = z.infer<typeof SourceSnapshotRowSchema>;
 export type TargetInventory = z.infer<typeof TargetInventorySchema>;
 

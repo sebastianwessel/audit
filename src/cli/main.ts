@@ -55,11 +55,12 @@ import {
   prepareDeveloperGuidanceTarget,
 } from '../features/review-workflow/service.js';
 import {
+  createPrivateSourceCapture,
   discardRetainedTargetSnapshot,
   loadRetainedTargetSnapshot,
   releaseTargetSnapshot,
   retainTargetSnapshot,
-} from '../features/target-inventory/snapshot-store.js';
+} from '../features/target-inventory/index.js';
 import {
   acquireArtifactLease,
   readJsonArtifact,
@@ -253,75 +254,145 @@ async function runGuidance(
     PublicAuditReportSchema,
   );
   const targetDisplayName = options['target-name'] ?? basename(roots.targetRoot);
+  const runId = options['run-id'] ?? `guidance-${crypto.randomUUID()}`;
   const retainedTarget = await prepareDeveloperGuidanceTarget({
     targetRoot: roots.targetRoot,
     contextRoot: roots.contextRoot,
     targetDisplayName,
     plan,
     report,
+    sourceCapture: await createPrivateSourceCapture({ outputRoot: privateWork, captureId: runId }),
   });
-  const runId = options['run-id'] ?? `guidance-${crypto.randomUUID()}`;
-  const selectedModel = model(runtime.configuration);
-  const selectedProvider = providerName(runtime.configuration);
-  const checkpointBinding = createDeveloperGuidanceCheckpointBinding({
-    runId,
-    plan,
-    report,
-    contextDigest: retainedTarget.inventory.contextDigest,
-    provider: selectedProvider,
-    model: selectedModel,
-    protocolFingerprint: developerGuidanceProtocolFingerprint,
-  });
-  const checkpointPath = `guidance-checkpoints/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
-  const recoveredCheckpoint = await readOptionalJsonArtifact(
-    privateWork,
-    checkpointPath,
-    DeveloperGuidanceCheckpointSchema,
-  );
-  if (!resume && recoveredCheckpoint !== undefined) {
-    throw new AuditRuntimeError(
-      'artifact-invalid',
-      'A developer-guidance checkpoint already exists; resume the exact run explicitly.',
+  try {
+    const selectedModel = model(runtime.configuration);
+    const selectedProvider = providerName(runtime.configuration);
+    const checkpointBinding = createDeveloperGuidanceCheckpointBinding({
+      runId,
+      plan,
+      report,
+      contextDigest: retainedTarget.inventory.contextDigest,
+      provider: selectedProvider,
+      model: selectedModel,
+      protocolFingerprint: developerGuidanceProtocolFingerprint,
+    });
+    const checkpointPath = `guidance-checkpoints/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
+    const recoveredCheckpoint = await readOptionalJsonArtifact(
+      privateWork,
+      checkpointPath,
+      DeveloperGuidanceCheckpointSchema,
     );
-  }
-  if (resume && recoveredCheckpoint === undefined) {
-    throw new AuditRuntimeError(
-      'artifact-invalid',
-      'Developer guidance resume requires an existing exact-run checkpoint.',
-    );
-  }
-  if (
-    recoveredCheckpoint !== undefined &&
-    !hasExactDeveloperGuidanceCheckpointBinding(recoveredCheckpoint.binding, checkpointBinding)
-  ) {
-    throw new AuditRuntimeError(
-      'artifact-invalid',
-      'The developer-guidance checkpoint does not match the requested run identity.',
-    );
-  }
-  const guidanceArtifactPath = `guidance/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
-  const existingGuidance = await readOptionalJsonArtifact(
-    privateWork,
-    guidanceArtifactPath,
-    DeveloperGuidanceReportSchema,
-  );
-  if (existingGuidance !== undefined) {
+    if (!resume && recoveredCheckpoint !== undefined) {
+      throw new AuditRuntimeError(
+        'artifact-invalid',
+        'A developer-guidance checkpoint already exists; resume the exact run explicitly.',
+      );
+    }
+    if (resume && recoveredCheckpoint === undefined) {
+      throw new AuditRuntimeError(
+        'artifact-invalid',
+        'Developer guidance resume requires an existing exact-run checkpoint.',
+      );
+    }
     if (
-      !resume ||
-      existingGuidance.runId !== runId ||
-      existingGuidance.reportId !== report.reportId ||
-      existingGuidance.reportDigest !== checkpointBinding.reportDigest ||
-      existingGuidance.planId !== plan.planId ||
-      existingGuidance.planDigest !== plan.planDigest ||
-      existingGuidance.targetFingerprint !== retainedTarget.inventory.targetFingerprint ||
-      existingGuidance.contextDigest !== retainedTarget.inventory.contextDigest ||
-      existingGuidance.items.some((item) => item.status !== 'completed')
+      recoveredCheckpoint !== undefined &&
+      !hasExactDeveloperGuidanceCheckpointBinding(recoveredCheckpoint.binding, checkpointBinding)
     ) {
       throw new AuditRuntimeError(
         'artifact-invalid',
-        'The developer-guidance artifact is not a completed result for the exact resumed run.',
+        'The developer-guidance checkpoint does not match the requested run identity.',
       );
     }
+    const guidanceArtifactPath = `guidance/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
+    const existingGuidance = await readOptionalJsonArtifact(
+      privateWork,
+      guidanceArtifactPath,
+      DeveloperGuidanceReportSchema,
+    );
+    if (existingGuidance !== undefined) {
+      if (
+        !resume ||
+        existingGuidance.runId !== runId ||
+        existingGuidance.reportId !== report.reportId ||
+        existingGuidance.reportDigest !== checkpointBinding.reportDigest ||
+        existingGuidance.planId !== plan.planId ||
+        existingGuidance.planDigest !== plan.planDigest ||
+        existingGuidance.targetFingerprint !== retainedTarget.inventory.targetFingerprint ||
+        existingGuidance.contextDigest !== retainedTarget.inventory.contextDigest ||
+        existingGuidance.items.some((item) => item.status !== 'completed')
+      ) {
+        throw new AuditRuntimeError(
+          'artifact-invalid',
+          'The developer-guidance artifact is not a completed result for the exact resumed run.',
+        );
+      }
+      writeCliCommandResult(
+        options,
+        {
+          schemaVersion: 1,
+          command: 'guidance',
+          status: 'completed',
+          exitCode: 0,
+          exitMeaning: commandExitMeaning('guidance', 0),
+          identifiers: {
+            runId,
+            planId: plan.planId,
+            reportId: report.reportId,
+            guidanceId: existingGuidance.guidanceId,
+          },
+          artifacts: [
+            { kind: 'guidance-json', path: guidanceArtifactPath },
+            { kind: 'guidance-markdown', path: `guidance/${existingGuidance.guidanceId}.md` },
+          ],
+        },
+        `Reused completed non-gating developer guidance ${guidanceArtifactPath}.\n`,
+      );
+      return 0;
+    }
+    const provider = createProvider(runtime.configuration, runtime.environment);
+    const service = createReviewService(provider, selectedModel, {
+      modelPricing: selectedModelPricing(runtime.configuration),
+      modelCacheRoutingKey: providerCacheRoutingKey({
+        provider: ProviderNameSchema.parse(selectedProvider),
+        model: selectedModel,
+      }),
+    });
+    const created = await service.createDeveloperGuidance({
+      targetRoot: roots.targetRoot,
+      contextRoot: roots.contextRoot,
+      targetDisplayName,
+      plan,
+      report,
+      retainedTarget,
+      recoveredCheckpoint,
+      retryUnfinished,
+      onCheckpoint: async (state) =>
+        writeJsonArtifact(privateWork, checkpointPath, DeveloperGuidanceCheckpointSchema, {
+          schemaVersion: 3,
+          binding: checkpointBinding,
+          generatedAt: new Date().toISOString(),
+          attempts: [...state.attempts],
+        }),
+      runId,
+      generatedAt: new Date().toISOString(),
+      sessionId: runId,
+    });
+    if (created.guidance.items.some((item) => item.status !== 'completed')) {
+      process.stdout.write(
+        `Developer guidance for run ${runId} remains incomplete. Resume with --run-id ${runId} --resume true --retry-unfinished true.\n`,
+      );
+      return 0;
+    }
+    await writeNewJsonArtifact(
+      privateWork,
+      guidanceArtifactPath,
+      DeveloperGuidanceReportSchema,
+      created.guidance,
+    );
+    await writeNewMarkdownArtifact(
+      privateWork,
+      `guidance/${created.guidance.guidanceId}.md`,
+      renderDeveloperGuidanceMarkdown(created.guidance),
+    );
     writeCliCommandResult(
       options,
       {
@@ -334,84 +405,19 @@ async function runGuidance(
           runId,
           planId: plan.planId,
           reportId: report.reportId,
-          guidanceId: existingGuidance.guidanceId,
+          guidanceId: created.guidance.guidanceId,
         },
         artifacts: [
           { kind: 'guidance-json', path: guidanceArtifactPath },
-          { kind: 'guidance-markdown', path: `guidance/${existingGuidance.guidanceId}.md` },
+          { kind: 'guidance-markdown', path: `guidance/${created.guidance.guidanceId}.md` },
         ],
       },
-      `Reused completed non-gating developer guidance ${guidanceArtifactPath}.\n`,
+      `Created non-gating developer guidance guidance/${created.guidance.guidanceId}.json and guidance/${created.guidance.guidanceId}.md for ${created.guidance.items.length} accepted findings.\n`,
     );
     return 0;
+  } finally {
+    await retainedTarget.release?.();
   }
-  const provider = createProvider(runtime.configuration, runtime.environment);
-  const service = createReviewService(provider, selectedModel, {
-    modelPricing: selectedModelPricing(runtime.configuration),
-    modelCacheRoutingKey: providerCacheRoutingKey({
-      provider: ProviderNameSchema.parse(selectedProvider),
-      model: selectedModel,
-    }),
-  });
-  const created = await service.createDeveloperGuidance({
-    targetRoot: roots.targetRoot,
-    contextRoot: roots.contextRoot,
-    targetDisplayName,
-    plan,
-    report,
-    retainedTarget,
-    recoveredCheckpoint,
-    retryUnfinished,
-    onCheckpoint: async (state) =>
-      writeJsonArtifact(privateWork, checkpointPath, DeveloperGuidanceCheckpointSchema, {
-        schemaVersion: 3,
-        binding: checkpointBinding,
-        generatedAt: new Date().toISOString(),
-        attempts: [...state.attempts],
-      }),
-    runId,
-    generatedAt: new Date().toISOString(),
-    sessionId: runId,
-  });
-  if (created.guidance.items.some((item) => item.status !== 'completed')) {
-    process.stdout.write(
-      `Developer guidance for run ${runId} remains incomplete. Resume with --run-id ${runId} --resume true --retry-unfinished true.\n`,
-    );
-    return 0;
-  }
-  await writeNewJsonArtifact(
-    privateWork,
-    guidanceArtifactPath,
-    DeveloperGuidanceReportSchema,
-    created.guidance,
-  );
-  await writeNewMarkdownArtifact(
-    privateWork,
-    `guidance/${created.guidance.guidanceId}.md`,
-    renderDeveloperGuidanceMarkdown(created.guidance),
-  );
-  writeCliCommandResult(
-    options,
-    {
-      schemaVersion: 1,
-      command: 'guidance',
-      status: 'completed',
-      exitCode: 0,
-      exitMeaning: commandExitMeaning('guidance', 0),
-      identifiers: {
-        runId,
-        planId: plan.planId,
-        reportId: report.reportId,
-        guidanceId: created.guidance.guidanceId,
-      },
-      artifacts: [
-        { kind: 'guidance-json', path: guidanceArtifactPath },
-        { kind: 'guidance-markdown', path: `guidance/${created.guidance.guidanceId}.md` },
-      ],
-    },
-    `Created non-gating developer guidance guidance/${created.guidance.guidanceId}.json and guidance/${created.guidance.guidanceId}.md for ${created.guidance.items.length} accepted findings.\n`,
-  );
-  return 0;
 }
 
 async function runPlan(
@@ -439,6 +445,7 @@ async function runPlan(
     targetDisplayName: options['target-name'] ?? basename(targetRoot),
     createdAt: startedAt,
     sessionId: runId,
+    sourceCapture: await createPrivateSourceCapture({ outputRoot: privateWork, captureId: runId }),
   });
   await writeNewJsonArtifact(
     privateWork,
@@ -651,8 +658,16 @@ export async function runAudit(
       resumeState: persistenceSession.resumeState,
       retryUnfinished,
       retainedSnapshot,
+      ...(resume
+        ? {}
+        : {
+            sourceCapture: await createPrivateSourceCapture({
+              outputRoot: privateWork,
+              captureId: runId,
+            }),
+          }),
       onSnapshotCaptured: async (capture) => {
-        await retainTargetSnapshot({ outputRoot: privateWork, runId, capture });
+        const retained = await retainTargetSnapshot({ outputRoot: privateWork, runId, capture });
         snapshotRetained = true;
         await writeAuditRunAttempt(privateWork, {
           schemaVersion: 3,
@@ -667,6 +682,7 @@ export async function runAudit(
           publicationState: 'not-prepared',
           snapshotState: 'retained',
         });
+        return retained;
       },
       ...persistenceSession.callbacks,
     });

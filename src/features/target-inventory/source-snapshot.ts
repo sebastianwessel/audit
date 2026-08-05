@@ -21,6 +21,18 @@ import type { SourceDocument } from '../audit-execution/audit.schema.js';
 
 export type SourceSnapshotDocumentReader = (path: string) => Promise<SourceDocument>;
 
+/**
+ * A capture-owned sink for immutable source bytes. Product CLI commands use a
+ * private implementation so inventory never retains a repository-wide source
+ * array in memory; test and embedding callers may omit it.
+ */
+export type SourceSnapshotCapture = Readonly<{
+  accept: (source: SourceDocument) => Promise<void>;
+  objectRef: (contentDigest: string) => string;
+  createSnapshot: () => SourceSnapshot;
+  release: () => Promise<void>;
+}>;
+
 export type SourceRepository = Pick<
   JailedReadOnlyFilesystem,
   'listFiles' | 'readFile' | 'grepFiles'

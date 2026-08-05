@@ -74,7 +74,7 @@ test('revalidates a private source object at each on-demand repository read', as
     targetFingerprint: capture.inventory.targetFingerprint,
     contextDigest: capture.inventory.contextDigest,
   });
-  const objectRef = capture.inventory.sourceSnapshot.rows.find(
+  const objectRef = retained.inventory.sourceSnapshot.rows.find(
     (
       row,
     ): row is Extract<
@@ -90,7 +90,7 @@ test('revalidates a private source object at each on-demand repository read', as
   ).rejects.toThrow('does not match its admission manifest');
 });
 
-test('releases snapshot bytes only after the final resumable run owner finishes', async () => {
+test('releases one run-owned snapshot without affecting another run over the same target', async () => {
   const root = await mkdtemp(join(tmpdir(), 'audit-snapshot-retention-'));
   roots.push(root);
   const targetRoot = join(root, 'target');
@@ -115,7 +115,7 @@ test('releases snapshot bytes only after the final resumable run owner finishes'
   ).resolves.toBeDefined();
 
   await releaseTargetSnapshot({ outputRoot, runId: 'audit-run-02', targetFingerprint });
-  expect(await Bun.file(join(outputRoot, snapshotManifestPath(targetFingerprint))).exists()).toBe(
+  expect(await Bun.file(join(outputRoot, snapshotManifestPath('audit-run-02'))).exists()).toBe(
     false,
   );
   await expect(
@@ -128,7 +128,7 @@ test('releases snapshot bytes only after the final resumable run owner finishes'
   ).rejects.toThrow('does not retain');
 });
 
-test('rejects discarding a run that owns a shared retained snapshot', async () => {
+test('discards only the requested run-owned snapshot', async () => {
   const root = await mkdtemp(join(tmpdir(), 'audit-shared-discard-'));
   roots.push(root);
   const targetRoot = join(root, 'target');
@@ -141,13 +141,11 @@ test('rejects discarding a run that owns a shared retained snapshot', async () =
   await retainTargetSnapshot({ outputRoot, runId: 'audit-run-01', capture });
   await retainTargetSnapshot({ outputRoot, runId: 'audit-run-02', capture });
 
-  await expect(
-    discardRetainedTargetSnapshot({
-      outputRoot,
-      runId: 'audit-run-01',
-      targetFingerprint: capture.inventory.targetFingerprint,
-    }),
-  ).rejects.toMatchObject({ code: 'artifact-invalid' });
+  await discardRetainedTargetSnapshot({
+    outputRoot,
+    runId: 'audit-run-01',
+    targetFingerprint: capture.inventory.targetFingerprint,
+  });
   await expect(
     loadRetainedTargetSnapshot({
       outputRoot,
@@ -155,7 +153,7 @@ test('rejects discarding a run that owns a shared retained snapshot', async () =
       targetFingerprint: capture.inventory.targetFingerprint,
       contextDigest: capture.inventory.contextDigest,
     }),
-  ).resolves.toBeDefined();
+  ).rejects.toThrow('does not retain');
   await expect(
     loadRetainedTargetSnapshot({
       outputRoot,
@@ -231,9 +229,7 @@ test('keeps independently retained advisory context versions for the same source
     runId: 'audit-run-02',
     targetFingerprint: second.inventory.targetFingerprint,
   });
-  expect(
-    await Bun.file(
-      join(outputRoot, snapshotManifestPath(second.inventory.targetFingerprint)),
-    ).exists(),
-  ).toBe(false);
+  expect(await Bun.file(join(outputRoot, snapshotManifestPath('audit-run-02'))).exists()).toBe(
+    false,
+  );
 });

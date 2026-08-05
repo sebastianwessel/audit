@@ -78,6 +78,7 @@ import {
 } from '../target-inventory/inventory.js';
 import type { TargetInventory } from '../target-inventory/inventory.schema.js';
 import { admittedSourcePaths } from '../target-inventory/inventory.schema.js';
+import type { SourceSnapshotCapture } from '../target-inventory/source-snapshot.js';
 import {
   type ContextOverflowTopology,
   contextOverflowRecoveryProtocolFingerprint,
@@ -89,74 +90,82 @@ import type { EvaluatorFailureDiagnosticSink } from './stages/scoped-model-stage
 
 export type ReviewService = Readonly<{
   inspectTarget: (input: ReviewTargetInput) => Promise<TargetInventory>;
-  createPlan: (input: ReviewTargetInput & { createdAt: string; sessionId: string }) => Promise<{
+  createPlan: (
+    input: ReviewTargetInput & SourceCaptureInput & { createdAt: string; sessionId: string },
+  ) => Promise<{
     inventory: TargetInventory;
     plan: AttackPlan;
     modelObservation: ModelRunObservation;
   }>;
   createDeveloperGuidance: (
-    input: ReviewTargetInput & {
-      plan: AttackPlan;
-      report: PublicAuditReport;
-      retainedTarget?: TargetInventoryCapture;
-      recoveredCheckpoint?: DeveloperGuidanceCheckpoint;
-      retryUnfinished?: boolean;
-      onCheckpoint?: (state: { attempts: readonly DeveloperGuidanceAttempt[] }) => Promise<void>;
-      runId: string;
-      generatedAt: string;
-      sessionId: string;
-    },
+    input: ReviewTargetInput &
+      SourceCaptureInput & {
+        plan: AttackPlan;
+        report: PublicAuditReport;
+        retainedTarget?: TargetInventoryCapture;
+        recoveredCheckpoint?: DeveloperGuidanceCheckpoint;
+        retryUnfinished?: boolean;
+        onCheckpoint?: (state: { attempts: readonly DeveloperGuidanceAttempt[] }) => Promise<void>;
+        runId: string;
+        generatedAt: string;
+        sessionId: string;
+      },
   ) => Promise<{
     inventory: TargetInventory;
     guidance: DeveloperGuidanceReport;
     modelObservation: ModelRunObservation;
   }>;
   audit: (
-    input: ReviewTargetInput & {
-      plan: AttackPlan;
-      runId: string;
-      generatedAt: string;
-      sessionId: string;
-      resumeState?: AuditResumeState;
-      retryUnfinished?: boolean;
-      retainedSnapshot?: TargetInventoryCapture;
-      onSnapshotCaptured?: (capture: TargetInventoryCapture) => Promise<void>;
-      onEvidenceMapDraft?: (
-        draft: Pick<
-          AuditEvidenceMapDraft,
-          'vectorId' | 'evidenceMap' | 'repairAttempts' | 'execution'
-        >,
-      ) => Promise<void>;
-      onCandidateGroundingDraft?: (
-        draft: Pick<
-          AuditCandidateGroundingDraft,
-          | 'vectorId'
-          | 'groundings'
-          | 'closures'
-          | 'hypothesisGroundingFunnel'
-          | 'candidateIntegrityRejections'
-          | 'discoveryObservation'
-          | 'modelObservation'
-          | 'evidenceMapFingerprint'
-          | 'sourcePostureFingerprint'
-        >,
-      ) => Promise<void>;
-      onVerifiedDiscoverySeed?: (update: AuditVerifiedDiscoverySeedUpdate) => Promise<void>;
-      onCandidateAwareCheckpoint?: (update: CandidateAwareCheckpointUpdate) => Promise<void>;
-      onSourcePostureDraft?: (
-        draft: Pick<
-          AuditSourcePostureDraft,
-          'vectorId' | 'sourcePosture' | 'execution' | 'evidenceMapFingerprint'
-        >,
-      ) => Promise<void>;
-      onContextOverflowTransition?: (update: AuditContextOverflowTransition) => Promise<void>;
-      onEvidenceMapRecoveryLeaf?: (update: AuditEvidenceMapRecoveryLeafUpdate) => Promise<void>;
-      onSourcePostureRecoveryLeaf?: (update: AuditSourcePostureRecoveryLeafUpdate) => Promise<void>;
-      onCandidateGroundingRecoveryLeaf?: (
-        update: AuditCandidateGroundingRecoveryLeafUpdate,
-      ) => Promise<void>;
-      onVectorResult?: (result: AuditVectorResult) => Promise<void>;
-    },
+    input: ReviewTargetInput &
+      SourceCaptureInput & {
+        plan: AttackPlan;
+        runId: string;
+        generatedAt: string;
+        sessionId: string;
+        resumeState?: AuditResumeState;
+        retryUnfinished?: boolean;
+        retainedSnapshot?: TargetInventoryCapture;
+        onSnapshotCaptured?: (
+          capture: TargetInventoryCapture,
+        ) => Promise<TargetInventoryCapture | undefined>;
+        onEvidenceMapDraft?: (
+          draft: Pick<
+            AuditEvidenceMapDraft,
+            'vectorId' | 'evidenceMap' | 'repairAttempts' | 'execution'
+          >,
+        ) => Promise<void>;
+        onCandidateGroundingDraft?: (
+          draft: Pick<
+            AuditCandidateGroundingDraft,
+            | 'vectorId'
+            | 'groundings'
+            | 'closures'
+            | 'hypothesisGroundingFunnel'
+            | 'candidateIntegrityRejections'
+            | 'discoveryObservation'
+            | 'modelObservation'
+            | 'evidenceMapFingerprint'
+            | 'sourcePostureFingerprint'
+          >,
+        ) => Promise<void>;
+        onVerifiedDiscoverySeed?: (update: AuditVerifiedDiscoverySeedUpdate) => Promise<void>;
+        onCandidateAwareCheckpoint?: (update: CandidateAwareCheckpointUpdate) => Promise<void>;
+        onSourcePostureDraft?: (
+          draft: Pick<
+            AuditSourcePostureDraft,
+            'vectorId' | 'sourcePosture' | 'execution' | 'evidenceMapFingerprint'
+          >,
+        ) => Promise<void>;
+        onContextOverflowTransition?: (update: AuditContextOverflowTransition) => Promise<void>;
+        onEvidenceMapRecoveryLeaf?: (update: AuditEvidenceMapRecoveryLeafUpdate) => Promise<void>;
+        onSourcePostureRecoveryLeaf?: (
+          update: AuditSourcePostureRecoveryLeafUpdate,
+        ) => Promise<void>;
+        onCandidateGroundingRecoveryLeaf?: (
+          update: AuditCandidateGroundingRecoveryLeafUpdate,
+        ) => Promise<void>;
+        onVectorResult?: (result: AuditVectorResult) => Promise<void>;
+      },
   ) => Promise<{
     inventory: TargetInventory;
     report: AuditReport;
@@ -168,6 +177,11 @@ export type ReviewTargetInput = Readonly<{
   targetRoot: string;
   contextRoot?: string;
   targetDisplayName: string;
+}>;
+
+/** Optional private sink used by product CLI commands to avoid full-corpus RAM capture. */
+export type SourceCaptureInput = Readonly<{
+  sourceCapture?: SourceSnapshotCapture;
 }>;
 
 export type ReviewServiceOptions = Readonly<{
@@ -208,9 +222,11 @@ function assertDeveloperGuidanceBindings(
  * later guidance stage is allowed to inspect.
  */
 export async function prepareDeveloperGuidanceTarget(
-  input: DeveloperGuidanceTargetInput,
+  input: DeveloperGuidanceTargetInput & SourceCaptureInput,
 ): Promise<TargetInventoryCapture> {
-  const capture = await captureTargetInventory(await createFilesystem(input));
+  const capture = await captureTargetInventory(await createFilesystem(input), {
+    sourceCapture: input.sourceCapture,
+  });
   assertDeveloperGuidanceBindings(input, capture.inventory);
   return capture;
 }
@@ -232,41 +248,46 @@ export function createReviewService(
   return Object.freeze({
     inspectTarget: async (input) => inventoryTarget(await createFilesystem(input)),
     createPlan: async (input) => {
-      const { inventory, snapshot: sourceSnapshot } = await captureTargetInventory(
-        await createFilesystem(input),
-      );
-      const planning = await runPlanningStage({
-        modelProvider,
-        filesystem: sourceSnapshot,
-        request: {
-          targetFingerprint: inventory.targetFingerprint,
-          contextDigest: inventory.contextDigest,
-          targetDisplayName: input.targetDisplayName,
-          inventorySummary: inventory.summary,
-          sourcePaths: admittedSourcePaths(inventory.sourceSnapshot),
-          context: inventory.context,
-          createdAt: input.createdAt,
-        },
-        sessionId: input.sessionId,
-        modelName,
-        harnessExecution,
-        modelCacheRoutingKey: options.modelCacheRoutingKey,
-        modelPricing,
-        cacheRoutingEnabled,
-        evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+      const capture = await captureTargetInventory(await createFilesystem(input), {
+        sourceCapture: input.sourceCapture,
       });
-      if (planning.status === 'failed') {
-        const stableErrorCode = AuditRuntimeErrorCodeSchema.safeParse(planning.errorCode);
-        throw new AuditRuntimeError(
-          stableErrorCode.success ? stableErrorCode.data : 'provider-failure',
-          'The planning model stage did not complete.',
-        );
+      try {
+        const { inventory, snapshot: sourceSnapshot } = capture;
+        const planning = await runPlanningStage({
+          modelProvider,
+          filesystem: sourceSnapshot,
+          request: {
+            targetFingerprint: inventory.targetFingerprint,
+            contextDigest: inventory.contextDigest,
+            targetDisplayName: input.targetDisplayName,
+            inventorySummary: inventory.summary,
+            sourcePaths: admittedSourcePaths(inventory.sourceSnapshot),
+            context: inventory.context,
+            createdAt: input.createdAt,
+          },
+          sessionId: input.sessionId,
+          modelName,
+          harnessExecution,
+          modelCacheRoutingKey: options.modelCacheRoutingKey,
+          modelPricing,
+          cacheRoutingEnabled,
+          evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
+        });
+        if (planning.status === 'failed') {
+          const stableErrorCode = AuditRuntimeErrorCodeSchema.safeParse(planning.errorCode);
+          throw new AuditRuntimeError(
+            stableErrorCode.success ? stableErrorCode.data : 'provider-failure',
+            'The planning model stage did not complete.',
+          );
+        }
+        return {
+          inventory,
+          plan: planning.output,
+          modelObservation: summarizeModelStages([planning.modelObservation], modelPricing),
+        };
+      } finally {
+        await capture.release?.();
       }
-      return {
-        inventory,
-        plan: planning.output,
-        modelObservation: summarizeModelStages([planning.modelObservation], modelPricing),
-      };
     },
     createDeveloperGuidance: async (input) => {
       const capture = input.retainedTarget ?? (await prepareDeveloperGuidanceTarget(input));
@@ -409,9 +430,29 @@ export function createReviewService(
     },
     audit: async (input) => {
       assertPlanIsSealed(input.plan);
-      const capture =
-        input.retainedSnapshot ?? (await captureTargetInventory(await createFilesystem(input)));
-      if (input.retainedSnapshot === undefined) await input.onSnapshotCaptured?.(capture);
+      const initialCapture =
+        input.retainedSnapshot ??
+        (await captureTargetInventory(await createFilesystem(input), {
+          sourceCapture: input.sourceCapture,
+        }));
+      let capture = initialCapture;
+      if (input.retainedSnapshot === undefined) {
+        let sealed = false;
+        try {
+          const retained = await input.onSnapshotCaptured?.(initialCapture);
+          if (retained !== undefined) {
+            capture = retained;
+            sealed = true;
+          } else if (initialCapture.release !== undefined) {
+            throw new AuditRuntimeError(
+              'artifact-invalid',
+              'A private source capture must be sealed before audit dispatch.',
+            );
+          }
+        } finally {
+          if (!sealed) await initialCapture.release?.();
+        }
+      }
       const { inventory, snapshot: sourceSnapshot } = capture;
       const report = await runAudit({
         plan: input.plan,

@@ -19,7 +19,6 @@ or raw model text is retained as protected detail.
 | RuntimeConfigurationSchema | Platform configuration | 1 |
 | SourceAdmissionPolicySchema | Source-admission configuration | 1 |
 | SourceSnapshotManifestSchema | Immutable admitted source view | 1 |
-| SourceSnapshotRetentionIndexSchema | Private snapshot ownership and cleanup state | 2 |
 | TargetInventorySchema | Inventory projection over snapshot | 2 |
 | AttackPlanSchema | plan.json | 4 |
 | AttackPlanDraftSchema | plan-draft.json | 1 |
@@ -70,7 +69,7 @@ The validated target inventory contains sorted context documents and a context d
 
 ## Snapshot and plan
 
-`SourceAdmissionPolicySchema` owns named include/exclude policy and default-exclusion reasons. It rejects arbitrary maxima for files, bytes, lines, matches, context bodies, or tools. `SourceSnapshotManifestSchema` contains sorted manifest rows and the derived target fingerprint. Each row is either one admitted regular UTF-8 file with normalized relative path, byte length, content digest, and private snapshot-object reference, or one excluded entry with a closed reason. A source snapshot is built through exact streaming byte transactions; it never concatenates the corpus or rereads mutable target content after its digest is accepted. Audit orchestration consumes that snapshot with an explicit admitted-path manifest; per-vector source materialization requires an explicit scoped path list, reads it sequentially, and has no implicit read-all operation. Context is separately digested and preserves line endings. Publication of private source/context objects and the target-keyed `SourceSnapshotRetentionIndexSchema` mutation use the same exclusive lease; release uses that same lease and removes the snapshot directory only after the final run/context owner is removed.
+`SourceAdmissionPolicySchema` owns named include/exclude policy and default-exclusion reasons. It rejects arbitrary maxima for files, bytes, lines, matches, context bodies, or tools. `SourceSnapshotManifestSchema` contains sorted manifest rows and the derived target fingerprint. Each row is either one admitted regular UTF-8 file with normalized relative path, byte length, content digest, and private snapshot-object reference, or one excluded entry with a closed reason. A product command streams every admitted source transaction directly into one run-owned private object directory before any model stage; it retains no repository-wide source-content array and never rereads mutable target content after acceptance. The seal writes the manifest and advisory context only after every object validates against its row. Audit orchestration consumes that snapshot with an explicit admitted-path manifest; per-vector source materialization requires an explicit scoped path list, reads it sequentially, and has no implicit read-all operation. Context is separately digested and preserves line endings. The run owns its private source/context objects exclusively: sealing, loading, release, and discard use the same run-scoped exclusive lease. Completion releases that exact run directory; a stopped run retains it only for explicit resume or discard. There is no target-keyed sharing, ownership index, or cross-run source reuse.
 
 ## Plan
 

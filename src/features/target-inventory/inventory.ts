@@ -12,7 +12,11 @@ import {
   type TargetInventory,
   TargetInventorySchema,
 } from './inventory.schema.js';
-import { createSourceSnapshot, type SourceSnapshot } from './source-snapshot.js';
+import {
+  createSourceSnapshot,
+  type SourceSnapshot,
+  type SourceSnapshotCapture,
+} from './source-snapshot.js';
 
 const languageByExtension: Readonly<Record<string, string>> = {
   '.c': 'c',
@@ -62,6 +66,7 @@ export const DefaultSourceAdmissionPolicy = {
 export type TargetInventoryCapture = Readonly<{
   inventory: TargetInventory;
   snapshot: SourceSnapshot;
+  release?: () => Promise<void>;
 }>;
 
 export async function inventoryTarget(
@@ -74,7 +79,10 @@ export async function inventoryTarget(
 /** Captures every admitted source exactly once, then exposes only its immutable snapshot. */
 export async function captureTargetInventory(
   filesystem: JailedReadOnlyFilesystem,
-  options: { admissionPolicy?: SourceAdmissionPolicy } = {},
+  options: {
+    admissionPolicy?: SourceAdmissionPolicy;
+    sourceCapture?: SourceSnapshotCapture;
+  } = {},
 ): Promise<TargetInventoryCapture> {
   const policy = options.admissionPolicy ?? DefaultSourceAdmissionPolicy;
   const entries = await filesystem.listFiles({
@@ -84,92 +92,111 @@ export async function captureTargetInventory(
   });
   const sources: SourceDocument[] = [];
   const rows: SourceSnapshotManifest['rows'] = [];
-  for (const entry of entries.entries) {
-    const exclusionReason = sourceAdmissionExclusionReason(entry.relativePath, policy);
-    if (exclusionReason !== undefined) {
-      rows.push({ disposition: 'excluded', path: entry.relativePath, reason: exclusionReason });
-      continue;
-    }
-    try {
-      const read = await filesystem.readFile({
-        root: 'target',
-        relativePath: entry.relativePath,
-        startLine: 1,
-      });
-      const contentDigest = sha256(read.text);
-      const byteLength = new TextEncoder().encode(read.text).byteLength;
-      const languageHint = inferLanguageHint(entry.relativePath);
-      sources.push({ path: entry.relativePath, content: read.text, languageHint });
-      rows.push({
-        disposition: 'admitted',
-        path: entry.relativePath,
-        byteLength,
-        contentDigest,
-        objectRef: `snapshots/objects/${contentDigest}.txt`,
-        languageHint,
-      });
-    } catch (error) {
-      if (error instanceof FilesystemBoundaryError && error.code === 'INVALID_ENCODING') {
-        rows.push({
-          disposition: 'excluded',
-          path: entry.relativePath,
-          reason: 'invalid-encoding',
-        });
+  try {
+    for (const entry of entries.entries) {
+      const exclusionReason = sourceAdmissionExclusionReason(entry.relativePath, policy);
+      if (exclusionReason !== undefined) {
+        rows.push({ disposition: 'excluded', path: entry.relativePath, reason: exclusionReason });
         continue;
       }
-      throw error;
+      try {
+        const read = await filesystem.readFile({
+          root: 'target',
+          relativePath: entry.relativePath,
+          startLine: 1,
+        });
+        const contentDigest = sha256(read.text);
+        const byteLength = new TextEncoder().encode(read.text).byteLength;
+        const languageHint = inferLanguageHint(entry.relativePath);
+        const source = { path: entry.relativePath, content: read.text, languageHint };
+        if (options.sourceCapture === undefined) sources.push(source);
+        else await options.sourceCapture.accept(source);
+        rows.push({
+          disposition: 'admitted',
+          path: entry.relativePath,
+          byteLength,
+          contentDigest,
+          objectRef:
+            options.sourceCapture?.objectRef(contentDigest) ??
+            `snapshots/objects/${contentDigest}.txt`,
+          languageHint,
+        });
+      } catch (error) {
+        if (error instanceof FilesystemBoundaryError && error.code === 'INVALID_ENCODING') {
+          rows.push({
+            disposition: 'excluded',
+            path: entry.relativePath,
+            reason: 'invalid-encoding',
+          });
+          continue;
+        }
+        throw error;
+      }
     }
-  }
-  if (sources.length === 0) {
-    throw new FilesystemBoundaryError(
-      'FILE_NOT_FOUND',
-      'The admission policy retained no regular UTF-8 source files.',
+    const admittedRows = rows.filter(
+      (row): row is Extract<(typeof rows)[number], { disposition: 'admitted' }> =>
+        row.disposition === 'admitted',
     );
-  }
-  const context = await inventoryContext(filesystem);
-  const targetFingerprint = sha256(
-    rows
-      .flatMap((row) =>
-        row.disposition === 'admitted'
-          ? [`${row.path}\0${row.byteLength}\0${row.contentDigest}`]
-          : [],
-      )
-      .join('\n'),
-  );
-  const contextDigest = sha256(context.map((document) => document.digest).join('\n'));
-  const languageHints = [
-    ...new Set(
-      sources.flatMap((source) => (source.languageHint === null ? [] : [source.languageHint])),
-    ),
-  ].sort();
-  const sourceSnapshot = {
-    schemaVersion: 1,
-    policy,
-    targetFingerprint,
-    rows: rows.map((row) =>
-      row.disposition === 'admitted'
-        ? {
-            ...row,
-            objectRef: `work/snapshots/${targetFingerprint}/objects/${row.contentDigest}.txt`,
-          }
-        : row,
-    ),
-  } satisfies SourceSnapshotManifest;
-  const inventory = TargetInventorySchema.parse({
-    targetFingerprint,
-    contextDigest,
-    summary: {
-      fileCount: sources.length,
-      totalBytes: rows.reduce(
-        (total, row) => total + (row.disposition === 'admitted' ? row.byteLength : 0),
-        0,
+    if (admittedRows.length === 0) {
+      throw new FilesystemBoundaryError(
+        'FILE_NOT_FOUND',
+        'The admission policy retained no regular UTF-8 source files.',
+      );
+    }
+    const context = await inventoryContext(filesystem);
+    const targetFingerprint = sha256(
+      rows
+        .flatMap((row) =>
+          row.disposition === 'admitted'
+            ? [`${row.path}\0${row.byteLength}\0${row.contentDigest}`]
+            : [],
+        )
+        .join('\n'),
+    );
+    const contextDigest = sha256(context.map((document) => document.digest).join('\n'));
+    const languageHints = [
+      ...new Set(
+        admittedRows.flatMap((source) =>
+          source.languageHint === null ? [] : [source.languageHint],
+        ),
       ),
-      languageHints,
-    },
-    sourceSnapshot,
-    context,
-  });
-  return { inventory, snapshot: createSourceSnapshot(sources) };
+    ].sort();
+    const sourceSnapshot = {
+      schemaVersion: 1,
+      policy,
+      targetFingerprint,
+      rows: rows.map((row) =>
+        row.disposition === 'admitted' && options.sourceCapture === undefined
+          ? {
+              ...row,
+              objectRef: `work/snapshots/${targetFingerprint}/objects/${row.contentDigest}.txt`,
+            }
+          : row,
+      ),
+    } satisfies SourceSnapshotManifest;
+    const inventory = TargetInventorySchema.parse({
+      targetFingerprint,
+      contextDigest,
+      summary: {
+        fileCount: admittedRows.length,
+        totalBytes: rows.reduce(
+          (total, row) => total + (row.disposition === 'admitted' ? row.byteLength : 0),
+          0,
+        ),
+        languageHints,
+      },
+      sourceSnapshot,
+      context,
+    });
+    return {
+      inventory,
+      snapshot: options.sourceCapture?.createSnapshot() ?? createSourceSnapshot(sources),
+      ...(options.sourceCapture === undefined ? {} : { release: options.sourceCapture.release }),
+    };
+  } catch (error) {
+    await options.sourceCapture?.release();
+    throw error;
+  }
 }
 
 function sourceAdmissionExclusionReason(

@@ -4,43 +4,65 @@ import {
   ArtifactStoreError,
   acquireArtifactLease,
   readJsonArtifact,
+  readOptionalJsonArtifact,
   readPrivateUtf8Artifact,
   removeArtifactDirectory,
-  removeJsonArtifact,
   writeJsonArtifact,
-  writePrivateUtf8Artifact,
+  writeNewPrivateUtf8Artifact,
 } from '../../platform/artifact-store/json-artifact-store.js';
 import { sha256 } from '../../shared/contracts/core.js';
-import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
 
 import type { TargetInventoryCapture } from './inventory.js';
 import {
   ContextDocumentSchema,
+  type SourceSnapshotManifest,
   SourceSnapshotManifestSchema,
-  type SourceSnapshotRetentionIndex,
-  SourceSnapshotRetentionIndexSchema,
   type TargetInventory,
   TargetInventorySchema,
 } from './inventory.schema.js';
+import {
+  sourceCaptureContextPath,
+  sourceCaptureDirectory,
+  sourceCaptureManifestPath,
+  sourceObjectPath,
+} from './private-source-capture.js';
 import { SourceSnapshot } from './source-snapshot.js';
 
 const ContextSnapshotSchema = z.array(ContextDocumentSchema);
 
-/** Persists and retains a private snapshot before audit model work begins. */
+/**
+ * Seals one run-owned private source capture before audit model work begins.
+ * The capture already wrote each admitted object, so sealing persists only the
+ * manifest/context and never builds a second repository-wide source array.
+ */
 export async function retainTargetSnapshot(input: {
   outputRoot: string;
   runId: string;
   capture: TargetInventoryCapture;
-}): Promise<void> {
+}): Promise<TargetInventoryCapture> {
   const lease = await acquireArtifactLease(
     input.outputRoot,
-    snapshotRetentionLeasePath(input.capture.inventory.targetFingerprint),
+    snapshotRetentionLeasePath(input.runId),
   );
   try {
-    const { capture } = input;
-    for (const row of capture.inventory.sourceSnapshot.rows) {
+    const sourceSnapshot = retainedSourceSnapshotManifest(
+      input.runId,
+      input.capture.inventory.sourceSnapshot,
+    );
+    const directCapture = sourceSnapshot.rows.every(
+      (row) =>
+        row.disposition !== 'admitted' ||
+        input.capture.inventory.sourceSnapshot.rows.some(
+          (candidate) =>
+            candidate.disposition === 'admitted' &&
+            candidate.path === row.path &&
+            candidate.objectRef === row.objectRef,
+        ),
+    );
+    const persistedDigests = new Set<string>();
+    for (const row of sourceSnapshot.rows) {
       if (row.disposition !== 'admitted') continue;
-      const [source] = await capture.snapshot.documents([row.path]);
+      const [source] = await input.capture.snapshot.documents([row.path]);
       if (
         source === undefined ||
         sha256(source.content) !== row.contentDigest ||
@@ -48,73 +70,56 @@ export async function retainTargetSnapshot(input: {
       ) {
         throw new Error('The captured source does not match its admission manifest.');
       }
-      await writePrivateUtf8Artifact(input.outputRoot, row.objectRef, source.content);
+      if (!directCapture && !persistedDigests.has(row.contentDigest)) {
+        await writeNewPrivateUtf8Artifact(input.outputRoot, row.objectRef, source.content);
+        persistedDigests.add(row.contentDigest);
+      }
     }
     await writeJsonArtifact(
       input.outputRoot,
-      snapshotManifestPath(capture.inventory.targetFingerprint),
+      sourceCaptureManifestPath(input.runId),
       SourceSnapshotManifestSchema,
-      capture.inventory.sourceSnapshot,
+      sourceSnapshot,
     );
     await writeJsonArtifact(
       input.outputRoot,
-      contextSnapshotPath(capture.inventory.targetFingerprint, capture.inventory.contextDigest),
+      sourceCaptureContextPath(input.runId, input.capture.inventory.contextDigest),
       ContextSnapshotSchema,
-      capture.inventory.context,
+      input.capture.inventory.context,
     );
-    const current = await readOptionalSnapshotRetentionIndex(
-      input.outputRoot,
-      capture.inventory.targetFingerprint,
-    );
-    const retainedRuns = [
-      ...(current?.retainedRuns.filter((record) => record.runId !== input.runId) ?? []),
-      { runId: input.runId, contextDigest: capture.inventory.contextDigest },
-    ].sort((left, right) => left.runId.localeCompare(right.runId));
-    await writeJsonArtifact(
-      input.outputRoot,
-      snapshotRetentionIndexPath(capture.inventory.targetFingerprint),
-      SourceSnapshotRetentionIndexSchema,
-      {
-        schemaVersion: 2,
-        targetFingerprint: capture.inventory.targetFingerprint,
-        retainedRuns,
-      },
-    );
+    return loadRetainedTargetSnapshot({
+      outputRoot: input.outputRoot,
+      runId: input.runId,
+      targetFingerprint: input.capture.inventory.targetFingerprint,
+      contextDigest: input.capture.inventory.contextDigest,
+    });
   } finally {
     await lease.release();
   }
 }
 
-/** Reconstructs a run-owned source/context view without opening the mutable target. */
+/** Reconstructs one exact run-owned source/context view without opening the mutable target. */
 export async function loadRetainedTargetSnapshot(input: {
   outputRoot: string;
   runId: string;
   targetFingerprint: string;
   contextDigest: string;
 }): Promise<TargetInventoryCapture> {
-  const retention = await readOptionalSnapshotRetentionIndex(
-    input.outputRoot,
-    input.targetFingerprint,
-  );
-  if (
-    retention === undefined ||
-    !retention.retainedRuns.some(
-      (record) => record.runId === input.runId && record.contextDigest === input.contextDigest,
-    )
-  ) {
-    throw new Error('The audit run does not retain the requested source snapshot.');
-  }
-  const sourceSnapshot = await readJsonArtifact(
-    input.outputRoot,
-    snapshotManifestPath(input.targetFingerprint),
-    SourceSnapshotManifestSchema,
-  );
+  const sourceSnapshot = await readRetainedSourceSnapshot(input.outputRoot, input.runId);
   if (sourceSnapshot.targetFingerprint !== input.targetFingerprint) {
     throw new Error('The retained source snapshot does not match the executable plan.');
   }
+  const expectedDirectory = `${sourceCaptureDirectory(input.runId)}/objects/`;
+  if (
+    sourceSnapshot.rows.some(
+      (row) => row.disposition === 'admitted' && !row.objectRef.startsWith(expectedDirectory),
+    )
+  ) {
+    throw new Error('The retained source snapshot contains an invalid run-owned object reference.');
+  }
   const context = await readJsonArtifact(
     input.outputRoot,
-    contextSnapshotPath(input.targetFingerprint, input.contextDigest),
+    sourceCaptureContextPath(input.runId, input.contextDigest),
     ContextSnapshotSchema,
   );
   const actualContextDigest = sha256(context.map((document) => document.digest).join('\n'));
@@ -125,8 +130,114 @@ export async function loadRetainedTargetSnapshot(input: {
     (row): row is Extract<typeof row, { disposition: 'admitted' }> =>
       row.disposition === 'admitted',
   );
-  const readAdmittedSource = async (row: (typeof admittedRows)[number]) => {
-    const content = await readPrivateUtf8Artifact(input.outputRoot, row.objectRef);
+  const readAdmittedSource = createRetainedSourceReader(input.outputRoot, admittedRows);
+  // Validate every retained object before audit dispatch without caching any
+  // repository-wide content. Later scoped reads validate their own object again.
+  for (const row of admittedRows) await readAdmittedSource(row.path);
+  const inventory: TargetInventory = TargetInventorySchema.parse({
+    targetFingerprint: input.targetFingerprint,
+    contextDigest: input.contextDigest,
+    summary: {
+      fileCount: admittedRows.length,
+      totalBytes: admittedRows.reduce((total, row) => total + row.byteLength, 0),
+      languageHints: [...new Set(admittedRows.flatMap((row) => row.languageHint ?? []))].sort(),
+    },
+    sourceSnapshot,
+    context,
+  });
+  return {
+    inventory,
+    snapshot: new SourceSnapshot({
+      entries: admittedRows.map((row) => ({ relativePath: row.path, sizeBytes: row.byteLength })),
+      readDocument: readAdmittedSource,
+    }),
+  };
+}
+
+/** Releases one run-owned snapshot after its terminal audit no longer needs resume state. */
+export async function releaseTargetSnapshot(input: {
+  outputRoot: string;
+  runId: string;
+  targetFingerprint: string;
+}): Promise<void> {
+  const lease = await acquireArtifactLease(
+    input.outputRoot,
+    snapshotRetentionLeasePath(input.runId),
+  );
+  try {
+    const sourceSnapshot = await readJsonArtifact(
+      input.outputRoot,
+      sourceCaptureManifestPath(input.runId),
+      SourceSnapshotManifestSchema,
+    );
+    if (sourceSnapshot.targetFingerprint !== input.targetFingerprint) {
+      throw new Error('The retained source snapshot does not match the audit run to release.');
+    }
+    await removeArtifactDirectory(input.outputRoot, sourceCaptureDirectory(input.runId));
+  } finally {
+    await lease.release();
+  }
+}
+
+/** Removes an exact discarded run's source capture, including a capture that never sealed. */
+export async function discardRetainedTargetSnapshot(input: {
+  outputRoot: string;
+  runId: string;
+  targetFingerprint: string;
+}): Promise<void> {
+  const lease = await acquireArtifactLease(
+    input.outputRoot,
+    snapshotRetentionLeasePath(input.runId),
+  );
+  try {
+    const sourceSnapshot = await readOptionalJsonArtifact(
+      input.outputRoot,
+      sourceCaptureManifestPath(input.runId),
+      SourceSnapshotManifestSchema,
+    );
+    if (
+      sourceSnapshot !== undefined &&
+      sourceSnapshot.targetFingerprint !== input.targetFingerprint
+    ) {
+      throw new Error('The retained source snapshot does not match the audit run to discard.');
+    }
+    await removeArtifactDirectory(input.outputRoot, sourceCaptureDirectory(input.runId));
+  } finally {
+    await lease.release();
+  }
+}
+
+/** Public only for exact-path assertions; run identity, not target identity, owns private bytes. */
+export function snapshotManifestPath(runId: string): string {
+  return sourceCaptureManifestPath(runId);
+}
+
+function retainedSourceSnapshotManifest(
+  runId: string,
+  sourceSnapshot: SourceSnapshotManifest,
+): SourceSnapshotManifest {
+  return SourceSnapshotManifestSchema.parse({
+    ...sourceSnapshot,
+    rows: sourceSnapshot.rows.map((row) =>
+      row.disposition === 'admitted'
+        ? { ...row, objectRef: sourceObjectPath(runId, row.contentDigest) }
+        : row,
+    ),
+  });
+}
+
+function createRetainedSourceReader(
+  outputRoot: string,
+  admittedRows: readonly Extract<
+    SourceSnapshotManifest['rows'][number],
+    { disposition: 'admitted' }
+  >[],
+) {
+  const rowsByPath = new Map(admittedRows.map((row) => [row.path, row]));
+  return async (path: string) => {
+    const row = rowsByPath.get(path);
+    if (row === undefined) throw new Error('The requested source is not in the retained snapshot.');
+    const content = await readPrivateUtf8Artifact(outputRoot, row.objectRef);
     if (
       sha256(content) !== row.contentDigest ||
       new TextEncoder().encode(content).byteLength !== row.byteLength
@@ -135,150 +246,26 @@ export async function loadRetainedTargetSnapshot(input: {
     }
     return { path: row.path, content, languageHint: row.languageHint };
   };
-  // A resumed run validates every private object before any provider dispatch,
-  // but keeps no repository-wide source-content cache afterwards.
-  for (const row of admittedRows) await readAdmittedSource(row);
-  const summary = {
-    fileCount: admittedRows.length,
-    totalBytes: admittedRows.reduce((total, row) => total + row.byteLength, 0),
-    languageHints: [...new Set(admittedRows.flatMap((row) => row.languageHint ?? []))].sort(),
-  };
-  const inventory: TargetInventory = TargetInventorySchema.parse({
-    targetFingerprint: input.targetFingerprint,
-    contextDigest: input.contextDigest,
-    summary,
-    sourceSnapshot,
-    context,
-  });
-  return {
-    inventory,
-    snapshot: new SourceSnapshot({
-      entries: admittedRows.map((row) => ({ relativePath: row.path, sizeBytes: row.byteLength })),
-      readDocument: async (path) => {
-        const row = admittedRows.find((candidate) => candidate.path === path);
-        if (row === undefined)
-          throw new Error('The requested source is not in the retained snapshot.');
-        return readAdmittedSource(row);
-      },
-    }),
-  };
 }
 
-/** Releases one run's reference and removes bytes only after the final owner finishes. */
-export async function releaseTargetSnapshot(input: {
-  outputRoot: string;
-  runId: string;
-  targetFingerprint: string;
-}): Promise<void> {
-  const lease = await acquireArtifactLease(
-    input.outputRoot,
-    snapshotRetentionLeasePath(input.targetFingerprint),
-  );
-  try {
-    const current = await readOptionalSnapshotRetentionIndex(
-      input.outputRoot,
-      input.targetFingerprint,
-    );
-    if (
-      current === undefined ||
-      !current.retainedRuns.some((record) => record.runId === input.runId)
-    )
-      return;
-    const retainedRuns = current.retainedRuns.filter((record) => record.runId !== input.runId);
-    if (retainedRuns.length === 0) {
-      await removeArtifactDirectory(
-        input.outputRoot,
-        snapshotDirectoryPath(input.targetFingerprint),
-      );
-      await removeJsonArtifact(
-        input.outputRoot,
-        snapshotRetentionIndexPath(input.targetFingerprint),
-      );
-    } else {
-      await writeJsonArtifact(
-        input.outputRoot,
-        snapshotRetentionIndexPath(input.targetFingerprint),
-        SourceSnapshotRetentionIndexSchema,
-        {
-          schemaVersion: 2,
-          targetFingerprint: input.targetFingerprint,
-          retainedRuns,
-        },
-      );
-    }
-  } finally {
-    await lease.release();
-  }
+function snapshotRetentionLeasePath(runId: string): string {
+  return `work/snapshot-retention/${runId}.lock`;
 }
 
-/**
- * Removes the source/context snapshot retained by one exact discarded run.
- * A shared snapshot is deliberately not mutated: its remaining owners must
- * close first, keeping discard from changing another run's resumable state.
- */
-export async function discardRetainedTargetSnapshot(input: {
-  outputRoot: string;
-  runId: string;
-  targetFingerprint: string;
-}): Promise<void> {
-  const lease = await acquireArtifactLease(
-    input.outputRoot,
-    snapshotRetentionLeasePath(input.targetFingerprint),
-  );
-  try {
-    const current = await readOptionalSnapshotRetentionIndex(
-      input.outputRoot,
-      input.targetFingerprint,
-    );
-    if (current === undefined) return;
-    const owner = current.retainedRuns.find((record) => record.runId === input.runId);
-    if (owner === undefined) return;
-    if (current.retainedRuns.length !== 1) {
-      throw new AuditRuntimeError(
-        'artifact-invalid',
-        'The audit run retains a shared source snapshot and cannot be discarded independently.',
-      );
-    }
-    await removeArtifactDirectory(input.outputRoot, snapshotDirectoryPath(input.targetFingerprint));
-    await removeJsonArtifact(input.outputRoot, snapshotRetentionIndexPath(input.targetFingerprint));
-  } finally {
-    await lease.release();
-  }
-}
-
-export function snapshotManifestPath(targetFingerprint: string): string {
-  return `${snapshotDirectoryPath(targetFingerprint)}/manifest.json`;
-}
-
-function contextSnapshotPath(targetFingerprint: string, contextDigest: string): string {
-  return `${snapshotDirectoryPath(targetFingerprint)}/contexts/${contextDigest}.json`;
-}
-
-function snapshotDirectoryPath(targetFingerprint: string): string {
-  return `work/snapshots/${targetFingerprint}`;
-}
-
-function snapshotRetentionIndexPath(targetFingerprint: string): string {
-  return `work/snapshot-retention/${targetFingerprint}.json`;
-}
-
-function snapshotRetentionLeasePath(targetFingerprint: string): string {
-  return `work/snapshot-retention/${targetFingerprint}.lock`;
-}
-
-async function readOptionalSnapshotRetentionIndex(
+async function readRetainedSourceSnapshot(
   outputRoot: string,
-  targetFingerprint: string,
-): Promise<SourceSnapshotRetentionIndex | undefined> {
+  runId: string,
+): Promise<SourceSnapshotManifest> {
   try {
     return await readJsonArtifact(
       outputRoot,
-      snapshotRetentionIndexPath(targetFingerprint),
-      SourceSnapshotRetentionIndexSchema,
+      sourceCaptureManifestPath(runId),
+      SourceSnapshotManifestSchema,
     );
   } catch (error) {
-    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found')
-      return undefined;
+    if (error instanceof ArtifactStoreError && error.code === 'artifact-not-found') {
+      throw new Error('The audit run does not retain the requested source snapshot.');
+    }
     throw error;
   }
 }

@@ -196,6 +196,16 @@ export async function writePrivateUtf8Artifact(
   await writeAtomically(outputRoot, destinationPath, content);
 }
 
+/** Writes immutable private UTF-8 data and never replaces an existing path. */
+export async function writeNewPrivateUtf8Artifact(
+  outputRoot: string,
+  artifactPath: string,
+  content: string,
+): Promise<void> {
+  const destinationPath = await resolveArtifactWritePath(outputRoot, artifactPath, '.txt');
+  await writeNewAtomically(outputRoot, destinationPath, content);
+}
+
 /** Writes independently schema-validated JSON records for streaming diagnostics. */
 export async function writeJsonLinesArtifact<TSchema extends z.ZodType<JsonArtifactValue>>(
   outputRoot: string,
