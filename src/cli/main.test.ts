@@ -20,16 +20,16 @@ import {
   PublicAuditReportSchema,
 } from '../features/audit-report/public-contract.js';
 import {
+  captureTargetInventory,
+  createPrivateSourceCapture,
+  retainTargetSnapshot,
+} from '../features/target-inventory/index.js';
+import {
   acquireArtifactLease,
   readJsonArtifact,
   writeJsonArtifact,
 } from '../platform/artifact-store/json-artifact-store.js';
 import { createJailedReadOnlyFilesystem } from '../platform/filesystem/index.js';
-import {
-  captureTargetInventory,
-  createPrivateSourceCapture,
-  retainTargetSnapshot,
-} from '../features/target-inventory/index.js';
 import { createStableId, sha256 } from '../shared/contracts/core.js';
 import { AuditRuntimeError } from '../shared/errors/audit-runtime-error.js';
 import { parseHelpRequest, renderCliHelp } from './command-catalog.js';
@@ -494,7 +494,10 @@ test('audit resume promotes a sealed snapshot that survived before attempt-state
     await Promise.all([mkdir(privateWork), mkdir(targetRoot)]);
     await writeFile(join(targetRoot, 'source.unknown'), 'sealed before crash\n', 'utf8');
     const runId = 'audit-resume-sealed-01';
-    const sourceCapture = await createPrivateSourceCapture({ outputRoot: privateWork, captureId: runId });
+    const sourceCapture = await createPrivateSourceCapture({
+      outputRoot: privateWork,
+      captureId: runId,
+    });
     const captured = await captureTargetInventory(
       await createJailedReadOnlyFilesystem({ targetRoot }),
       { sourceCapture },
