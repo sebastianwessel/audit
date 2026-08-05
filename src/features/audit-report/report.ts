@@ -1,4 +1,4 @@
-import type { ClaimEvidenceRole } from '../attack-planning/index.js';
+import type { ClaimEvidenceRole } from '../attack-planning/plan/index.js';
 import { classifyAuditTerminal } from '../audit-execution/terminal-classification.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
 import type { PublicAuditReport } from './public-contract.js';

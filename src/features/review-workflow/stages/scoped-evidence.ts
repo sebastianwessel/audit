@@ -1,4 +1,4 @@
-import type { SourceEvidence } from '../../attack-planning/index.js';
+import type { SourceEvidence } from '../../attack-planning/plan/index.js';
 import type { EvidenceMapFact } from '../../audit-execution/evidence-map/contract.js';
 import type { ContextRecoveryScope } from '../runtime/context-overflow.js';
 

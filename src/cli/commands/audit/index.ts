@@ -1,7 +1,10 @@
 import { basename } from 'node:path';
 import type { ModelProvider } from '@purista/harness';
 import type { z } from 'zod';
-import { AttackPlanSchema, assertPlanIsSealed } from '../../../features/attack-planning/index.js';
+import {
+  AttackPlanSchema,
+  assertPlanIsSealed,
+} from '../../../features/attack-planning/plan/index.js';
 import {
   type AuditRunAttempt,
   AuditRunAttemptSchema,

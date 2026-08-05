@@ -1,7 +1,7 @@
 import { auditWorkflowStructuredOutputRegistry } from '../../platform/harness/audit-harness.js';
 import { structuredOutputContractRegistryFingerprint } from '../../platform/harness/structured-output-compatibility.js';
 import { sha256 } from '../../shared/contracts/core.js';
-import { planningAgentInstructions } from '../attack-planning/index.js';
+import { planningAgentInstructions } from '../attack-planning/planner/agent/index.js';
 import { candidateGroundingAgentInstructions } from '../audit-execution/candidate-grounding/index.js';
 import { countercheckAgentInstructions } from '../audit-execution/countercheck/index.js';
 import { evidenceMapAgentInstructions } from '../audit-execution/evidence-map/index.js';

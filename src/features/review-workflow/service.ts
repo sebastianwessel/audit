@@ -19,7 +19,7 @@ import {
   type AttackPlan,
   assertPlanIsSealed,
   assertPlanMatchesTarget,
-} from '../attack-planning/index.js';
+} from '../attack-planning/plan/index.js';
 import { runPlanningStage } from '../attack-planning/planner/stage/index.js';
 import type {
   AuditCandidateGroundingDraft,

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { IdentifierSchema, RelativePathSchema } from '../../../shared/contracts/core.js';
-import { AttackVectorSchema } from '../../attack-planning/index.js';
+import { AttackVectorSchema } from '../../attack-planning/plan/index.js';
 import { PublicFindingSchema } from '../../audit-report/index.js';
 import {
   ModelRetryGuidanceSchema,

@@ -1,5 +1,5 @@
 import { basename } from 'node:path';
-import { AttackPlanSchema } from '../../../features/attack-planning/index.js';
+import { AttackPlanSchema } from '../../../features/attack-planning/plan/index.js';
 import { PublicAuditReportSchema } from '../../../features/audit-report/index.js';
 import {
   createDeveloperGuidanceCheckpointBinding,

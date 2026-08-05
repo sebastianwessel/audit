@@ -1,5 +1,5 @@
 import { canonicalJson, createStableId, sha256 } from '../../shared/contracts/core.js';
-import type { AttackPlan } from '../attack-planning/index.js';
+import type { AttackPlan } from '../attack-planning/plan/index.js';
 import { createFindingFingerprint } from '../audit-execution/synthesis/identity.js';
 import type { PublicAuditReport, PublicFinding } from '../audit-report/public-contract.js';
 import type {

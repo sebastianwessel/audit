@@ -8,7 +8,7 @@ import {
   PersistedPlanTextSchema,
   PlanObligationReferencesSchema,
   PlanTitleSchema,
-} from '../attack-planning/index.js';
+} from '../attack-planning/plan/index.js';
 import {
   AuditErrorSchema,
   type AuditReport,
