@@ -49,8 +49,9 @@ export class SourceSnapshot implements SourceRepository {
    * operations above; this method reads sequentially and never caches source
    * content in the snapshot itself.
    */
-  public async documents(): Promise<readonly SourceDocument[]> {
-    return Promise.all(this.#entries.map((entry) => this.#readDocument(entry.relativePath)));
+  public async documents(paths?: readonly string[]): Promise<readonly SourceDocument[]> {
+    const requestedPaths = paths ?? this.#entries.map((entry) => entry.relativePath);
+    return Promise.all(requestedPaths.map((path) => this.readDocument(path)));
   }
 
   public async listFiles(input: ListFilesInput): Promise<ListFilesResult> {

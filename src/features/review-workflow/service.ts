@@ -494,9 +494,7 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: (await sourceSnapshot.documents()).filter((source) =>
-              request.availableSourcePaths.includes(source.path),
-            ),
+            sources: await sourceSnapshot.documents(request.availableSourcePaths),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map`,
             modelName,
@@ -582,9 +580,7 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: (await sourceSnapshot.documents()).filter((source) =>
-              request.availableSourcePaths.includes(source.path),
-            ),
+            sources: await sourceSnapshot.documents(request.availableSourcePaths),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map-repair`,
             modelName,
@@ -765,9 +761,7 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: (await sourceSnapshot.documents()).filter((source) =>
-              request.availableSourcePaths.includes(source.path),
-            ),
+            sources: await sourceSnapshot.documents(request.availableSourcePaths),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-candidate-grounding`,
             modelName,

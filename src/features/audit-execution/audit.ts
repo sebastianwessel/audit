@@ -575,7 +575,10 @@ async function executeVector(
       reviewRequired: [],
     };
   }
-  const evidencePackage = buildInvestigationEvidencePackage(scopedSources, []);
+  const evidencePackage = buildInvestigationEvidencePackage(
+    scopedSources.map((source) => source.path),
+    [],
+  );
   let activeStage: AuditError['stage'] = 'evidence-mapping';
   let retainedEvidenceMapObservation: ModelStageObservation | undefined;
   let retainedSourcePostureObservation: ModelStageObservation | undefined;

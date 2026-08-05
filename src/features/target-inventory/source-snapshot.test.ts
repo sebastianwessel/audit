@@ -101,4 +101,15 @@ describe('source snapshot', () => {
       snapshot.readFile({ root: 'target', relativePath: 'outside.txt', startLine: 1 }),
     ).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
   });
+
+  test('materializes only explicitly requested manifest paths', async () => {
+    const snapshot = createSourceSnapshot([
+      { path: 'first.custom', content: 'first\n', languageHint: null },
+      { path: 'second.custom', content: 'second\n', languageHint: null },
+    ]);
+
+    await expect(snapshot.documents(['second.custom'])).resolves.toEqual([
+      { path: 'second.custom', content: 'second\n', languageHint: null },
+    ]);
+  });
 });
