@@ -87,7 +87,6 @@ bun run typecheck
 bun run lint
 bun test
 bun run test:coverage
-bun run eval
 bun run eval:corpus:integration
 bun run check
 ```

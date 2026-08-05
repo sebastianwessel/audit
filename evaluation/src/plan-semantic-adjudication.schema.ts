@@ -10,7 +10,7 @@ import {
   Sha256Schema,
 } from '../../src/shared/contracts/core.js';
 
-import { CorpusVariantSchema } from './evaluation.schema.js';
+import { CorpusVariantSchema } from './evaluation-primitives.schema.js';
 import { PlanSemanticScoreSchema } from './plan-semantic-score.schema.js';
 
 export {

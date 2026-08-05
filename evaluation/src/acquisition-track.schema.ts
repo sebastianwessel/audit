@@ -10,7 +10,7 @@ import {
 
 import { CorpusCandidateRegistrySchema } from './candidate-registry.schema.js';
 import { CorpusControlFamiliesSchema, CorpusDatasetSchema } from './corpus.schema.js';
-import { LanguageTagSchema } from './evaluation.schema.js';
+import { LanguageTagSchema } from './evaluation-primitives.schema.js';
 
 export const AcquisitionLaneStateSchema = z.enum([
   'scouting',

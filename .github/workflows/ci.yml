@@ -25,7 +25,3 @@ jobs:
         run: bun run check
       - name: Enforce coverage
         run: bun run test:coverage
-      - name: Run deterministic evaluation
-        run: bun run eval
-      - name: Run isolated real-world corpus evaluation
-        run: bun run eval:corpus:integration

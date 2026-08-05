@@ -37,7 +37,7 @@ import {
   CorpusVariantSchema,
   FixtureDifficultySchema,
   LanguageTagSchema,
-} from './evaluation.schema.js';
+} from './evaluation-primitives.schema.js';
 import { HoldoutAttestationReferenceSchema } from './holdout-attestation.schema.js';
 import {
   deriveEvaluationMeasurementState,
@@ -60,7 +60,7 @@ export const EvaluationEvidenceQualificationSchema = z.enum([
   'development-pilot',
   'private-holdout',
 ]);
-export { CorpusVariantSchema } from './evaluation.schema.js';
+export { CorpusVariantSchema } from './evaluation-primitives.schema.js';
 export const CorpusVariantModeSchema = z.enum(['paired', 'single']);
 /** A transparent one-review AI-assisted key supports internal development only. */
 export const AdjudicationStatusSchema = z.enum(['provisional', 'ai-assisted', 'dual-reviewed']);

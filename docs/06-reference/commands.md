@@ -42,7 +42,6 @@
 
 Options are command-specific. Unknown flags, or flags that belong to another command, are rejected before the reviewer loads configuration or opens a repository. Runtime configuration, including provider, model, credential-variable name, verifier route, and concurrency, comes only from the resolved environment configuration and is never a command option.
 
-`eval:corpus` is a short alias for `eval:corpus:integration`; both run the same deterministic integration check.
 
 ## Machine-readable command results
 

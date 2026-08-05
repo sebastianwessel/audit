@@ -34,9 +34,9 @@ or raw model text is retained as protected detail.
 | AuditCheckpointBindingSchema | Immutable checkpoint reuse identity | 14 |
 | AuditTerminalClassificationSchema | One exhaustive outcome projection | 1 |
 | ContextDocumentSchema | Optional Markdown context | 1 |
-| EvaluationPackSchema | Benchmark pack manifest | 1 |
-| EvaluationCaseSchema | One fixture case and ground truth | 1 |
-| CorpusAnswerKeySchema | Trusted evaluator-only case judgment | 5 |
+| CorpusPackManifestSchema | Evaluator corpus pack manifest | 1 |
+| CorpusCaseSchema | One evaluator case and paired source configuration | 1 |
+| CorpusAnswerKeySchema | Trusted evaluator-only case judgment | 6 |
 | EvaluationRunSchema | Evaluation execution and metrics | 16 |
 | ProviderEvaluationCheckpointSchema | Resumable provider-evaluation state | 16 |
 | ProviderEvaluationLockMetadataSchema | Exclusive provider-evaluation command ownership | 1 |
@@ -145,7 +145,7 @@ Every real-world evaluation Markdown projection renders an **Evidence strength**
 
 ## Evaluation contracts
 
-`EvaluationPackSchema` requires a pack id/version, supported track, fixture roots, case ids, provenance entries, license status, and a digest of the answer-key directory. `EvaluationCaseSchema` requires a case id, language, difficulty, fixture path, expected locations or location ranges, and adjudication notes. The model-facing target view is generated without expected fields and is validated as a separate `EvaluationAgentInputSchema`.
+`CorpusPackManifestSchema` requires the corpus pack identity, source views, evaluator-only reviewed plans and answer keys, dataset provenance, and exact content digests. `CorpusCaseSchema` requires a stable case identity, source language metadata, source variants, source provenance, and reviewed-plan binding. `CorpusAnswerKeySchema` v6 owns expected planning scenarios, source-bound expected-finding roles, source-only applicability, paired-negative expectation, finding-label coverage, and its exact adjudication state. Source views are mounted without evaluator-only answer keys or reviewed plans.
 
 `CorpusCandidateRegistrySchema` is a separate strict, digest-bound acquisition contract. Its source record and each candidate contain only repository URL, vulnerable/patched revisions, metadata path/digest, and observed upstream source-license status. Candidate records are repository-distinct and ordered. They contain no target source, source-snapshot state, human-adjudication state, expected security category, location, plan, answer key, score, readiness state, or model-visible path. Local upstream verification checks the exact pinned metadata record without network access; it cannot promote a candidate into a corpus case. `AcquiredSourcePairSchema` is the separate complete-tree provenance artifact and sole acquired-snapshot state: a valid workspace root contains only its strict manifest plus the declared `vulnerable` and `patched` regular-file trees. Aggregate acquisition validation rechecks every workspace byte/mode and rejects duplicate snapshot or registry/candidate identities; its summaries are content-free and cannot alter candidate, corpus, or readiness state.
 

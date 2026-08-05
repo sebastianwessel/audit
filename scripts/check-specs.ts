@@ -237,7 +237,7 @@ const languageNeutralityRequirements = [
   ['specs/03-architecture/01-system-architecture.md', 'Language identification'],
   ['specs/08-evaluation/02-test-data-and-fixture-corpus.md', 'language-balanced'],
   ['docs/01-overview/README.md', 'any programming language'],
-  ['evaluation/src/evaluation.schema.ts', 'LanguageTagSchema'],
+  ['evaluation/src/evaluation-primitives.schema.ts', 'LanguageTagSchema'],
   ['src/features/target-inventory/inventory.ts', 'inferLanguageHint'],
   ['src/features/review-workflow/runtime/source-tools.ts', 'inferLanguageHint'],
   ['evaluation/src/corpus.schema.ts', 'CorpusVariantModeSchema'],
