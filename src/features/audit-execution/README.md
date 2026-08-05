@@ -5,3 +5,5 @@ Owns evidence/finding schemas, vector orchestration, deterministic validation/de
 Each semantic step (`evidence-map/`, `source-posture/`, `investigation/`, `candidate-grounding/`, and `verification/`) keeps its contracts and pure rules beside an `agent/` facade and a separate `stage/` facade. The harness loads only agent facades; workflow composition loads stages. This prevents startup cycles while keeping each audit step self-contained.
 
 `candidate-aware/` owns the shared verifier/countercheck queue, exact resume binding, context-overflow topology, terminal normalization, and durable state transitions. `checkpoint-persistence.ts` owns the one source-free persistence-error boundary shared by vector orchestration and that lifecycle.
+
+`reconciliation.ts` owns the structural map, posture, control, and plan-obligation checks required before a verified candidate can enter synthesis. It validates declared provenance only and never infers source semantics.
