@@ -1,5 +1,5 @@
 import { matchesFilesystemGlob } from '../../../platform/filesystem/jailed-read-only-filesystem.js';
-import type { AttackVector } from '../../attack-planning/index.js';
+import type { AttackVector } from '../../attack-planning/plan/index.js';
 
 /** Selects the approved source manifest without materializing source content. */
 export function selectScopedSourcePaths(

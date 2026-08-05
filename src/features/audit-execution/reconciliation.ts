@@ -1,4 +1,4 @@
-import { hasExactPlanObligations } from '../attack-planning/index.js';
+import { hasExactPlanObligations } from '../attack-planning/plan/index.js';
 import type { EvidenceMap } from './evidence-map/contract.js';
 import { mappedControlFactIdsForObligation } from './evidence-map/contract.js';
 import type { SourcePosture } from './source-posture/contract.js';

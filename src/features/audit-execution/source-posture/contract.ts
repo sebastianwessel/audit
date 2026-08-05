@@ -5,7 +5,7 @@ import {
   IdentifierSchema,
   modelTokenSchema,
 } from '../../../shared/contracts/core.js';
-import { PlanObligationReferenceSchema } from '../../attack-planning/index.js';
+import { PlanObligationReferenceSchema } from '../../attack-planning/plan/index.js';
 import {
   EvidenceMapFactIdsSchema,
   UnverifiedEvidenceMapFactIdsSchema,

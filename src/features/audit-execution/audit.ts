@@ -2,8 +2,8 @@ import { uniqueSorted } from '../../shared/contracts/collections.js';
 import { DefaultMaxParallelVectors } from '../../shared/contracts/concurrency.js';
 import { createStableId, sha256 } from '../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
-import type { AttackPlan } from '../attack-planning/index.js';
-import { assertPlanMatchesTarget, hasExactPlanObligations } from '../attack-planning/index.js';
+import type { AttackPlan } from '../attack-planning/plan/index.js';
+import { assertPlanMatchesTarget, hasExactPlanObligations } from '../attack-planning/plan/index.js';
 import {
   hasSuccessfulScopedSourceInspection,
   mergeModelStageObservations,

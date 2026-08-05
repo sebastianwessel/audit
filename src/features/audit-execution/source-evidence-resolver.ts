@@ -1,7 +1,7 @@
 import { textLinesWithoutEndings } from '../../platform/filesystem/text-lines.js';
 import { sha256 } from '../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
-import type { SourceEvidence, SourceEvidenceRole } from '../attack-planning/index.js';
+import type { SourceEvidence, SourceEvidenceRole } from '../attack-planning/plan/index.js';
 import type { SourceSnapshot } from '../target-inventory/index.js';
 
 /**

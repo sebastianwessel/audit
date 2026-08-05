@@ -5,7 +5,7 @@ import {
   hasApprovedPlanObligations,
   planObligationKey,
   type SourceEvidence,
-} from '../../attack-planning/index.js';
+} from '../../attack-planning/plan/index.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import { ClaimNarrativeSchema } from '../narrative/contract.js';
 import type { SourceEvidenceResolver } from '../source-evidence-resolver.js';

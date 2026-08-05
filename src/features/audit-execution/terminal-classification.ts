@@ -1,5 +1,10 @@
 import { z } from 'zod';
 
+/**
+ * The dependency-free subset used for terminal state only. It intentionally
+ * avoids importing the full audit schema, which itself calls this predicate
+ * while constructing vector coverage.
+ */
 type TerminalClosure = Readonly<{
   terminalDisposition:
     | 'finding-admitted'
@@ -20,9 +25,9 @@ type TerminalCoverage = Readonly<{
 
 type TerminalReport = Readonly<{
   coverage: readonly TerminalCoverage[];
-  findings: readonly unknown[];
-  reviewRequired: readonly unknown[];
-  errors: readonly unknown[];
+  findings: readonly object[];
+  reviewRequired: readonly object[];
+  errors: readonly object[];
 }>;
 
 export const AuditTerminalClassificationSchema = z.strictObject({

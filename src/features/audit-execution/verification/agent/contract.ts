@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { IdentifierSchema, RelativePathSchema } from '../../../../shared/contracts/core.js';
-import { AttackVectorSchema } from '../../../attack-planning/index.js';
+import { AttackVectorSchema } from '../../../attack-planning/plan/index.js';
 import { EvidenceMapSchema } from '../../../audit-execution/evidence-map/contract.js';
 import { SourcePostureSchema } from '../../../audit-execution/source-posture/contract.js';
 import {

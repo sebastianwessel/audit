@@ -1,5 +1,5 @@
 import { uniqueSorted } from '../../../shared/contracts/collections.js';
-import type { AttackVector } from '../../attack-planning/index.js';
+import type { AttackVector } from '../../attack-planning/plan/index.js';
 import { type EvidenceMap, mappedControlFactIdsForObligation } from '../evidence-map/contract.js';
 import {
   type SourcePosture,

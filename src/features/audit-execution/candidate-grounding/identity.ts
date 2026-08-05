@@ -1,4 +1,4 @@
-import type { AttackVector, ClaimEvidenceRole } from '../../attack-planning/index.js';
+import type { AttackVector, ClaimEvidenceRole } from '../../attack-planning/plan/index.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import type { HypothesisSeed, UnverifiedAuditCandidate } from '../investigation/contract.js';
 import { verifyModelFindings } from '../investigation/verify.js';

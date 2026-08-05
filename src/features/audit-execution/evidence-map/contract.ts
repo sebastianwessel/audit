@@ -9,7 +9,7 @@ import {
   PlanObligationReferenceSchema,
   PlanObligationReferencesSchema,
   SourceEvidenceSchema,
-} from '../../attack-planning/index.js';
+} from '../../attack-planning/plan/index.js';
 import { AuditNarrativeTextSchema } from '../narrative/contract.js';
 
 export const EvidenceMapFactRoleSchema = modelTokenSchema(

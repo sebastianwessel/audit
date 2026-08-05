@@ -1,7 +1,7 @@
 import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
-import { claimEvidenceItems } from '../../attack-planning/index.js';
+import { claimEvidenceItems } from '../../attack-planning/plan/index.js';
 import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import type {
   CandidateGroundingRequest,

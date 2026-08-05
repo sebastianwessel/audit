@@ -5,7 +5,7 @@ import {
   IdentifierSchema,
   RelativePathSchema,
 } from '../../../shared/contracts/core.js';
-import { AttackVectorSchema } from '../../attack-planning/index.js';
+import { AttackVectorSchema } from '../../attack-planning/plan/index.js';
 import { EvidenceMapInsufficienciesSchema, EvidenceMapSchema } from '../evidence-map/contract.js';
 import { HypothesisSeedSchema } from '../investigation/contract.js';
 import { SourcePostureSchema } from '../source-posture/contract.js';

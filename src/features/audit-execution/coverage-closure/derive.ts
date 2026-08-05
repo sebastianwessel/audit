@@ -3,7 +3,7 @@ import {
   findReviewObligation,
   type ProposedFinding,
   planObligationKey,
-} from '../../attack-planning/index.js';
+} from '../../attack-planning/plan/index.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import type { InvestigationObligationClosure } from '../investigation/contract.js';
 import type { SourcePosture } from '../source-posture/contract.js';

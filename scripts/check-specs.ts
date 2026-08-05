@@ -173,6 +173,7 @@ for (const forbiddenPath of ['tests/unit', 'tests/contracts']) {
 
 const requiredFeatureFacades = [
   'src/features/attack-planning/index.ts',
+  'src/features/attack-planning/plan/index.ts',
   'src/features/attack-planning/planner/agent/index.ts',
   'src/features/attack-planning/planner/stage/index.ts',
   'src/features/audit-execution/index.ts',

@@ -1,4 +1,4 @@
-import { claimEvidenceItems, type ProposedFinding } from '../../attack-planning/index.js';
+import { claimEvidenceItems, type ProposedFinding } from '../../attack-planning/plan/index.js';
 
 export type InvestigationEvidencePackage = Readonly<{
   sourcePaths: readonly string[];

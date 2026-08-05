@@ -30,6 +30,7 @@ test('bootstrap keeps public docs and the vertical-slice structure', async () =>
 
 test('topic facades keep model contracts separate from executable stages', async () => {
   const facades = [
+    'src/features/attack-planning/plan/index.ts',
     'src/features/attack-planning/planner/agent/index.ts',
     'src/features/attack-planning/planner/stage/index.ts',
     'src/features/audit-execution/evidence-map/agent/index.ts',

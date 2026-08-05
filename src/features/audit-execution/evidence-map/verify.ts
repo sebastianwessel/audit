@@ -3,7 +3,7 @@ import {
   type AttackVector,
   hasApprovedPlanObligations,
   planObligationKey,
-} from '../../attack-planning/index.js';
+} from '../../attack-planning/plan/index.js';
 import type { SourceEvidenceResolver } from '../source-evidence-resolver.js';
 import {
   type EvidenceMap,

@@ -1,6 +1,6 @@
 import { canonicalJson } from '../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../shared/errors/audit-runtime-error.js';
-import type { AttackPlan } from '../attack-planning/index.js';
+import type { AttackPlan } from '../attack-planning/plan/index.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
 import {
   type AuditCandidateAwareCheckpoint,
