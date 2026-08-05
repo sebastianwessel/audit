@@ -147,9 +147,11 @@ test('audit resume uses the retained snapshot after the target changes', async (
     targetFingerprint: plan.targetFingerprint,
     contextDigest: plan.contextDigest,
   });
-  expect(await retained.snapshot.documents(['service.custom'])).toEqual([
-    { path: 'service.custom', content: 'original source\n', languageHint: null },
-  ]);
+  expect(await retained.snapshot.document('service.custom')).toEqual({
+    path: 'service.custom',
+    content: 'original source\n',
+    languageHint: null,
+  });
 
   const blockedRunId = 'audit-lifecycle-held-lease-01';
   const heldLease = await acquireArtifactLease(

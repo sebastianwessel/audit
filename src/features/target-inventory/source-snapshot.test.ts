@@ -102,18 +102,20 @@ describe('source snapshot', () => {
     ).rejects.toMatchObject({ code: 'FILE_NOT_FOUND' });
   });
 
-  test('materializes only explicitly requested manifest paths', async () => {
+  test('opens only an explicitly requested manifest path', async () => {
     const snapshot = createSourceSnapshot([
       { path: 'first.custom', content: 'first\n', languageHint: null },
       { path: 'second.custom', content: 'second\n', languageHint: null },
     ]);
 
-    await expect(snapshot.documents(['second.custom'])).resolves.toEqual([
-      { path: 'second.custom', content: 'second\n', languageHint: null },
-    ]);
+    await expect(snapshot.document('second.custom')).resolves.toEqual({
+      path: 'second.custom',
+      content: 'second\n',
+      languageHint: null,
+    });
   });
 
-  test('reads an approved manifest sequence without concurrent source transactions', async () => {
+  test('opens each explicit source transaction independently', async () => {
     let activeReads = 0;
     let maximumActiveReads = 0;
     const snapshot = new SourceSnapshot({
@@ -130,7 +132,8 @@ describe('source snapshot', () => {
       },
     });
 
-    await expect(snapshot.documents(['first.custom', 'second.custom'])).resolves.toHaveLength(2);
+    await snapshot.document('first.custom');
+    await snapshot.document('second.custom');
     expect(maximumActiveReads).toBe(1);
   });
 });

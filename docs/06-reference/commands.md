@@ -50,6 +50,14 @@ bun run start plan --target ./repository --result-format json
 
 Use the returned `artifacts` paths directly in the next command. For example, capture the plan JSON path, pass it to `plan-draft`, then use the returned resealed plan JSON path for `audit`; do not discover private files or parse prose.
 
+If plan-pair publication stops after the planner has completed, resume its exact private publication without another model call or another target read:
+
+```bash
+bun run start plan --run-id plan-release-01 --resume true
+```
+
+Use `--run-id plan-release-01` on the initial `plan` command when that recovery guarantee is needed. The same form works for `plan-reseal`; recovery deliberately omits `--target`, `--context`, `--plan`, and `--draft`. Recovery validates the retained sealed plan and completes only missing JSON, Markdown, or plan-manifest artifacts; it never overwrites a mismatched existing file. The plan manifest and publication intent remain private-work artifacts and must not be uploaded as CI output.
+
 `eval:stage-semantic` accepts `--pack`, `--output`, `--debug-diagnostics true` for local private failure diagnostics, and `--resume true` for an unfinished evaluator-only retry. It reads its provider route and credential-variable name from `.env`. It validates the selected provider's evaluator-output transport compatibility before reading the pack, opening the output root, constructing a provider, or writing a checkpoint. Its developer-owned pack contains the sealed stage identity, rubric, and already-completed source-free product projection. The command validates that complete binding and any existing checkpoint before it constructs a provider. It never opens a target, executes target code, invokes a product stage, or writes the pack, product projection, rubric, prompt, raw response, or source locations. A completed exact checkpoint rematerializes its count-only report without a model call; an unfinished exact resume retries only the evaluator. Debug diagnostics are private, source-free, non-scoring, and best-effort; a failed diagnostic write never changes the command result.
 
 The provider-evaluation preflight and one-case smoke commands finish through their normal async error boundary. They set the documented exit code after writing their safe output, so checkpoint cleanup and buffered output are not cut short by forced process termination. A preflight failure for an unsupported structured-output shape happens before the evaluator opens target/corpus data, constructs a provider, writes a checkpoint, or sends a request.
@@ -79,7 +87,7 @@ bun run start guidance \
 
 Each accepted finding receives either an advisory priority or an explicit incomplete/cancelled state. The Markdown projection gives the same deterministic next action for completed items: review the accepted evidence and plan obligations with the owning team, then choose and validate an appropriate mitigation through normal change management. Review-required items never receive guidance. No model-authored remediation text or validation steps are stored. Guidance is not proof that an exploit works and is not an instruction to apply a patch without normal product review and testing.
 
-Give a long-running guidance run a stable `--run-id`. Completed advisory items are checkpointed below private work and are reused only when the report, plan, target/context, provider, model, and guidance protocol still match exactly. A mismatch fails clearly; it never mixes guidance state from different runs. Provider context overflow is explicit incomplete coverage: it is not split because there is no lossless, source-minimal way to persist and merge model-authored advice.
+Give a long-running guidance run a stable `--run-id`. Completed advisory items are checkpointed below private work and are reused only when the report, plan, target/context, provider, model, and guidance protocol still match exactly. A mismatch fails clearly; it never mixes guidance state from different runs. If guidance is incomplete, its normal command result has `status: "partial"` and a private `guidance-checkpoint` reference; resume that exact run with `--resume true --retry-unfinished true`. Provider context overflow is explicit incomplete coverage: it is not split because there is no lossless, source-minimal way to persist and merge model-authored advice.
 
 ## Review and change a plan safely
 

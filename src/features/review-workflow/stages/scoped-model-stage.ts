@@ -55,9 +55,11 @@ type AuditSession = Awaited<ReturnType<AuditHarness['getSession']>>;
  * model-output contract violation to a stable, content-free error before it
  * can leave the stage lifecycle.
  */
-export function projectScopedModelOutput<Result>(project: () => Result): Result {
+export async function projectScopedModelOutput<Result>(
+  project: () => Result | Promise<Result>,
+): Promise<Result> {
   try {
-    return project();
+    return await project();
   } catch (error) {
     if (isZodProjectionError(error)) {
       const labels = error.issues
@@ -186,7 +188,7 @@ export async function runScopedModelStage<Result, RawOutput = Result>(input: {
     retryGuidance: ModelRetryGuidance,
   ) => Promise<RawOutput>;
   /** Feature-owned conversion of raw model output before stage completion. */
-  projectOutput: (output: RawOutput, scope: ContextRecoveryScope) => Result;
+  projectOutput: (output: RawOutput, scope: ContextRecoveryScope) => Result | Promise<Result>;
   reduceRecoveredOutputs?: (leaves: readonly ContextRecoveryLeaf<Result>[]) => Result;
 }): Promise<ScopedModelStageCompleted<Result> | ScopedModelStageFailed> {
   const trace = createModelStageTraceRecorder({ pricing: input.modelPricing });
@@ -264,7 +266,7 @@ export async function runScopedModelStage<Result, RawOutput = Result>(input: {
                     'A tool-guided source-deciding stage completed without inspecting scoped source.',
                   );
                 }
-                return input.projectOutput(output, scope);
+                return await input.projectOutput(output, scope);
               } finally {
                 await session.close();
                 const toolUsage = observedToolset.usage();

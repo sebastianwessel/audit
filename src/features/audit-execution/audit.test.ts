@@ -28,6 +28,7 @@ import { createAuditResumeState } from './checkpoints.js';
 import { evidenceMapFingerprint } from './evidence-map/repair.js';
 import { verifyEvidenceMap } from './evidence-map/verify.js';
 import { modelStagesForAudit } from './model-stage-observations.js';
+import { createSourceEvidenceResolver } from './source-evidence-resolver.js';
 import { sourcePostureFingerprint } from './source-posture/identity.js';
 import { verifySourcePosture } from './source-posture/verify.js';
 import type {
@@ -40,7 +41,6 @@ const targetFingerprint = 'a'.repeat(64);
 const contextDigest = 'b'.repeat(64);
 const approvePlan = <T>(plan: T, ..._reviewMetadata: readonly [string, string, string]): T => plan;
 
-/** Test-only source fixture adapter; production accepts immutable snapshots only. */
 type TestAuditInput = Omit<AuditInput, 'sourceSnapshot'> &
   Readonly<{
     sources: readonly SourceDocument[];
@@ -329,7 +329,16 @@ async function defaultCheckpointDependencies(
   };
   const request = { vector, availableSourcePaths: [source.path], limitations: [] };
   const mapped = await mapEvidence(request);
-  const evidenceMap = verifyEvidenceMap(vector, mapped.evidenceMap, [source]).evidenceMap;
+  const evidenceMap = (
+    await verifyEvidenceMap(
+      vector,
+      mapped.evidenceMap,
+      createSourceEvidenceResolver({
+        sourceSnapshot: createSourceSnapshot([source]),
+        sourcePaths: [source.path],
+      }),
+    )
+  ).evidenceMap;
   const posture = await assessSourcePosture({ ...request, evidenceMap });
   const sourcePosture = verifySourcePosture(
     vector,
@@ -570,7 +579,7 @@ describe('static audit', () => {
     expect(auditExitCode(report)).toBe(3);
   });
 
-  test('materializes only the paths admitted by each vector scope', async () => {
+  test('does not materialize scoped source before a stage selects exact evidence', async () => {
     const readPaths: string[] = [];
     const sourceSnapshot = new SourceSnapshot({
       entries: [
@@ -595,7 +604,7 @@ describe('static audit', () => {
       generatedAt: '2026-08-05T12:00:00.000Z',
     });
 
-    expect(readPaths).toEqual(['src/query.ts']);
+    expect(readPaths).toEqual([]);
   });
 
   test('fails closed when a plan fingerprint does not match', async () => {

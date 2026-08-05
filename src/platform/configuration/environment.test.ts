@@ -89,6 +89,25 @@ test('accepts any positive vector queue capacity without turning it into an audi
   expect(loaded.configuration.maxParallelVectors).toBe(128);
 });
 
+test('accepts long valid artifact and evaluation roots without an arbitrary configuration cap', async () => {
+  const longRoot = `mounted/${'workspace/'.repeat(200)}audit-output`;
+  const loaded = await loadRuntimeConfiguration({
+    environment: {
+      AUDIT_PRIVATE_WORK_DIR: longRoot,
+      AUDIT_PUBLIC_ARTIFACT_DIR: longRoot,
+      AUDIT_EVALUATION_CORPUS_ROOT: longRoot,
+      AUDIT_EVALUATION_OUTPUT_ROOT: longRoot,
+    },
+    loadDotEnv: false,
+  });
+  expect(loaded.configuration).toMatchObject({
+    privateWorkDirectory: longRoot,
+    publicArtifactDirectory: longRoot,
+    evaluationCorpusRoot: longRoot,
+    evaluationOutputRoot: longRoot,
+  });
+});
+
 test('uses the bundled exact catalogue price without local price configuration', async () => {
   const root = await mkdtemp(join(tmpdir(), 'audit-env-catalogue-'));
   await writeFile(

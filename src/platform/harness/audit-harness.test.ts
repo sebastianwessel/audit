@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { verifyModelFindings } from '../../features/audit-execution/investigation/verify.js';
+import { createSourceEvidenceResolver } from '../../features/audit-execution/source-evidence-resolver.js';
+import { createSourceSnapshot } from '../../features/target-inventory/source-snapshot.js';
 import {
   createAuditHarness,
   EffectivelyUnboundedHarnessAgentIterations,
@@ -487,7 +489,7 @@ test('mounts a separately scoped countercheck agent that cannot create a finding
   }
 });
 
-test('verifies model findings against actual source lines and the approved vector', () => {
+test('verifies model findings against actual source lines and the approved vector', async () => {
   const vector = {
     vectorId: 'vector-injection-01',
     vectorDigest: 'a'.repeat(64),
@@ -504,7 +506,7 @@ test('verifies model findings against actual source lines and the approved vecto
     ],
     limitations: [],
   };
-  const grounded = verifyModelFindings(
+  const grounded = await verifyModelFindings(
     vector,
     [
       {
@@ -551,13 +553,16 @@ test('verifies model findings against actual source lines and the approved vecto
         limitations: [],
       },
     ],
-    [
-      {
-        path: 'src/query.ts',
-        content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
-        languageHint: 'typescript',
-      },
-    ],
+    createSourceEvidenceResolver({
+      sourceSnapshot: createSourceSnapshot([
+        {
+          path: 'src/query.ts',
+          content: String.raw`const sql = \`SELECT * FROM users WHERE id = '\${userId}'\`;`,
+          languageHint: 'typescript',
+        },
+      ]),
+      sourcePaths: ['src/query.ts'],
+    }),
   );
   expect(grounded.verified[0]?.claimEvidenceBundles[0]?.evidence[0]?.contentDigest).toMatch(
     /^[a-f0-9]{64}$/u,

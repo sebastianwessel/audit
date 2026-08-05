@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { sha256 } from '../../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import type { AttackVector } from '../../attack-planning/index.js';
-import type { SourceDocument } from '../audit.schema.js';
+import type { SourceEvidenceResolver } from '../source-evidence-resolver.js';
 import {
   type EvidenceMap,
   type EvidenceMapInsufficiencies,
@@ -88,14 +88,14 @@ export function verifyEvidenceMapInsufficiencies(
  * Appends validated neutral facts only. Existing fact identity is immutable;
  * an unchanged repair is explicitly observable by its zero append count.
  */
-export function applyEvidenceMapRepair(input: {
+export async function applyEvidenceMapRepair(input: {
   vector: AttackVector;
   evidenceMap: EvidenceMap;
   repair: UnverifiedEvidenceMapRepair;
-  sources: readonly SourceDocument[];
-}): EvidenceMapRepairApplication {
+  sourceEvidence: SourceEvidenceResolver;
+}): Promise<EvidenceMapRepairApplication> {
   const repair = UnverifiedEvidenceMapRepairSchema.parse(input.repair);
-  const fragment = verifyEvidenceMapFragment(
+  const fragment = await verifyEvidenceMapFragment(
     input.vector,
     {
       facts: repair.facts,
@@ -103,7 +103,7 @@ export function applyEvidenceMapRepair(input: {
       unansweredPlanObligations: [],
       limitations: [],
     },
-    input.sources,
+    input.sourceEvidence,
   );
   if (fragment.rejectedFactCount > 0) {
     throw new AuditRuntimeError(

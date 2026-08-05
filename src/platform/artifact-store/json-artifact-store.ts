@@ -360,6 +360,22 @@ export async function readPrivateUtf8Artifact(
   }
 }
 
+/** Reads a UTF-8 Markdown artifact only from the same jailed output root. */
+export async function readMarkdownArtifact(
+  outputRoot: string,
+  artifactPath: string,
+): Promise<string> {
+  const artifactAbsolutePath = await resolveArtifactReadPath(outputRoot, artifactPath, '.md');
+  try {
+    return await readFile(artifactAbsolutePath, 'utf8');
+  } catch (error) {
+    throw new ArtifactStoreError(
+      isMissingFileError(error) ? 'artifact-not-found' : 'artifact-read-failed',
+      'The Markdown artifact could not be read.',
+    );
+  }
+}
+
 /** Removes only a validated, non-symlink directory beneath the artifact jail. */
 export async function removeArtifactDirectory(
   outputRoot: string,
@@ -369,7 +385,7 @@ export async function removeArtifactDirectory(
   validateArtifactDirectoryPath(artifactPath);
   const destinationPath = join(canonicalOutputRoot, ...artifactPath.split('/'));
   await assertExistingArtifactPathIsSafe(canonicalOutputRoot, destinationPath);
-  const status = await lstat(destinationPath).catch(() => undefined);
+  const status = await inspectOptionalArtifactPath(destinationPath);
   if (status === undefined) return;
   if (!status.isDirectory() || status.isSymbolicLink()) {
     throw new ArtifactStoreError(
@@ -392,7 +408,7 @@ export async function removeArtifactDirectory(
  */
 export async function removeJsonArtifact(outputRoot: string, artifactPath: string): Promise<void> {
   const destinationPath = await resolveArtifactReadPath(outputRoot, artifactPath, '.json');
-  const status = await lstat(destinationPath).catch(() => undefined);
+  const status = await inspectOptionalArtifactPath(destinationPath);
   if (status === undefined) {
     throw new ArtifactStoreError('artifact-not-found', 'The JSON artifact could not be found.');
   }
@@ -491,7 +507,7 @@ async function resolveArtifactWritePath(
 async function resolveArtifactReadPath(
   outputRoot: string,
   artifactPath: string,
-  extension: '.json' | '.txt',
+  extension: '.json' | '.md' | '.txt',
 ): Promise<string> {
   const canonicalOutputRoot = await resolveOutputRoot(outputRoot);
   validateArtifactPath(artifactPath, extension);
@@ -665,4 +681,17 @@ function isExistingFileError(error: unknown): boolean {
 
 function isMissingFileError(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+}
+
+/** Treats only an absent path as optional; filesystem inspection failures must remain visible. */
+async function inspectOptionalArtifactPath(path: string) {
+  try {
+    return await lstat(path);
+  } catch (error) {
+    if (isMissingFileError(error)) return undefined;
+    throw new ArtifactStoreError(
+      'artifact-read-failed',
+      'The artifact path could not be inspected safely.',
+    );
+  }
 }

@@ -1,6 +1,8 @@
 import { expect, test } from 'bun:test';
 import { sha256 } from '../../../shared/contracts/core.js';
 import { AttackVectorSchema } from '../../attack-planning/index.js';
+import { createSourceSnapshot } from '../../target-inventory/source-snapshot.js';
+import { createSourceEvidenceResolver } from '../source-evidence-resolver.js';
 
 import {
   EvidenceMapInsufficienciesSchema,
@@ -32,8 +34,17 @@ const vector = AttackVectorSchema.parse({
   limitations: [],
 });
 
-test('retains only map facts with valid source locations and approved plan bindings', () => {
-  const result = verifyEvidenceMap(
+function sourceEvidenceFor(
+  sources: readonly { path: string; content: string; languageHint: string | null }[],
+) {
+  return createSourceEvidenceResolver({
+    sourceSnapshot: createSourceSnapshot(sources),
+    sourcePaths: sources.map((source) => source.path),
+  });
+}
+
+test('retains only map facts with valid source locations and approved plan bindings', async () => {
+  const result = await verifyEvidenceMap(
     vector,
     UnverifiedEvidenceMapSchema.parse({
       facts: [
@@ -81,7 +92,9 @@ test('retains only map facts with valid source locations and approved plan bindi
       ],
       limitations: ['The mapper recorded a neutral limitation.'],
     }),
-    [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ]),
   );
 
   expect(result.rejectedFactCount).toBe(2);
@@ -98,8 +111,8 @@ test('retains only map facts with valid source locations and approved plan bindi
   expect(result.evidenceMap.limitations).toEqual(['model-declared-limitation']);
 });
 
-test('accepts an empty recovery fragment while the complete-vector verifier remains incomplete', () => {
-  const fragment = verifyEvidenceMapFragment(
+test('accepts an empty recovery fragment while the complete-vector verifier remains incomplete', async () => {
+  const fragment = await verifyEvidenceMapFragment(
     vector,
     {
       facts: [],
@@ -107,26 +120,32 @@ test('accepts an empty recovery fragment while the complete-vector verifier rema
       unansweredPlanObligations: [],
       limitations: ['This exact recovery child had no relevant source fact.'],
     },
-    [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ]),
   );
   expect(fragment).toMatchObject({ rejectedFactCount: 0, evidenceMap: { facts: [] } });
   expect(
-    verifyEvidenceMap(
-      vector,
-      {
-        facts: [],
-        controlCoverage: [],
-        unansweredPlanObligations: [],
-        limitations: [],
-      },
-      [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    (
+      await verifyEvidenceMap(
+        vector,
+        {
+          facts: [],
+          controlCoverage: [],
+          unansweredPlanObligations: [],
+          limitations: [],
+        },
+        sourceEvidenceFor([
+          { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+        ]),
+      )
     ).complete,
   ).toBe(false);
 });
 
-test('binds a complete long source line without persisting it', () => {
+test('binds a complete long source line without persisting it', async () => {
   const longLine = `value = ${'x'.repeat(20_000)};`;
-  const result = verifyEvidenceMap(
+  const result = await verifyEvidenceMap(
     vector,
     {
       facts: [
@@ -142,13 +161,13 @@ test('binds a complete long source line without persisting it', () => {
       unansweredPlanObligations: [],
       limitations: [],
     },
-    [{ path: 'reviewed.unknown', content: longLine, languageHint: null }],
+    sourceEvidenceFor([{ path: 'reviewed.unknown', content: longLine, languageHint: null }]),
   );
   expect(result.evidenceMap.facts[0]?.evidence[0]?.contentDigest).toBe(sha256(longLine));
 });
 
-test('projects the requested line from CR-only source text', () => {
-  const result = verifyEvidenceMap(
+test('projects the requested line from CR-only source text', async () => {
+  const result = await verifyEvidenceMap(
     vector,
     {
       facts: [
@@ -164,13 +183,15 @@ test('projects the requested line from CR-only source text', () => {
       unansweredPlanObligations: [],
       limitations: [],
     },
-    [{ path: 'reviewed.unknown', content: 'first\roperation\rthird', languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'first\roperation\rthird', languageHint: null },
+    ]),
   );
   expect(result.evidenceMap.facts[0]?.evidence[0]?.contentDigest).toBe(sha256('operation'));
 });
 
-test('does not persist a sensitive selected source line', () => {
-  const result = verifyEvidenceMap(
+test('does not persist a sensitive selected source line', async () => {
+  const result = await verifyEvidenceMap(
     vector,
     {
       facts: [
@@ -186,13 +207,13 @@ test('does not persist a sensitive selected source line', () => {
       unansweredPlanObligations: [],
       limitations: [],
     },
-    [
+    sourceEvidenceFor([
       {
         path: 'reviewed.unknown',
         content: 'password = "not-for-artifacts";\u001b[2J',
         languageHint: null,
       },
-    ],
+    ]),
   );
 
   expect(JSON.stringify(result.evidenceMap)).not.toContain('not-for-artifacts');
@@ -298,7 +319,7 @@ test('normalizes only known model enum casing at the map boundary', () => {
   expect(parsed.facts[0]).toMatchObject({ role: 'operation', evidence: [{ kind: 'source' }] });
 });
 
-test('turns a structurally incomplete model map fact into a counted rejection', () => {
+test('turns a structurally incomplete model map fact into a counted rejection', async () => {
   const candidate = UnverifiedEvidenceMapSchema.parse({
     facts: [
       {
@@ -313,9 +334,13 @@ test('turns a structurally incomplete model map fact into a counted rejection', 
     unansweredPlanObligations: [],
     limitations: [],
   });
-  const result = verifyEvidenceMap(vector, candidate, [
-    { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
-  ]);
+  const result = await verifyEvidenceMap(
+    vector,
+    candidate,
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ]),
+  );
   expect(result).toMatchObject({ rejectedFactCount: 1, evidenceMap: { facts: [] } });
 });
 
@@ -346,7 +371,7 @@ test('accepts only generic approved-obligation evidence-map repair signals', () 
   ).toThrow('outside the approved vector');
 });
 
-test('appends validated neutral repair facts without replacing or weakening the existing map', () => {
+test('appends validated neutral repair facts without replacing or weakening the existing map', async () => {
   const original = EvidenceMapSchema.parse({
     facts: [
       {
@@ -366,7 +391,7 @@ test('appends validated neutral repair facts without replacing or weakening the 
     unansweredPlanObligations: [],
     limitations: ['model-declared-limitation'],
   });
-  const repaired = applyEvidenceMapRepair({
+  const repaired = await applyEvidenceMapRepair({
     vector,
     evidenceMap: original,
     repair: UnverifiedEvidenceMapRepairSchema.parse({
@@ -380,9 +405,9 @@ test('appends validated neutral repair facts without replacing or weakening the 
         },
       ],
     }),
-    sources: [
+    sourceEvidence: sourceEvidenceFor([
       { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
-    ],
+    ]),
   });
   expect(repaired).toMatchObject({
     appendedFactCount: 1,
@@ -391,7 +416,7 @@ test('appends validated neutral repair facts without replacing or weakening the 
       limitations: ['model-declared-limitation'],
     },
   });
-  expect(() =>
+  await expect(
     applyEvidenceMapRepair({
       vector,
       evidenceMap: original,
@@ -406,15 +431,15 @@ test('appends validated neutral repair facts without replacing or weakening the 
           },
         ],
       },
-      sources: [
+      sourceEvidence: sourceEvidenceFor([
         { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
-      ],
+      ]),
     }),
-  ).toThrow('replace an existing neutral fact');
+  ).rejects.toThrow('replace an existing neutral fact');
 });
 
-test('quarantines invalid model facts without discarding independent canonical facts', () => {
-  const result = verifyEvidenceMap(
+test('quarantines invalid model facts without discarding independent canonical facts', async () => {
+  const result = await verifyEvidenceMap(
     vector,
     UnverifiedEvidenceMapSchema.parse({
       facts: [
@@ -447,7 +472,9 @@ test('quarantines invalid model facts without discarding independent canonical f
       unansweredPlanObligations: [],
       limitations: [],
     }),
-    [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ]),
   );
 
   expect(result.rejectedFactCount).toBe(1);
@@ -479,7 +506,7 @@ test('rejects an invalid neutral role at the model boundary', () => {
   ).toThrow();
 });
 
-test('marks a map incomplete when an approved obligation is neither mapped nor unanswered', () => {
+test('marks a map incomplete when an approved obligation is neither mapped nor unanswered', async () => {
   const multiObligationVector = AttackVectorSchema.parse({
     ...vector,
     reviewObligations: [
@@ -495,7 +522,7 @@ test('marks a map incomplete when an approved obligation is neither mapped nor u
       },
     ],
   });
-  const result = verifyEvidenceMap(
+  const result = await verifyEvidenceMap(
     multiObligationVector,
     UnverifiedEvidenceMapSchema.parse({
       facts: [
@@ -514,13 +541,15 @@ test('marks a map incomplete when an approved obligation is neither mapped nor u
       unansweredPlanObligations: [],
       limitations: [],
     }),
-    [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ]),
   );
   expect(result.complete).toBe(false);
 });
 
-test('fails map completeness when a mapped control is omitted from the mapper control inventory', () => {
-  const result = verifyEvidenceMap(
+test('fails map completeness when a mapped control is omitted from the mapper control inventory', async () => {
+  const result = await verifyEvidenceMap(
     vector,
     UnverifiedEvidenceMapSchema.parse({
       facts: [
@@ -536,7 +565,9 @@ test('fails map completeness when a mapped control is omitted from the mapper co
       unansweredPlanObligations: [],
       limitations: [],
     }),
-    [{ path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'reviewed.unknown', content: 'value = request.input;\n', languageHint: null },
+    ]),
   );
 
   expect(result.complete).toBe(false);

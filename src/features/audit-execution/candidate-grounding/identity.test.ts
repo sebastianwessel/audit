@@ -1,7 +1,8 @@
 import { expect, test } from 'bun:test';
-
+import { createSourceSnapshot } from '../../target-inventory/source-snapshot.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import { type HypothesisSeed, HypothesisSeedSchema } from '../investigation/contract.js';
+import { createSourceEvidenceResolver } from '../source-evidence-resolver.js';
 import {
   type CandidateGroundingModelCandidate,
   CandidateGroundingOutputSchema,
@@ -75,6 +76,15 @@ function candidateBundle(role: 'operation' | 'unsafe-condition') {
   const bundle = candidate.claimEvidenceBundles.find((item) => item.role === role);
   if (bundle === undefined) throw new Error(`Missing ${role} test bundle.`);
   return bundle;
+}
+
+function sourceEvidenceFor(
+  sources: readonly { path: string; content: string; languageHint: string | null }[],
+) {
+  return createSourceEvidenceResolver({
+    sourceSnapshot: createSourceSnapshot(sources),
+    sourcePaths: sources.map((source) => source.path),
+  });
 }
 
 test('projects candidate locations from selected evidence-map facts', () => {
@@ -448,8 +458,8 @@ test('records an explicit null outcome for a seed without a complete candidate',
   expect(selected).toMatchObject({ submittedCount: 0, nullCount: 1, rejectedCount: 0 });
 });
 
-test('creates a recovery-safe canonical null outcome without retaining the discovery seed', () => {
-  const canonical = canonicalizeCandidateGroundingOutput({
+test('creates a recovery-safe canonical null outcome without retaining the discovery seed', async () => {
+  const canonical = await canonicalizeCandidateGroundingOutput({
     vector: {
       vectorId: seed.vectorId,
       vectorDigest: 'a'.repeat(64),
@@ -478,7 +488,7 @@ test('creates a recovery-safe canonical null outcome without retaining the disco
     },
     evidenceMap,
     sourcePosture: { assessments: [], limitations: [] },
-    sources: [],
+    sourceEvidence: sourceEvidenceFor([]),
   });
   expect(canonical).toEqual({
     groundings: [{ seedId: seed.seedId, disposition: 'no-source-backed-candidate' }],
@@ -490,8 +500,8 @@ test('creates a recovery-safe canonical null outcome without retaining the disco
   });
 });
 
-test('preserves the closed map-insufficient disposition across the durable boundary', () => {
-  const canonical = canonicalizeCandidateGroundingOutput({
+test('preserves the closed map-insufficient disposition across the durable boundary', async () => {
+  const canonical = await canonicalizeCandidateGroundingOutput({
     vector: {
       vectorId: seed.vectorId,
       vectorDigest: 'a'.repeat(64),
@@ -520,7 +530,7 @@ test('preserves the closed map-insufficient disposition across the durable bound
     },
     evidenceMap,
     sourcePosture: { assessments: [], limitations: [] },
-    sources: [],
+    sourceEvidence: sourceEvidenceFor([]),
   });
   expect(canonical.groundings).toEqual([{ seedId: seed.seedId, disposition: 'map-insufficient' }]);
 });
@@ -605,8 +615,8 @@ test('rejects model-authored posture identifiers and carries the seed projection
   );
 });
 
-test('retains only the validated redacted candidate narrative in the canonical grounded hypothesis', () => {
-  const canonical = canonicalizeCandidateGroundingOutput({
+test('retains only the validated redacted candidate narrative in the canonical grounded hypothesis', async () => {
+  const canonical = await canonicalizeCandidateGroundingOutput({
     vector: {
       vectorId: seed.vectorId,
       vectorDigest: 'a'.repeat(64),
@@ -640,13 +650,13 @@ test('retains only the validated redacted candidate narrative in the canonical g
       ],
       limitations: [],
     },
-    sources: [
+    sourceEvidence: sourceEvidenceFor([
       {
         path: 'src/source.unknown',
         content: 'input\noperation',
         languageHint: null,
       },
-    ],
+    ]),
   });
   expect(canonical.groundings[0]).toMatchObject({ disposition: 'grounded' });
   expect(JSON.stringify(canonical)).toContain('Request-controlled operation');

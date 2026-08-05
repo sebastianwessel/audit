@@ -12,6 +12,8 @@ import { FakeModelProvider } from '@purista/harness/testing';
 import { createJailedReadOnlyFilesystem } from '../../../platform/filesystem/index.js';
 import { HarnessExecutionConfigurationSchema } from '../../../platform/harness/audit-harness.js';
 import { CandidateGroundingRequestSchema } from '../../audit-execution/candidate-grounding/contract.js';
+import { createSourceEvidenceResolver } from '../../audit-execution/source-evidence-resolver.js';
+import { createSourceSnapshot } from '../../target-inventory/source-snapshot.js';
 
 import { runCandidateGroundingStage } from './candidate-grounding.js';
 
@@ -29,10 +31,10 @@ test('recovers one complete seed basis per source child without duplicate outcom
     modelProvider: provider,
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: request(['seed-a', 'seed-b']),
-    sources: [
+    sourceEvidence: evidenceFor([
       { path: 'a.unknown', content: 'value = request.a;\n', languageHint: null },
       { path: 'b.unknown', content: 'value = request.b;\n', languageHint: null },
-    ],
+    ]),
     context: [],
     sessionId: 'candidate-grounding-overflow-01',
     modelName: undefined,
@@ -64,10 +66,10 @@ test('fails explicitly when a seed crosses recovered source children', async () 
     modelProvider: provider,
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: request(['seed-cross']),
-    sources: [
+    sourceEvidence: evidenceFor([
       { path: 'a.unknown', content: 'value = request.a;\n', languageHint: null },
       { path: 'b.unknown', content: 'value = request.b;\n', languageHint: null },
-    ],
+    ]),
     context: [],
     sessionId: 'candidate-grounding-cross-scope-01',
     modelName: undefined,
@@ -120,7 +122,10 @@ test('retries an unbindable candidate output in the same scoped source basis', a
     modelProvider: provider,
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: request(['seed-a']),
-    sources: [{ path: 'a.unknown', content: 'value = request.a;\n', languageHint: null }],
+    sourceEvidence: evidenceFor([
+      { path: 'a.unknown', content: 'value = request.a;\n', languageHint: null },
+      { path: 'b.unknown', content: 'value = request.b;\n', languageHint: null },
+    ]),
     context: [],
     sessionId: 'candidate-grounding-validation-retry-01',
     modelName: undefined,
@@ -142,6 +147,15 @@ test('retries an unbindable candidate output in the same scoped source basis', a
   });
   expect(provider.requests).toHaveLength(4);
 });
+
+function evidenceFor(
+  sources: readonly { path: string; content: string; languageHint: string | null }[],
+) {
+  return createSourceEvidenceResolver({
+    sourceSnapshot: createSourceSnapshot(sources),
+    sourcePaths: sources.map((source) => source.path),
+  });
+}
 
 class OverflowFirstObjectProvider extends FakeModelProvider {
   private firstObjectCall = true;

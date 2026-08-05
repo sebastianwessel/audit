@@ -56,18 +56,6 @@ export class SourceSnapshot implements SourceRepository {
     );
   }
 
-  /**
-   * Explicit orchestration projection. A caller must name the manifest paths
-   * it is allowed to materialize. Reads remain sequential so a large valid
-   * scope does not create an unbounded I/O burst; the snapshot never caches
-   * source content.
-   */
-  public async documents(paths: readonly string[]): Promise<readonly SourceDocument[]> {
-    const documents: SourceDocument[] = [];
-    for (const path of paths) documents.push(await this.readDocument(path));
-    return documents;
-  }
-
   public async listFiles(input: ListFilesInput): Promise<ListFilesResult> {
     if ((input.root ?? 'target') !== 'target') throw snapshotTargetOnly();
     const includeGlobs = input.includeGlobs ?? ['**/*'];
@@ -83,7 +71,7 @@ export class SourceSnapshot implements SourceRepository {
 
   public async readFile(input: ReadFileInput): Promise<ReadFileResult> {
     if ((input.root ?? 'target') !== 'target') throw snapshotTargetOnly();
-    const source = await this.readDocument(input.relativePath);
+    const source = await this.document(input.relativePath);
     const startLine = input.startLine ?? 1;
     const selection = selectTextLineRange(source.content, startLine, input.endLine);
     if (selection === undefined) throw missingSnapshotSource();
@@ -106,7 +94,7 @@ export class SourceSnapshot implements SourceRepository {
     const contextLines = input.contextLines ?? 0;
     const matches: GrepFilesResult['matches'] = [];
     for (const path of [...new Set(paths)].sort()) {
-      const source = await this.readDocument(path);
+      const source = await this.document(path);
       const lines = textLinesWithoutEndings(source.content);
       for (let index = 0; index < lines.length; index += 1) {
         const line = lines[index];
@@ -125,7 +113,8 @@ export class SourceSnapshot implements SourceRepository {
     return { matches };
   }
 
-  private async readDocument(path: string): Promise<SourceDocument> {
+  /** Reads one named immutable snapshot object; no target filesystem is reopened. */
+  public async document(path: string): Promise<SourceDocument> {
     if (!this.#entries.some((entry) => entry.relativePath === path)) throw missingSnapshotSource();
     return this.#readDocument(path);
   }

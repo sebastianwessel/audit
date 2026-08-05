@@ -46,7 +46,7 @@ import { ProviderNameSchema, providerCacheRoutingKey } from '../../../platform/h
 import { canonicalJson, IdentifierSchema, sha256 } from '../../../shared/contracts/core.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import { commandExitMeaning, writeCliCommandResult } from '../../command-result.js';
-import { booleanOption, requiredOption, usage } from '../../input.js';
+import { assertResumableRunOptions, booleanOption, requiredOption, usage } from '../../input.js';
 import { writeRunManifest } from '../../run-manifest.js';
 
 export type AuditCommandDependencies = Readonly<{
@@ -121,9 +121,12 @@ export async function runAudit(
   const runId = options['run-id'] ?? `audit-${crypto.randomUUID()}`;
   const resume = booleanOption(options, 'resume', false);
   const retryUnfinished = booleanOption(options, 'retry-unfinished', false);
-  if (resume && options['run-id'] === undefined) {
-    throw usage('Resuming an audit requires an explicit --run-id.');
-  }
+  assertResumableRunOptions({
+    resume,
+    retryUnfinished,
+    hasRunId: options['run-id'] !== undefined,
+    command: 'an audit',
+  });
   const targetRoot = dependencies.roots.targetRoot;
   const privateWork = dependencies.roots.privateWorkRoot;
   const publicArtifacts = dependencies.roots.publicArtifactRoot;

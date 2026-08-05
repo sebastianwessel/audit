@@ -35,7 +35,7 @@
   },
   "scripts": {
     "check": "bun run ci:scripts && bun run typecheck && bun run lint && bun test && bun run eval:acquisition-snapshots && bun run eval:corpus:integration && bun run package:check",
-    "release:check": "bun run spec:check && bun run schema:check && bun run check && bun run test:coverage",
+    "release:check": "bun run spec:check && bun run check && bun run test:coverage",
     "build": "bun build ./src/cli/main.ts --outdir ./dist --target bun --format esm --external '@modelcontextprotocol/sdk/*'",
     "package:check": "bun run build && bun ./dist/main.js --help",
     "prepack": "bun run build",

@@ -210,13 +210,11 @@ test('audit resume promotes a sealed snapshot that survived before attempt-state
         throw new Error('Expected a recovered retained source snapshot.');
       }
       expect(recovered.attempt.snapshotState).toBe('retained');
-      expect(await recovered.retainedSnapshot.snapshot.documents(['source.unknown'])).toEqual([
-        {
-          path: 'source.unknown',
-          content: 'sealed before crash\n',
-          languageHint: null,
-        },
-      ]);
+      expect(await recovered.retainedSnapshot.snapshot.document('source.unknown')).toEqual({
+        path: 'source.unknown',
+        content: 'sealed before crash\n',
+        languageHint: null,
+      });
       await expect(
         readJsonArtifact(privateWork, `runs/${runId}.attempt.json`, AuditRunAttemptSchema),
       ).resolves.toMatchObject({ snapshotState: 'retained' });

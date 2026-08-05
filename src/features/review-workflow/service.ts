@@ -21,16 +21,6 @@ import {
   assertPlanMatchesTarget,
 } from '../attack-planning/index.js';
 import { runPlanningStage } from '../attack-planning/planner/stage/index.js';
-import {
-  type AuditCandidateGroundingRecoveryLeafUpdate,
-  type AuditContextOverflowTransition,
-  type AuditEvidenceMapRecoveryLeafUpdate,
-  type AuditScopedStageContext,
-  type AuditSourcePostureRecoveryLeafUpdate,
-  type AuditVerifiedDiscoverySeedUpdate,
-  type CandidateAwareCheckpointUpdate,
-  runAudit,
-} from '../audit-execution/audit.js';
 import type {
   AuditCandidateGroundingDraft,
   AuditCheckpointExecution,
@@ -40,17 +30,26 @@ import type {
   AuditSourcePostureDraft,
   AuditVectorResult,
 } from '../audit-execution/audit.schema.js';
-import { runCandidateGroundingStage } from '../audit-execution/candidate-grounding/stage/index.js';
-import type { AuditResumeState } from '../audit-execution/checkpoints.js';
 import {
+  type AuditCandidateGroundingRecoveryLeafUpdate,
+  type AuditContextOverflowTransition,
+  type AuditEvidenceMapRecoveryLeafUpdate,
+  type AuditResumeState,
+  type AuditScopedStageContext,
+  type AuditSourcePostureRecoveryLeafUpdate,
+  type AuditVerifiedDiscoverySeedUpdate,
+  type CandidateAwareCheckpointUpdate,
+  createSourceEvidenceResolver,
+  modelStagesForAudit,
+  runAudit,
+  runCandidateGroundingStage,
   runEvidenceMapRepairStage,
   runEvidenceMapStage,
-} from '../audit-execution/evidence-map/stage/index.js';
-import { selectScopedSourcePaths } from '../audit-execution/investigation/scope.js';
-import { runInvestigationStage } from '../audit-execution/investigation/stage/index.js';
-import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
-import { runSourcePostureStage } from '../audit-execution/source-posture/stage/index.js';
-import { runVerificationStage } from '../audit-execution/verification/stage/index.js';
+  runInvestigationStage,
+  runSourcePostureStage,
+  runVerificationStage,
+  selectScopedSourcePaths,
+} from '../audit-execution/index.js';
 import type { PublicAuditReport } from '../audit-report/public-contract.js';
 import {
   type DeveloperGuidanceAttempt,
@@ -542,7 +541,10 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: await sourceSnapshot.documents(request.availableSourcePaths),
+            sourceEvidence: createSourceEvidenceResolver({
+              sourceSnapshot,
+              sourcePaths: request.availableSourcePaths,
+            }),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map`,
             modelName,
@@ -628,7 +630,10 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: await sourceSnapshot.documents(request.availableSourcePaths),
+            sourceEvidence: createSourceEvidenceResolver({
+              sourceSnapshot,
+              sourcePaths: request.availableSourcePaths,
+            }),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-evidence-map-repair`,
             modelName,
@@ -809,7 +814,10 @@ export function createReviewService(
             modelProvider,
             filesystem: sourceSnapshot,
             request,
-            sources: await sourceSnapshot.documents(request.availableSourcePaths),
+            sourceEvidence: createSourceEvidenceResolver({
+              sourceSnapshot,
+              sourcePaths: request.availableSourcePaths,
+            }),
             context,
             sessionId: `${input.sessionId}-${request.vector.vectorId}-candidate-grounding`,
             modelName,

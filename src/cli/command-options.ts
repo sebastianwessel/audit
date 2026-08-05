@@ -9,20 +9,55 @@ const SharedResultFormatOptionsSchema = z.strictObject({
   'result-format': ResultFormatOptionSchema,
 });
 
-const PlanCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
+const TargetCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
   target: OptionValueSchema,
   context: OptionValueSchema.optional(),
   'target-name': OptionValueSchema.optional(),
 });
 
-const AuditCommandOptionsSchema = PlanCommandOptionsSchema.extend({
+const PlanCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
+  target: OptionValueSchema.optional(),
+  context: OptionValueSchema.optional(),
+  'target-name': OptionValueSchema.optional(),
+  'run-id': OptionValueSchema.optional(),
+  resume: OptionValueSchema.optional(),
+}).superRefine((options, context) => {
+  if (options.resume === 'true') {
+    if (options['run-id'] === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['run-id'],
+        message: 'Plan resume requires --run-id.',
+      });
+    }
+    for (const option of ['target', 'context', 'target-name'] as const) {
+      if (options[option] !== undefined) {
+        context.addIssue({
+          code: 'custom',
+          path: [option],
+          message: `Plan resume does not accept --${option}.`,
+        });
+      }
+    }
+    return;
+  }
+  if (options.target === undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['target'],
+      message: 'Plan creation requires --target.',
+    });
+  }
+});
+
+const AuditCommandOptionsSchema = TargetCommandOptionsSchema.extend({
   plan: OptionValueSchema,
   'run-id': OptionValueSchema.optional(),
   resume: OptionValueSchema.optional(),
   'retry-unfinished': OptionValueSchema.optional(),
 }).strict();
 
-const GuidanceCommandOptionsSchema = PlanCommandOptionsSchema.extend({
+const GuidanceCommandOptionsSchema = TargetCommandOptionsSchema.extend({
   plan: OptionValueSchema,
   report: OptionValueSchema,
   'run-id': OptionValueSchema.optional(),
@@ -39,9 +74,45 @@ const LineageCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
   current: OptionValueSchema,
 });
 
-const PlanAuthoringCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
+const PlanDraftCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
   plan: OptionValueSchema,
   draft: OptionValueSchema,
+});
+
+const PlanResealCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
+  plan: OptionValueSchema.optional(),
+  draft: OptionValueSchema.optional(),
+  'run-id': OptionValueSchema.optional(),
+  resume: OptionValueSchema.optional(),
+}).superRefine((options, context) => {
+  if (options.resume === 'true') {
+    if (options['run-id'] === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: ['run-id'],
+        message: 'Plan reseal resume requires --run-id.',
+      });
+    }
+    for (const option of ['plan', 'draft'] as const) {
+      if (options[option] !== undefined) {
+        context.addIssue({
+          code: 'custom',
+          path: [option],
+          message: `Plan reseal resume does not accept --${option}.`,
+        });
+      }
+    }
+    return;
+  }
+  for (const option of ['plan', 'draft'] as const) {
+    if (options[option] === undefined) {
+      context.addIssue({
+        code: 'custom',
+        path: [option],
+        message: `Plan reseal requires --${option}.`,
+      });
+    }
+  }
 });
 
 /** Discard owns only one validated private-work run; it cannot address other roots. */
@@ -56,8 +127,8 @@ const CommandOptionsSchemas = {
   guidance: GuidanceCommandOptionsSchema,
   report: ReportCommandOptionsSchema,
   lineage: LineageCommandOptionsSchema,
-  'plan-draft': PlanAuthoringCommandOptionsSchema,
-  'plan-reseal': PlanAuthoringCommandOptionsSchema,
+  'plan-draft': PlanDraftCommandOptionsSchema,
+  'plan-reseal': PlanResealCommandOptionsSchema,
   discard: DiscardCommandOptionsSchema,
 } as const;
 

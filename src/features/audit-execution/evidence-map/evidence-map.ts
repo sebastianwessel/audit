@@ -1,16 +1,14 @@
 import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../platform/harness/audit-harness.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
-import type {
-  AuditCheckpointExecution,
-  SourceDocument,
-} from '../../audit-execution/audit.schema.js';
+import type { AuditCheckpointExecution } from '../../audit-execution/audit.schema.js';
 import {
   type EvidenceMap,
   EvidenceMapSchema,
 } from '../../audit-execution/evidence-map/contract.js';
 import { verifyEvidenceMap } from '../../audit-execution/evidence-map/verify.js';
 import type { EvidenceMapRequest } from '../../audit-execution/phase-input/contract.js';
+import type { SourceEvidenceResolver } from '../../audit-execution/source-evidence-resolver.js';
 import type {
   ModelPricing,
   ModelStageObservation,
@@ -35,8 +33,8 @@ export async function runEvidenceMapStage(input: {
   modelProvider: ModelProvider;
   filesystem: SourceRepository;
   request: EvidenceMapRequest;
-  /** Immutable approved source snapshot used to canonicalize model locations. */
-  sources: readonly SourceDocument[];
+  /** Lazy exact-source projection over the immutable approved snapshot. */
+  sourceEvidence: SourceEvidenceResolver;
   context: readonly ContextDocument[];
   sessionId: string;
   modelName: string | undefined;
@@ -115,8 +113,12 @@ export async function runEvidenceMapStage(input: {
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
         retryGuidance,
       }),
-    projectOutput: (output) => {
-      const verified = verifyEvidenceMap(input.request.vector, output, input.sources);
+    projectOutput: async (output, scope) => {
+      const verified = await verifyEvidenceMap(
+        input.request.vector,
+        output,
+        input.sourceEvidence.forScope(scope.sourcePaths),
+      );
       if (verified.rejectedFactCount > 0) {
         invalidModelOutput(['facts']);
       }

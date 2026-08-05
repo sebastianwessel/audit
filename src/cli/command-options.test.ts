@@ -9,6 +9,18 @@ test('accepts only the declared option set for each CLI command', () => {
     }),
   ).not.toThrow();
   expect(() =>
+    assertValidCommandOptions('plan-reseal', {
+      plan: 'plans/plan.json',
+      draft: 'plan-drafts/review.json',
+    }),
+  ).not.toThrow();
+  expect(() =>
+    assertValidCommandOptions('plan', {
+      'run-id': 'plan-recovery-01',
+      resume: 'true',
+    }),
+  ).not.toThrow();
+  expect(() =>
     assertValidCommandOptions('audit', {
       target: 'target',
       plan: 'plans/plan.json',
@@ -47,6 +59,27 @@ test('accepts only the declared option set for each CLI command', () => {
     assertValidCommandOptions('plan-reseal', {
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
+    }),
+  ).not.toThrow();
+  expect(() => assertValidCommandOptions('plan', {})).toThrow('Invalid value for --target');
+  expect(() =>
+    assertValidCommandOptions('plan', {
+      'run-id': 'plan-recovery-01',
+      resume: 'true',
+      target: 'x',
+    }),
+  ).toThrow('Invalid value for --target');
+  expect(() =>
+    assertValidCommandOptions('plan-reseal', {
+      'run-id': 'plan-reseal-recovery-01',
+      resume: 'true',
+      plan: 'x',
+    }),
+  ).toThrow('Invalid value for --plan');
+  expect(() =>
+    assertValidCommandOptions('plan-reseal', {
+      'run-id': 'plan-reseal-recovery-01',
+      resume: 'true',
     }),
   ).not.toThrow();
   expect(() =>
@@ -99,6 +132,13 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
   expect(() => assertValidCommandOptions('plan-draft', { plan: 'plans/plan.json' })).toThrow(
     'Missing required option --draft',
   );
+  expect(() =>
+    assertValidCommandOptions('plan-draft', {
+      plan: 'plans/plan.json',
+      draft: 'plan-drafts/review.json',
+      resume: 'true',
+    }),
+  ).toThrow('Unknown option --resume');
   expect(() =>
     assertValidCommandOptions('plan-reseal', {
       plan: 'plans/plan.json',

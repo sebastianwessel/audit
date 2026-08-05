@@ -1,7 +1,9 @@
 import { expect, test } from 'bun:test';
 
 import { AttackVectorSchema, ProposedFindingSchema } from '../../attack-planning/index.js';
+import { createSourceSnapshot } from '../../target-inventory/source-snapshot.js';
 import { EvidenceMapSchema } from '../evidence-map/contract.js';
+import { createSourceEvidenceResolver } from '../source-evidence-resolver.js';
 import { SourcePostureSchema } from '../source-posture/contract.js';
 import type { UnverifiedAuditCandidate } from './contract.js';
 
@@ -103,11 +105,20 @@ function evidenceMap(
   });
 }
 
-test('rejects vector mismatches and evidence outside the bounded source package', () => {
-  const result = verifyModelFindings(
+function sourceEvidenceFor(
+  sources: readonly { path: string; content: string; languageHint: string | null }[],
+) {
+  return createSourceEvidenceResolver({
+    sourceSnapshot: createSourceSnapshot(sources),
+    sourcePaths: sources.map((source) => source.path),
+  });
+}
+
+test('rejects vector mismatches and evidence outside the bounded source package', async () => {
+  const result = await verifyModelFindings(
     vector,
     [finding('vector-other-01', 'src/query.txt', 1), finding(vector.vectorId, 'private/x.txt', 1)],
-    [{ path: 'src/query.txt', content: `SELECT \${input}`, languageHint: null }],
+    sourceEvidenceFor([{ path: 'src/query.txt', content: `SELECT \${input}`, languageHint: null }]),
   );
   expect(result.verified).toHaveLength(0);
   expect(result.rejectedCount).toBe(2);
@@ -117,7 +128,7 @@ test('rejects vector mismatches and evidence outside the bounded source package'
   ]);
 });
 
-test('validates exact source evidence without inferring source semantics', () => {
+test('validates exact source evidence without inferring source semantics', async () => {
   const sources = [
     {
       path: 'src/query.txt',
@@ -125,58 +136,66 @@ test('validates exact source evidence without inferring source semantics', () =>
       languageHint: null,
     },
   ];
-  const accepted = verifyModelFindings(
+  const accepted = await verifyModelFindings(
     vector,
     [finding(vector.vectorId, 'src/query.txt', 2)],
-    sources,
+    sourceEvidenceFor(sources),
   );
   expect(accepted.verified).toHaveLength(1);
-  const alsoGrounded = verifyModelFindings(
+  const alsoGrounded = await verifyModelFindings(
     vector,
     [finding(vector.vectorId, 'src/query.txt', 1)],
-    sources,
+    sourceEvidenceFor(sources),
   );
   expect(alsoGrounded.verified).toHaveLength(1);
 });
 
-test('does not require deterministic candidate evidence', () => {
+test('does not require deterministic candidate evidence', async () => {
   const sources = [
     { path: 'src/settings.txt', content: 'api_key = "abcdefghijk"', languageHint: null },
   ];
-  const accepted = verifyModelFindings(
+  const accepted = await verifyModelFindings(
     vector,
     [finding(vector.vectorId, 'src/settings.txt', 1)],
-    sources,
+    sourceEvidenceFor(sources),
   );
   expect(accepted.verified).toHaveLength(1);
 });
 
-test('requires every selected map fact to bind the approved plan obligation without interpreting roles', () => {
+test('requires every selected map fact to bind the approved plan obligation without interpreting roles', async () => {
   const sources = [{ path: 'src/query.txt', content: `SELECT \${input}`, languageHint: null }];
   const candidate = finding(vector.vectorId, 'src/query.txt', 1);
-  expect(verifyModelFindings(vector, [candidate], sources, evidenceMap()).verified).toHaveLength(1);
+  expect(
+    (await verifyModelFindings(vector, [candidate], sourceEvidenceFor(sources), evidenceMap()))
+      .verified,
+  ).toHaveLength(1);
 
-  const roleNeutral = verifyModelFindings(vector, [candidate], sources, evidenceMap('control'));
+  const roleNeutral = await verifyModelFindings(
+    vector,
+    [candidate],
+    sourceEvidenceFor(sources),
+    evidenceMap('control'),
+  );
   expect(roleNeutral.verified).toHaveLength(1);
 
-  const invalidMapFact = verifyModelFindings(
+  const invalidMapFact = await verifyModelFindings(
     vector,
     [{ ...candidate, evidenceMapFactIds: ['fact-missing-01'] }],
-    sources,
+    sourceEvidenceFor(sources),
     evidenceMap(),
   );
   expect(invalidMapFact.rejectionReasons).toEqual(['model-evidence-map-reference-invalid']);
 
-  const mismatchedObligation = verifyModelFindings(
+  const mismatchedObligation = await verifyModelFindings(
     vector,
     [candidate],
-    sources,
+    sourceEvidenceFor(sources),
     evidenceMap('input', { obligationId: 'missing-obligation-01' }),
   );
   expect(mismatchedObligation.rejectionReasons).toEqual(['model-evidence-map-reference-invalid']);
 });
 
-test('rejects a missing map fact even when selected valid facts cover the candidate obligation', () => {
+test('rejects a missing map fact even when selected valid facts cover the candidate obligation', async () => {
   const sources = [{ path: 'src/query.txt', content: `SELECT \${input}`, languageHint: null }];
   const map = EvidenceMapSchema.parse({
     facts: [
@@ -197,15 +216,18 @@ test('rejects a missing map fact even when selected valid facts cover the candid
     ...finding(vector.vectorId, 'src/query.txt', 1),
     evidenceMapFactIds: ['fact-entrypoint-01', 'fact-input-01', 'fact-query-01'],
   };
-  expect(verifyModelFindings(vector, [candidate], sources, map).verified).toHaveLength(1);
+  expect(
+    (await verifyModelFindings(vector, [candidate], sourceEvidenceFor(sources), map)).verified,
+  ).toHaveLength(1);
 
   const invalid = { ...candidate, evidenceMapFactIds: ['fact-entrypoint-01', 'fact-missing-01'] };
-  expect(verifyModelFindings(vector, [invalid], sources, map).rejectionReasons).toEqual([
-    'model-evidence-map-reference-invalid',
-  ]);
+  expect(
+    (await verifyModelFindings(vector, [invalid], sourceEvidenceFor(sources), map))
+      .rejectionReasons,
+  ).toEqual(['model-evidence-map-reference-invalid']);
 });
 
-test('requires candidate evidence locations to come from its selected map facts', () => {
+test('requires candidate evidence locations to come from its selected map facts', async () => {
   const sources = [
     {
       path: 'src/query.txt',
@@ -244,12 +266,13 @@ test('requires candidate evidence locations to come from its selected map facts'
       },
     ],
   };
-  expect(verifyModelFindings(vector, [candidate], sources, evidenceMap()).rejectionReasons).toEqual(
-    ['model-evidence-map-reference-invalid'],
-  );
+  expect(
+    (await verifyModelFindings(vector, [candidate], sourceEvidenceFor(sources), evidenceMap()))
+      .rejectionReasons,
+  ).toEqual(['model-evidence-map-reference-invalid']);
 });
 
-test('keeps source-posture conclusions as evidence context rather than a semantic admission veto', () => {
+test('keeps source-posture conclusions as evidence context rather than a semantic admission veto', async () => {
   const sources = [{ path: 'src/query.txt', content: `SELECT \${input}`, languageHint: null }];
   const posture = SourcePostureSchema.parse({
     assessments: [
@@ -263,31 +286,33 @@ test('keeps source-posture conclusions as evidence context rather than a semanti
     ],
     limitations: [],
   });
-  const result = verifyModelFindings(
+  const result = await verifyModelFindings(
     vector,
     [finding(vector.vectorId, 'src/query.txt', 1)],
-    sources,
+    sourceEvidenceFor(sources),
     evidenceMap(),
     posture,
   );
   expect(result.verified).toHaveLength(1);
 });
 
-test('rejects an absent or out-of-range approved-plan obligation reference', () => {
+test('rejects an absent or out-of-range approved-plan obligation reference', async () => {
   const source = [{ path: 'src/query.txt', content: `SELECT \${input}`, languageHint: null }];
   const valid = finding(vector.vectorId, 'src/query.txt', 1);
   const { planObligations: _planObligations, ...withoutReference } = valid;
   expect(ProposedFindingSchema.safeParse(withoutReference).success).toBe(false);
   expect(
-    verifyModelFindings(
-      vector,
-      [{ ...valid, planObligations: [{ obligationId: 'missing-obligation-01' }] }],
-      source,
+    (
+      await verifyModelFindings(
+        vector,
+        [{ ...valid, planObligations: [{ obligationId: 'missing-obligation-01' }] }],
+        sourceEvidenceFor(source),
+      )
     ).rejectionReasons,
   ).toEqual(['model-plan-obligation-invalid']);
 });
 
-test('preserves model evidence order after replacing snippets from source', () => {
+test('preserves model evidence order after replacing snippets from source', async () => {
   const sources = [
     {
       path: 'src/settings.txt',
@@ -295,7 +320,7 @@ test('preserves model evidence order after replacing snippets from source', () =
       languageHint: null,
     },
   ];
-  const result = verifyModelFindings(
+  const result = await verifyModelFindings(
     vector,
     [
       {
@@ -337,7 +362,7 @@ test('preserves model evidence order after replacing snippets from source', () =
         ],
       },
     ],
-    sources,
+    sourceEvidenceFor(sources),
   );
   expect(result.verified[0]?.claimEvidenceBundles[0]?.evidence[0]).toMatchObject({
     role: 'operation',
@@ -345,12 +370,14 @@ test('preserves model evidence order after replacing snippets from source', () =
   });
 });
 
-test('retains a complete long source line and recognizes CR-only line locations', () => {
+test('retains a complete long source line and recognizes CR-only line locations', async () => {
   const longLine = `operation = ${'x'.repeat(20_000)};`;
-  const result = verifyModelFindings(
+  const result = await verifyModelFindings(
     vector,
     [finding(vector.vectorId, 'src/query.txt', 2)],
-    [{ path: 'src/query.txt', content: `first\r${longLine}\rthird`, languageHint: null }],
+    sourceEvidenceFor([
+      { path: 'src/query.txt', content: `first\r${longLine}\rthird`, languageHint: null },
+    ]),
   );
   expect(result.verified[0]?.claimEvidenceBundles).toMatchObject([
     { role: 'operation', evidence: [{ startLine: 2 }] },

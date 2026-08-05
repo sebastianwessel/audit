@@ -39,7 +39,12 @@ import {
 } from '../../../platform/harness/provider.js';
 import { AuditRuntimeError } from '../../../shared/errors/audit-runtime-error.js';
 import { commandExitMeaning, writeCliCommandResult } from '../../command-result.js';
-import { booleanOption, requiredOption, requiredValue, usage } from '../../input.js';
+import {
+  assertResumableRunOptions,
+  booleanOption,
+  requiredOption,
+  requiredValue,
+} from '../../input.js';
 
 export async function runGuidance(
   options: Readonly<Record<string, string>>,
@@ -48,12 +53,12 @@ export async function runGuidance(
 ): Promise<number> {
   const resume = booleanOption(options, 'resume', false);
   const retryUnfinished = booleanOption(options, 'retry-unfinished', false);
-  if (resume && options['run-id'] === undefined) {
-    throw usage('Resuming developer guidance requires an explicit --run-id.');
-  }
-  if (!resume && retryUnfinished) {
-    throw usage('Retrying unfinished developer guidance requires --resume true.');
-  }
+  assertResumableRunOptions({
+    resume,
+    retryUnfinished,
+    hasRunId: options['run-id'] !== undefined,
+    command: 'developer guidance',
+  });
   const privateWork = roots.privateWorkRoot;
   const publicArtifacts = roots.publicArtifactRoot;
   const targetDisplayName = options['target-name'] ?? basename(roots.targetRoot);
@@ -228,7 +233,22 @@ export async function runGuidance(
       sessionId: runId,
     });
     if (created.guidance.items.some((item) => item.status !== 'completed')) {
-      process.stdout.write(
+      writeCliCommandResult(
+        options,
+        {
+          schemaVersion: 1,
+          command: 'guidance',
+          status: 'partial',
+          exitCode: 0,
+          exitMeaning: commandExitMeaning('guidance', 0),
+          identifiers: {
+            runId,
+            planId: plan.planId,
+            reportId: report.reportId,
+            guidanceId: created.guidance.guidanceId,
+          },
+          artifacts: [{ kind: 'guidance-checkpoint', path: checkpointPath }],
+        },
         `Developer guidance for run ${runId} remains incomplete. Resume with --run-id ${runId} --resume true --retry-unfinished true.\n`,
       );
       return 0;

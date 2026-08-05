@@ -2,7 +2,7 @@ import type { AttackVector, ClaimEvidenceRole } from '../../attack-planning/inde
 import type { EvidenceMap } from '../evidence-map/contract.js';
 import type { HypothesisSeed, UnverifiedAuditCandidate } from '../investigation/contract.js';
 import { verifyModelFindings } from '../investigation/verify.js';
-import type { SourceDocument } from '../phase-input/contract.js';
+import type { SourceEvidenceResolver } from '../source-evidence-resolver.js';
 import type { SourcePosture } from '../source-posture/contract.js';
 import type { VerifiableHypothesis } from '../verification/contract.js';
 import type {
@@ -91,14 +91,14 @@ export function selectSeedBoundGroundings(
  * a recovery boundary. A seed has exactly one explicit outcome; raw selectors
  * and non-reportable discovery data remain process-local.
  */
-export function canonicalizeCandidateGroundingOutput(input: {
+export async function canonicalizeCandidateGroundingOutput(input: {
   vector: AttackVector;
   seeds: readonly HypothesisSeed[];
   output: CandidateGroundingOutput;
   evidenceMap: EvidenceMap;
   sourcePosture: SourcePosture;
-  sources: readonly SourceDocument[];
-}): CanonicalCandidateGroundingOutput {
+  sourceEvidence: SourceEvidenceResolver;
+}): Promise<CanonicalCandidateGroundingOutput> {
   const rawBySeedId = new Map(
     input.output.groundings.map((grounding) => [grounding.seedId, grounding]),
   );
@@ -110,31 +110,34 @@ export function canonicalizeCandidateGroundingOutput(input: {
   ) {
     throw new CandidateGroundingProjectionError(['groundings']);
   }
-  return {
-    groundings: input.seeds.map((seed) => {
-      const raw = rawBySeedId.get(seed.seedId);
-      if (raw === undefined) throw new CandidateGroundingProjectionError(['groundings']);
-      if (raw?.candidate === null) {
-        return {
-          seedId: seed.seedId,
-          disposition: raw.nullReason,
-        };
-      }
-      const candidate = materializeCandidate(seed, raw.candidate, input.evidenceMap);
-      if (candidate === undefined)
-        throw new CandidateGroundingProjectionError(['groundings', 'claimEvidenceBundles']);
-      const verified = verifyModelFindings(
+  const groundings: CanonicalCandidateGroundingOutput['groundings'][number][] = [];
+  for (const seed of input.seeds) {
+    const raw = rawBySeedId.get(seed.seedId);
+    if (raw === undefined) throw new CandidateGroundingProjectionError(['groundings']);
+    if (raw.candidate === null) {
+      groundings.push({
+        seedId: seed.seedId,
+        disposition: raw.nullReason,
+      });
+      continue;
+    }
+    const candidate = materializeCandidate(seed, raw.candidate, input.evidenceMap);
+    if (candidate === undefined)
+      throw new CandidateGroundingProjectionError(['groundings', 'claimEvidenceBundles']);
+    const verified = (
+      await verifyModelFindings(
         input.vector,
         [candidate],
-        input.sources,
+        input.sourceEvidence,
         input.evidenceMap,
         input.sourcePosture,
-      ).verified[0];
-      if (verified === undefined)
-        throw new CandidateGroundingProjectionError(['groundings', 'claimEvidenceBundles']);
-      return { seedId: seed.seedId, disposition: 'grounded' as const, hypothesis: verified };
-    }),
-  };
+      )
+    ).verified[0];
+    if (verified === undefined)
+      throw new CandidateGroundingProjectionError(['groundings', 'claimEvidenceBundles']);
+    groundings.push({ seedId: seed.seedId, disposition: 'grounded', hypothesis: verified });
+  }
+  return { groundings };
 }
 
 /** Selects recovery-safe candidates without recreating raw grounding output. */

@@ -45,7 +45,12 @@ test('streams accepted source into a run-owned private capture without reopening
       ]),
     );
     await writeFile(join(targetRoot, 'first.unknown'), 'changed\n', 'utf8');
-    expect(await capture.snapshot.documents(['first.unknown', 'second.unknown'])).toEqual([
+    expect(
+      await Promise.all([
+        capture.snapshot.document('first.unknown'),
+        capture.snapshot.document('second.unknown'),
+      ]),
+    ).toEqual([
       { path: 'first.unknown', content: 'same source\r\n', languageHint: null },
       { path: 'second.unknown', content: 'same source\r\n', languageHint: null },
     ]);

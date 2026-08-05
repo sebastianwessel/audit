@@ -12,6 +12,7 @@ import {
   EvidenceMapRequestSchema,
   SourcePostureRequestSchema,
 } from '../../src/features/audit-execution/phase-input/contract.js';
+import { createSourceEvidenceResolver } from '../../src/features/audit-execution/source-evidence-resolver.js';
 import { SourcePostureSchema } from '../../src/features/audit-execution/source-posture/contract.js';
 import { runSourcePostureStage } from '../../src/features/audit-execution/source-posture/stage/index.js';
 import {
@@ -25,6 +26,7 @@ import {
 } from '../../src/features/model-operations/model-operations.js';
 import { runScopedModelStage } from '../../src/features/review-workflow/stages/scoped-model-stage.js';
 import { scopedInspectionRequirement } from '../../src/features/review-workflow/tools/contract.js';
+import { createSourceSnapshot } from '../../src/features/target-inventory/source-snapshot.js';
 import type { JailedReadOnlyFilesystem } from '../../src/platform/filesystem/index.js';
 import { HarnessExecutionConfigurationSchema } from '../../src/platform/harness/audit-harness.js';
 import { sha256 } from '../../src/shared/contracts/core.js';
@@ -39,6 +41,12 @@ import {
 const sourcePath = 'reviewed.unknown';
 const sourceLine = 'value = request.input;\n';
 const execution = HarnessExecutionConfigurationSchema.parse({ modelRetry: 'default' });
+const sourceEvidence = createSourceEvidenceResolver({
+  sourceSnapshot: createSourceSnapshot([
+    { path: sourcePath, content: sourceLine, languageHint: null },
+  ]),
+  sourcePaths: [sourcePath],
+});
 const vector = AttackVectorSchema.parse({
   vectorId: 'stage-conformance-vector-01',
   vectorDigest: 'a'.repeat(64),
@@ -249,7 +257,7 @@ async function runEvidenceMappingConformance(
   );
   const result = await runEvidenceMapStage({
     modelProvider: provider,
-    sources: [{ path: sourcePath, content: sourceLine, languageHint: null }],
+    sourceEvidence,
     filesystem,
     request: EvidenceMapRequestSchema.parse({
       vector,
@@ -364,7 +372,7 @@ async function runCandidateGroundingConformance(
       seeds: [seed],
       availableSourcePaths: [sourcePath],
     }),
-    sources: [],
+    sourceEvidence,
     context: [],
     sessionId: 'stage-conformance-grounding',
     modelName: undefined,

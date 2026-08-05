@@ -55,7 +55,9 @@ export async function prepareStageIsolatedCanonicalFixture(input: {
     vector,
     admittedSourcePaths(captured.inventory.sourceSnapshot),
   );
-  const scopedSources = await captured.snapshot.documents(scopedSourcePaths);
+  const scopedSources = await Promise.all(
+    scopedSourcePaths.map((path) => captured.snapshot.document(path)),
+  );
   if (scopedSources.length === 0) {
     throw invalidFixture(
       'The canonical predecessor reviewed vector has no admitted scoped source.',

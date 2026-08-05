@@ -62,9 +62,8 @@ export async function retainTargetSnapshot(input: {
     const persistedDigests = new Set<string>();
     for (const row of sourceSnapshot.rows) {
       if (row.disposition !== 'admitted') continue;
-      const [source] = await input.capture.snapshot.documents([row.path]);
+      const source = await input.capture.snapshot.document(row.path);
       if (
-        source === undefined ||
         sha256(source.content) !== row.contentDigest ||
         new TextEncoder().encode(source.content).byteLength !== row.byteLength
       ) {

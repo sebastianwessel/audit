@@ -51,9 +51,11 @@ test('reloads the exact admitted source and advisory context without reopening a
     targetFingerprint: capture.inventory.targetFingerprint,
     contextDigest: capture.inventory.contextDigest,
   });
-  expect(await retained.snapshot.documents(['service.custom'])).toEqual([
-    { path: 'service.custom', content: 'before\r\n', languageHint: null },
-  ]);
+  expect(await retained.snapshot.document('service.custom')).toEqual({
+    path: 'service.custom',
+    content: 'before\r\n',
+    languageHint: null,
+  });
   expect(retained.inventory.context[0]?.body).toBe('Original context.\r\n');
 });
 

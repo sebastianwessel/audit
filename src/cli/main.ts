@@ -16,14 +16,19 @@ import { isProductCliCommand, parseHelpRequest, renderCliHelp } from './command-
 import { assertValidCommandOptions, type ProductCliCommand } from './command-options.js';
 import { runAudit, runDiscard } from './commands/audit/index.js';
 import { runGuidance } from './commands/guidance/index.js';
-import { runPlan, runPlanDraft, runPlanReseal } from './commands/planning/index.js';
+import {
+  runPlan,
+  runPlanDraft,
+  runPlanPublicationRecovery,
+  runPlanReseal,
+} from './commands/planning/index.js';
 import { runLineage, runReport } from './commands/reporting/index.js';
 import {
   prepareConfiguredPrivateWorkRoot,
   prepareConfiguredProductRoots,
   prepareConfiguredPublicArtifactRoot,
 } from './configured-roots.js';
-import { requiredOption, requiredValue, usage } from './input.js';
+import { booleanOption, requiredOption, requiredValue, usage } from './input.js';
 
 export type CliCommand = Readonly<{
   command: ProductCliCommand;
@@ -97,6 +102,12 @@ export async function runCli(
       parsed.options,
       await prepareConfiguredPublicArtifactRoot(runtime.configuration),
     );
+  if (parsed.command === 'plan' && booleanOption(parsed.options, 'resume', false)) {
+    return runPlanPublicationRecovery(
+      parsed.options,
+      await prepareConfiguredPrivateWorkRoot(runtime.configuration),
+    );
+  }
   if (runtime.configuration.verificationMode === 'independent-route') {
     throw usage(
       'The independent verifier route is evaluation-only and cannot run product commands.',

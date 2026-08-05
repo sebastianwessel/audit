@@ -35,6 +35,7 @@ import {
   SourceDocumentSchema,
   SourcePostureRequestSchema,
 } from '../../src/features/audit-execution/phase-input/contract.js';
+import { createSourceEvidenceResolver } from '../../src/features/audit-execution/source-evidence-resolver.js';
 import type { SourcePosture } from '../../src/features/audit-execution/source-posture/contract.js';
 import { runSourcePostureStage } from '../../src/features/audit-execution/source-posture/stage/index.js';
 import type { AuditVerificationRequest } from '../../src/features/audit-execution/verification/contract.js';
@@ -52,6 +53,7 @@ import type { ModelRoute } from '../../src/features/model-operations/model-opera
 import { stageErrorCode } from '../../src/features/review-workflow/runtime/invocation.js';
 import { createReviewService } from '../../src/features/review-workflow/service.js';
 import { ContextDocumentSchema } from '../../src/features/target-inventory/inventory.schema.js';
+import { createSourceSnapshot } from '../../src/features/target-inventory/source-snapshot.js';
 import type { JailedReadOnlyFilesystem } from '../../src/platform/filesystem/index.js';
 import {
   assertLiveHarnessStructuredOutputCompatibility,
@@ -378,10 +380,12 @@ async function runEvidenceMapping(
     const result = await runEvidenceMapStage({
       modelProvider: input.modelProvider,
       filesystem: input.filesystem,
-      sources: await sourceDocumentsFor(
-        input.filesystem,
-        canonicalInput.request.availableSourcePaths,
-      ),
+      sourceEvidence: createSourceEvidenceResolver({
+        sourceSnapshot: createSourceSnapshot(
+          await sourceDocumentsFor(input.filesystem, canonicalInput.request.availableSourcePaths),
+        ),
+        sourcePaths: canonicalInput.request.availableSourcePaths,
+      }),
       request: canonicalInput.request,
       context: canonicalInput.context,
       sessionId: input.sessionId,
@@ -539,7 +543,10 @@ async function runInvestigationGrounding(
       modelProvider: input.modelProvider,
       filesystem: input.filesystem,
       request: predecessors.groundingRequest,
-      sources: predecessors.groundingSources,
+      sourceEvidence: createSourceEvidenceResolver({
+        sourceSnapshot: createSourceSnapshot(predecessors.groundingSources),
+        sourcePaths: predecessors.groundingRequest.availableSourcePaths,
+      }),
       context: predecessors.groundingContext,
       sessionId: input.sessionId,
       modelName: input.modelName,

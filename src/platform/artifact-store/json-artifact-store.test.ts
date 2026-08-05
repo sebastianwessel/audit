@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -11,6 +11,7 @@ import {
   readJsonArtifact,
   readOptionalJsonArtifact,
   releaseArtifactLease,
+  removeArtifactDirectory,
   removeJsonArtifact,
   writeJsonArtifact,
   writeJsonLinesArtifact,
@@ -206,6 +207,42 @@ describe('JSON artifact store', () => {
     ).rejects.toMatchObject({
       code: 'artifact-invalid-output-path',
     } satisfies Pick<ArtifactStoreError, 'code'>);
+  });
+
+  test('treats only an absent directory as removable and surfaces inspection failures', async () => {
+    const outputRoot = await createArtifactRoot();
+    await expect(removeArtifactDirectory(outputRoot, 'missing')).resolves.toBeUndefined();
+    const inaccessible = join(outputRoot, 'inaccessible');
+    await mkdir(inaccessible);
+    await chmod(inaccessible, 0o000);
+    try {
+      await expect(removeArtifactDirectory(outputRoot, 'inaccessible/child')).rejects.toMatchObject(
+        {
+          code: 'artifact-read-failed',
+        } satisfies Pick<ArtifactStoreError, 'code'>,
+      );
+    } finally {
+      await chmod(inaccessible, 0o700);
+    }
+  });
+
+  test('keeps absent JSON artifacts distinct from inspection failures during deletion', async () => {
+    const outputRoot = await createArtifactRoot();
+    await expect(removeJsonArtifact(outputRoot, 'missing/audit.json')).rejects.toMatchObject({
+      code: 'artifact-not-found',
+    } satisfies Pick<ArtifactStoreError, 'code'>);
+    const inaccessible = join(outputRoot, 'inaccessible');
+    await mkdir(inaccessible);
+    await chmod(inaccessible, 0o000);
+    try {
+      await expect(removeJsonArtifact(outputRoot, 'inaccessible/audit.json')).rejects.toMatchObject(
+        {
+          code: 'artifact-read-failed',
+        } satisfies Pick<ArtifactStoreError, 'code'>,
+      );
+    } finally {
+      await chmod(inaccessible, 0o700);
+    }
   });
 
   test('leaves no final or temporary artifact when schema validation fails before writing', async () => {

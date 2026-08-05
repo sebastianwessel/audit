@@ -1,14 +1,13 @@
-import { textLinesWithoutEndings } from '../../../platform/filesystem/text-lines.js';
 import {
   type AttackVector,
   type ClaimEvidenceRole,
   hasApprovedPlanObligations,
   planObligationKey,
+  type SourceEvidence,
 } from '../../attack-planning/index.js';
-import type { SourceDocument } from '../audit.schema.js';
 import type { EvidenceMap } from '../evidence-map/contract.js';
-import { createSourceEvidenceReference } from '../evidence-reference.js';
 import { ClaimNarrativeSchema } from '../narrative/contract.js';
+import type { SourceEvidenceResolver } from '../source-evidence-resolver.js';
 import type { SourcePosture } from '../source-posture/contract.js';
 import { type VerifiableHypothesis, VerifiableHypothesisSchema } from '../verification/contract.js';
 import {
@@ -34,15 +33,14 @@ export type FindingVerificationResult<Candidate> = Readonly<{
 }>;
 
 /** Verifies model output against only the bounded source package it was allowed to inspect. */
-export function verifyModelFindings<Candidate>(
+export async function verifyModelFindings<Candidate>(
   vector: AttackVector,
   findings: readonly Candidate[],
-  sources: readonly SourceDocument[],
+  sourceEvidence: SourceEvidenceResolver,
   evidenceMap?: EvidenceMap,
   sourcePosture?: SourcePosture,
   requireClaimMapLocationBinding = true,
-): FindingVerificationResult<Candidate> {
-  const byPath = new Map(sources.map((source) => [source.path, source]));
+): Promise<FindingVerificationResult<Candidate>> {
   const verified: VerifiableHypothesis[] = [];
   const rejectionReasons: string[] = [];
   const rejected: Array<
@@ -92,27 +90,25 @@ export function verifyModelFindings<Candidate>(
       rejected.push({ candidate: finding, reason: 'model-claim-evidence-insufficient' });
       continue;
     }
-    if (!hasAnyInScopeEvidenceLine(hypothesis, byPath)) {
+    if (!(await hasAnyInScopeEvidenceLine(hypothesis, sourceEvidence))) {
       rejectionReasons.push('model-evidence-invalid-or-out-of-scope');
       rejected.push({ candidate: finding, reason: 'model-evidence-invalid-or-out-of-scope' });
       continue;
     }
-    const claimEvidenceBundles = hypothesis.claimEvidenceBundles.map((bundle) => {
-      const evidence = bundle.evidence.map((item) => {
-        const source = byPath.get(item.path);
-        if (source === undefined) return undefined;
-        return createSourceEvidenceReference({
-          source,
-          startLine: item.startLine,
-          role: bundle.role,
-        });
-      });
-      if (evidence.some((item) => item === undefined)) return undefined;
-      return {
-        role: bundle.role,
-        evidence: evidence.filter((item): item is NonNullable<typeof item> => item !== undefined),
-      };
-    });
+    const claimEvidenceBundles: Array<
+      Readonly<{ role: ClaimEvidenceRole; evidence: readonly SourceEvidence[] }> | undefined
+    > = [];
+    for (const bundle of hypothesis.claimEvidenceBundles) {
+      const evidence = [];
+      for (const item of bundle.evidence) {
+        const reference = await sourceEvidence.resolve({ ...item, role: bundle.role });
+        if (reference === undefined) break;
+        evidence.push(reference);
+      }
+      claimEvidenceBundles.push(
+        evidence.length === bundle.evidence.length ? { role: bundle.role, evidence } : undefined,
+      );
+    }
     if (claimEvidenceBundles.some((bundle) => bundle === undefined)) {
       rejectionReasons.push('model-evidence-invalid-or-out-of-scope');
       rejected.push({ candidate: finding, reason: 'model-evidence-invalid-or-out-of-scope' });
@@ -163,19 +159,14 @@ function hasRequiredClaimEvidence(
   );
 }
 
-function hasAnyInScopeEvidenceLine(
+async function hasAnyInScopeEvidenceLine(
   finding: Readonly<{ claimEvidenceBundles: readonly ClaimEvidenceBundleInput[] }>,
-  byPath: ReadonlyMap<string, SourceDocument>,
-): boolean {
-  return finding.claimEvidenceBundles
-    .flatMap((bundle) => bundle.evidence)
-    .some((evidence) => {
-      const source = byPath.get(evidence.path);
-      return (
-        source !== undefined &&
-        textLinesWithoutEndings(source.content)[evidence.startLine - 1] !== undefined
-      );
-    });
+  sourceEvidence: SourceEvidenceResolver,
+): Promise<boolean> {
+  for (const evidence of finding.claimEvidenceBundles.flatMap((bundle) => bundle.evidence)) {
+    if ((await sourceEvidence.resolve(evidence)) !== undefined) return true;
+  }
+  return false;
 }
 
 function hasValidEvidenceMapReferences(

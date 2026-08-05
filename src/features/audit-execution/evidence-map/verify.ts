@@ -4,8 +4,7 @@ import {
   hasApprovedPlanObligations,
   planObligationKey,
 } from '../../attack-planning/index.js';
-import type { SourceDocument } from '../audit.schema.js';
-import { createSourceEvidenceReference } from '../evidence-reference.js';
+import type { SourceEvidenceResolver } from '../source-evidence-resolver.js';
 import {
   type EvidenceMap,
   EvidenceMapFactRoleSchema,
@@ -25,39 +24,37 @@ export type EvidenceMapVerificationResult = Readonly<{
  * the complete vector. The caller must still run {@link verifyEvidenceMap}
  * after all fragments are reduced before allowing the audit to continue.
  */
-export function verifyEvidenceMapFragment(
+export async function verifyEvidenceMapFragment(
   vector: AttackVector,
   evidenceMap: UnverifiedEvidenceMap | EvidenceMap,
-  sources: readonly SourceDocument[],
-): Readonly<{ evidenceMap: EvidenceMap; rejectedFactCount: number }> {
-  const byPath = new Map(sources.map((source) => [source.path, source] as const));
+  sourceEvidence: SourceEvidenceResolver,
+): Promise<Readonly<{ evidenceMap: EvidenceMap; rejectedFactCount: number }>> {
   const retainedFactIds = new Set<string>();
-  const facts = evidenceMap.facts.flatMap((fact) => {
+  const facts: Array<EvidenceMap['facts'][number]> = [];
+  for (const fact of evidenceMap.facts) {
     const role = EvidenceMapFactRoleSchema.safeParse(fact.role);
     const statementIsValid =
       !('statement' in fact) || BoundedTextSchema.min(1).safeParse(fact.statement).success;
-    if (!role.success || !statementIsValid || retainedFactIds.has(fact.factId)) return [];
-    if (!hasApprovedPlanObligations(vector, fact.planObligations)) return [];
-    const evidence = fact.evidence.flatMap((item) => {
-      const source = byPath.get(item.path);
-      if (source === undefined) return [];
-      const reference = createSourceEvidenceReference({ source, startLine: item.startLine });
-      return reference === undefined ? [] : [reference];
-    });
-    if (evidence.length !== fact.evidence.length) return [];
+    if (!role.success || !statementIsValid || retainedFactIds.has(fact.factId)) continue;
+    if (!hasApprovedPlanObligations(vector, fact.planObligations)) continue;
+    const evidence = [];
+    for (const item of fact.evidence) {
+      const reference = await sourceEvidence.resolve(item);
+      if (reference === undefined) break;
+      evidence.push(reference);
+    }
+    if (evidence.length !== fact.evidence.length) continue;
     retainedFactIds.add(fact.factId);
     const summary =
       'statement' in fact ? fact.statement : 'summary' in fact ? fact.summary : undefined;
-    return [
-      {
-        factId: fact.factId,
-        role: role.data,
-        ...(summary === undefined ? {} : { summary }),
-        evidence,
-        planObligations: fact.planObligations,
-      },
-    ];
-  });
+    facts.push({
+      factId: fact.factId,
+      role: role.data,
+      ...(summary === undefined ? {} : { summary }),
+      evidence,
+      planObligations: fact.planObligations,
+    });
+  }
   const mappedObligationKeys = new Set(
     facts.flatMap((fact) => fact.planObligations.map(planObligationKey)),
   );
@@ -84,12 +81,20 @@ export function verifyEvidenceMapFragment(
  * Checks only source-location and plan-binding integrity. It deliberately does
  * not determine whether a fact is security-relevant or whether a control works.
  */
-export function verifyEvidenceMap(
+export async function verifyEvidenceMap(
   vector: AttackVector,
   evidenceMap: UnverifiedEvidenceMap | EvidenceMap,
-  sources: readonly SourceDocument[],
+  sourceEvidence: SourceEvidenceResolver,
+): Promise<EvidenceMapVerificationResult> {
+  const fragment = await verifyEvidenceMapFragment(vector, evidenceMap, sourceEvidence);
+  return completeEvidenceMapVerification(vector, evidenceMap, fragment);
+}
+
+function completeEvidenceMapVerification(
+  vector: AttackVector,
+  evidenceMap: UnverifiedEvidenceMap | EvidenceMap,
+  fragment: Readonly<{ evidenceMap: EvidenceMap; rejectedFactCount: number }>,
 ): EvidenceMapVerificationResult {
-  const fragment = verifyEvidenceMapFragment(vector, evidenceMap, sources);
   const verified = fragment.evidenceMap;
   const representedObligations = new Set([
     ...verified.facts.flatMap((fact) => fact.planObligations.map(planObligationKey)),

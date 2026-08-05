@@ -8,10 +8,8 @@ import {
   appendCanonicalEvidenceMapFacts,
   applyEvidenceMapRepair,
 } from '../../audit-execution/evidence-map/repair.js';
-import type {
-  EvidenceMapRepairRequest,
-  SourceDocument,
-} from '../../audit-execution/phase-input/contract.js';
+import type { EvidenceMapRepairRequest } from '../../audit-execution/phase-input/contract.js';
+import type { SourceEvidenceResolver } from '../../audit-execution/source-evidence-resolver.js';
 import type {
   ModelPricing,
   ModelStageObservation,
@@ -36,8 +34,8 @@ export async function runEvidenceMapRepairStage(input: {
   modelProvider: ModelProvider;
   filesystem: SourceRepository;
   request: EvidenceMapRepairRequest;
-  /** Immutable approved source snapshot used to canonicalize repair facts. */
-  sources: readonly SourceDocument[];
+  /** Lazy exact-source projection over the immutable approved snapshot. */
+  sourceEvidence: SourceEvidenceResolver;
   context: readonly ContextDocument[];
   sessionId: string;
   modelName: string | undefined;
@@ -115,14 +113,16 @@ export async function runEvidenceMapRepairStage(input: {
         inspectionRequirement: scopedInspectionRequirement(scope.sourcePaths),
         retryGuidance,
       }),
-    projectOutput: (output) => {
+    projectOutput: async (output, scope) => {
       try {
-        return applyEvidenceMapRepair({
-          vector: input.request.vector,
-          evidenceMap: input.request.evidenceMap,
-          repair: output,
-          sources: input.sources,
-        }).evidenceMap;
+        return (
+          await applyEvidenceMapRepair({
+            vector: input.request.vector,
+            evidenceMap: input.request.evidenceMap,
+            repair: output,
+            sourceEvidence: input.sourceEvidence.forScope(scope.sourcePaths),
+          })
+        ).evidenceMap;
       } catch (error) {
         if (error instanceof AuditRuntimeError && error.code === 'artifact-invalid') {
           invalidModelOutput(['facts']);

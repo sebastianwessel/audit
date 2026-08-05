@@ -14,7 +14,7 @@ import {
 } from '../../audit-execution/candidate-grounding/identity.js';
 import type { EvidenceMap } from '../../audit-execution/evidence-map/contract.js';
 import type { HypothesisSeed } from '../../audit-execution/investigation/contract.js';
-import type { SourceDocument } from '../../audit-execution/phase-input/contract.js';
+import type { SourceEvidenceResolver } from '../../audit-execution/source-evidence-resolver.js';
 import type { SourcePosture } from '../../audit-execution/source-posture/contract.js';
 import type {
   ModelPricing,
@@ -47,8 +47,8 @@ export async function runCandidateGroundingStage(input: {
   modelProvider: ModelProvider;
   filesystem: SourceRepository;
   request: CandidateGroundingRequest;
-  /** Immutable in-memory snapshot projection used before persisting recovery work. */
-  sources: readonly SourceDocument[];
+  /** Lazy exact-source projection over the immutable approved snapshot. */
+  sourceEvidence: SourceEvidenceResolver;
   context: readonly ContextDocument[];
   sessionId: string;
   modelName: string | undefined;
@@ -94,11 +94,7 @@ export async function runCandidateGroundingStage(input: {
               execution: AuditCheckpointExecution;
               output: CandidateGroundingStageOutput;
             }) => {
-              const scoped = candidateGroundingScopeProjection(
-                input.request,
-                input.sources,
-                leaf.scope,
-              );
+              const scoped = candidateGroundingScopeProjection(input.request, leaf.scope);
               assertCanonicalGroundingWithinScope(
                 { groundings: leaf.output.groundings },
                 scoped,
@@ -134,12 +130,11 @@ export async function runCandidateGroundingStage(input: {
     ...(overflowTopology === undefined ? {} : { overflowTopology }),
     requireScopedSourceInspection: true,
     hasModelWorkInScope: (scope) =>
-      candidateGroundingScopeProjection(input.request, input.sources, scope).request.seeds.length >
-      0,
+      candidateGroundingScopeProjection(input.request, scope).request.seeds.length > 0,
     emptyScopeOutput: () => ({ groundings: [], mapInsufficiencies: [] }),
     allowContextSplitting: false,
     invoke: async (session, _attempt, scope: ContextRecoveryScope, retryGuidance) => {
-      const scoped = candidateGroundingScopeProjection(input.request, input.sources, scope);
+      const scoped = candidateGroundingScopeProjection(input.request, scope);
       if (scoped.request.seeds.length === 0) {
         throw new AuditRuntimeError(
           'artifact-invalid',
@@ -154,20 +149,22 @@ export async function runCandidateGroundingStage(input: {
         retryGuidance,
       });
     },
-    projectOutput: (output, scope) =>
-      projectScopedModelOutput(() => {
-        const scoped = candidateGroundingScopeProjection(input.request, input.sources, scope);
+    projectOutput: async (output, scope) =>
+      projectScopedModelOutput(async () => {
+        const scoped = candidateGroundingScopeProjection(input.request, scope);
         const normalizedOutput = CandidateGroundingModelOutputSchema.parse(output);
         try {
           return {
-            groundings: canonicalizeCandidateGroundingOutput({
-              vector: input.request.vector,
-              seeds: scoped.request.seeds,
-              output: normalizedOutput,
-              evidenceMap: scoped.request.evidenceMap,
-              sourcePosture: scoped.request.sourcePosture,
-              sources: scoped.sources,
-            }).groundings,
+            groundings: (
+              await canonicalizeCandidateGroundingOutput({
+                vector: input.request.vector,
+                seeds: scoped.request.seeds,
+                output: normalizedOutput,
+                evidenceMap: scoped.request.evidenceMap,
+                sourcePosture: scoped.request.sourcePosture,
+                sourceEvidence: input.sourceEvidence.forScope(scope.sourcePaths),
+              })
+            ).groundings,
             mapInsufficiencies: normalizedOutput.mapInsufficiencies ?? [],
           };
         } catch (error) {
@@ -226,7 +223,6 @@ function uniqueInsufficiencies(
 /** Projects only the complete, exact seed basis a recovery child can inspect. */
 function candidateGroundingScopeProjection(
   request: CandidateGroundingRequest,
-  sources: readonly SourceDocument[],
   scope: Pick<ContextRecoveryScope, 'sourcePaths' | 'lineRanges'>,
 ) {
   const factsById = new Map(request.evidenceMap.facts.map((fact) => [fact.factId, fact] as const));
@@ -285,7 +281,6 @@ function candidateGroundingScopeProjection(
       seeds,
       availableSourcePaths: [...scope.sourcePaths],
     },
-    sources: sources.filter((source) => scope.sourcePaths.includes(source.path)),
   };
 }
 

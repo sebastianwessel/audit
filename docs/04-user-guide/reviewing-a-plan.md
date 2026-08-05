@@ -15,6 +15,8 @@ Your organization may review, edit, or record approval externally. Audit does no
 
 Use the paired Markdown plan as the review document. To make an agreed change, create a JSON draft with `plan-draft`, edit vector or observation content, then use `plan-reseal` to publish a new immutable JSON/Markdown pair. The new pair keeps the original creation time and clearly records its base plan and reseal time. The draft cannot change the target, context, or inventory binding. Do not edit a sealed plan JSON directly, and do not substitute YAML or Markdown for the executable JSON plan.
 
+For a long-running plan or reseal, add a stable `--run-id`. If publication stops after a sealed plan is ready, rerun the same command with `--run-id <id> --resume true` and no target, context, plan, or draft inputs. The command finishes only the missing review-pair artifacts from the retained sealed plan; it does not re-read the repository, call a model, or replace an existing mismatched artifact. Its recovery intent and model-backed plan manifest stay in private work.
+
 Plan prose is stored as review material, not as source evidence. The reviewer removes unsafe control characters and recognizable credential or direct-PII literals before it seals or renders a plan. Do not put secrets or copied source excerpts in a plan; redaction is an extra safeguard, not a safe storage mechanism.
 
 ## Additional observations

@@ -42,7 +42,6 @@ import {
   materializeAuditVectorResultForPersistence,
   modelObservationForAuditCheckpointExecution,
   type PersistedCandidateAwareResult,
-  type SourceDocument,
   type VectorCoverage,
 } from './audit.schema.js';
 import {
@@ -102,6 +101,10 @@ import type {
   SourcePostureRequest,
 } from './phase-input/contract.js';
 import { type RecoveryPhaseInput, recoveryPhaseInputFingerprint } from './recovery-phase-input.js';
+import {
+  createSourceEvidenceResolver,
+  type SourceEvidenceResolver,
+} from './source-evidence-resolver.js';
 import type { SourcePosture, UnverifiedSourcePosture } from './source-posture/contract.js';
 import { sourcePostureFingerprint } from './source-posture/identity.js';
 import { downgradeUninspectedSourcePosture, verifySourcePosture } from './source-posture/verify.js';
@@ -232,7 +235,7 @@ function resolveGroundingResumeBoundary(input: {
 }
 
 /** Canonicalizes exactly the seeds dispatched in this invocation. */
-function canonicalGroundingOutput(input: {
+async function canonicalGroundingOutput(input: {
   vector: AttackPlan['vectors'][number];
   seeds: readonly HypothesisSeed[];
   grounding:
@@ -246,8 +249,8 @@ function canonicalGroundingOutput(input: {
     | undefined;
   evidenceMap: EvidenceMap;
   sourcePosture: SourcePosture;
-  sources: readonly SourceDocument[];
-}): CanonicalCandidateGroundingOutput {
+  sourceEvidence: SourceEvidenceResolver;
+}): Promise<CanonicalCandidateGroundingOutput> {
   if (input.grounding === undefined) {
     throw new AuditRuntimeError(
       'artifact-invalid',
@@ -262,7 +265,7 @@ function canonicalGroundingOutput(input: {
         output: CandidateGroundingOutputSchema.parse(input.grounding.groundings),
         evidenceMap: input.evidenceMap,
         sourcePosture: input.sourcePosture,
-        sources: input.sources,
+        sourceEvidence: input.sourceEvidence,
       });
 }
 
@@ -581,7 +584,10 @@ async function executeVector(
       reviewRequired: [],
     };
   }
-  const scopedSources = await input.sourceSnapshot.documents(scopedSourcePaths);
+  const sourceEvidence = createSourceEvidenceResolver({
+    sourceSnapshot: input.sourceSnapshot,
+    sourcePaths: scopedSourcePaths,
+  });
   const evidencePackage = buildInvestigationEvidencePackage(scopedSourcePaths, []);
   let activeStage: AuditError['stage'] = 'evidence-mapping';
   let retainedEvidenceMapObservation: ModelStageObservation | undefined;
@@ -595,7 +601,7 @@ async function executeVector(
   try {
     const mapRequest = {
       vector,
-      availableSourcePaths: scopedSources.map((source) => source.path),
+      availableSourcePaths: scopedSourcePaths,
       limitations: [...evidencePackage.limitations],
     };
     const priorMapDraft =
@@ -638,13 +644,13 @@ async function executeVector(
     if (mapped.modelObservation?.status === 'failed') {
       return failedEvidenceMapResult(
         vector,
-        scopedSources.length,
+        scopedSourcePaths.length,
         evidencePackage.limitations,
         mapped.modelObservation.errorCode ?? 'provider-failure',
         mapped.modelObservation,
       );
     }
-    const verifiedMap = verifyEvidenceMap(vector, mapped.evidenceMap, scopedSources);
+    const verifiedMap = await verifyEvidenceMap(vector, mapped.evidenceMap, sourceEvidence);
     retainedEvidenceMap = verifiedMap.evidenceMap;
     const mapRequiresToolEvidence =
       verifiedMap.evidenceMap.facts.length > 0 &&
@@ -657,7 +663,7 @@ async function executeVector(
     ) {
       return incompleteEvidenceMapResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         limitations: [
           ...evidencePackage.limitations,
           ...verifiedMap.evidenceMap.limitations,
@@ -729,7 +735,7 @@ async function executeVector(
     if (assessed.modelObservation?.status === 'failed') {
       return failedSourcePostureResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         evidenceMap: verifiedMap.evidenceMap,
         limitations: [...evidencePackage.limitations, ...verifiedMap.evidenceMap.limitations],
         errorCode: assessed.modelObservation.errorCode ?? 'provider-failure',
@@ -758,7 +764,7 @@ async function executeVector(
     if (!verifiedSourcePosture.complete) {
       return incompleteSourcePostureResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         evidenceMap: verifiedMap.evidenceMap,
         sourcePosture: verifiedSourcePosture.sourcePosture,
         limitations: [
@@ -836,7 +842,7 @@ async function executeVector(
     if (investigationObservation?.status === 'failed') {
       return failedVectorStageResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         limitations: evidencePackage.limitations,
         code: investigationObservation.errorCode ?? 'provider-failure',
         stage: 'investigation',
@@ -858,7 +864,7 @@ async function executeVector(
     if (!verifiedClosures.complete) {
       return incompleteInvestigationClosureResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         evidenceMap: verifiedMap.evidenceMap,
         sourcePosture: verifiedSourcePosture.sourcePosture,
         limitations: [
@@ -911,7 +917,7 @@ async function executeVector(
               evidenceMap: verifiedMap.evidenceMap,
               sourcePosture: verifiedSourcePosture.sourcePosture,
               seeds: groundingSeeds,
-              availableSourcePaths: scopedSources.map((source) => source.path),
+              availableSourcePaths: scopedSourcePaths,
             }),
             scopedStageContext(
               input,
@@ -929,7 +935,7 @@ async function executeVector(
     if (grounding?.modelObservation?.status === 'failed') {
       return failedVectorStageResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         limitations: evidencePackage.limitations,
         code: grounding.modelObservation.errorCode ?? 'provider-failure',
         stage: 'candidate-grounding',
@@ -950,7 +956,7 @@ async function executeVector(
         vector,
         candidateAwareDispatchPool,
         admittedSourcePaths,
-        scopedSources,
+        scopedSourcePaths,
         evidencePackageLimitations: evidencePackage.limitations,
         evidenceMap: verifiedMap.evidenceMap,
         initialMapObservation: mapped.modelObservation,
@@ -966,13 +972,13 @@ async function executeVector(
           ? mergeRetryGroundingOutcomes({
               seeds: verifiedSeeds.verified,
               prior: priorDraft.groundings,
-              recovered: canonicalGroundingOutput({
+              recovered: await canonicalGroundingOutput({
                 vector,
                 seeds: groundingSeeds,
                 grounding,
                 evidenceMap: verifiedMap.evidenceMap,
                 sourcePosture: verifiedSourcePosture.sourcePosture,
-                sources: scopedSources,
+                sourceEvidence,
               }),
             })
           : undefined;
@@ -1022,10 +1028,12 @@ async function executeVector(
             groundingNullCount: selectedGroundings.nullCount,
             submittedCandidateCount: traceBoundCandidates.candidates.length,
           };
-    const initiallyVerified = verifyModelFindings<UnverifiedAuditCandidate | VerifiableHypothesis>(
+    const initiallyVerified = await verifyModelFindings<
+      UnverifiedAuditCandidate | VerifiableHypothesis
+    >(
       vector,
       traceBoundCandidates.candidates,
-      scopedSources,
+      sourceEvidence,
       verifiedMap.evidenceMap,
       verifiedSourcePosture.sourcePosture,
     );
@@ -1061,22 +1069,22 @@ async function executeVector(
           'A completed candidate-grounding draft must retain both phase observations.',
         );
       }
+      const durableGroundings =
+        canonicalGroundings ??
+        (await canonicalGroundingOutput({
+          vector,
+          seeds: verifiedSeeds.verified,
+          grounding,
+          evidenceMap: verifiedMap.evidenceMap,
+          sourcePosture: verifiedSourcePosture.sourcePosture,
+          sourceEvidence,
+        }));
       await persistAuditCheckpoint(() =>
         input.onCandidateGroundingDraft?.({
           vectorId: vector.vectorId,
           evidenceMapFingerprint: currentEvidenceMapFingerprint,
           sourcePostureFingerprint: currentSourcePostureFingerprint,
-          groundings: AuditCandidateGroundingDraftSchema.shape.groundings.parse(
-            canonicalGroundings ??
-              canonicalGroundingOutput({
-                vector,
-                seeds: verifiedSeeds.verified,
-                grounding,
-                evidenceMap: verifiedMap.evidenceMap,
-                sourcePosture: verifiedSourcePosture.sourcePosture,
-                sources: scopedSources,
-              }),
-          ),
+          groundings: AuditCandidateGroundingDraftSchema.shape.groundings.parse(durableGroundings),
           closures: AuditCandidateGroundingDraftSchema.shape.closures.parse(
             verifiedClosures.closures,
           ),
@@ -1122,7 +1130,7 @@ async function executeVector(
               evidenceMap: verifiedMap.evidenceMap,
               sourcePosture: verifiedSourcePosture.sourcePosture,
               hypothesis,
-              availableSourcePaths: scopedSources.map((source) => source.path),
+              availableSourcePaths: scopedSourcePaths,
             });
             return input.verify(request, stageContext);
           },
@@ -1135,7 +1143,7 @@ async function executeVector(
     if (verificationResults.some((result) => result.checkpointPersistenceFailed === true)) {
       return failedVectorStageResult({
         vector,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         limitations: evidencePackage.limitations,
         code: 'checkpoint-persistence-failed',
         stage: 'verification',
@@ -1193,7 +1201,7 @@ async function executeVector(
         vector,
         candidateAwareDispatchPool,
         admittedSourcePaths,
-        scopedSources,
+        scopedSourcePaths,
         evidencePackageLimitations: evidencePackage.limitations,
         evidenceMap: verifiedMap.evidenceMap,
         initialMapObservation: mapped.modelObservation,
@@ -1232,7 +1240,7 @@ async function executeVector(
                     evidenceMap: verifiedMap.evidenceMap,
                     sourcePosture: verifiedSourcePosture.sourcePosture,
                     hypothesis,
-                    availableSourcePaths: scopedSources.map((source) => source.path),
+                    availableSourcePaths: scopedSourcePaths,
                   });
                   return countercheck(request, stageContext);
                 },
@@ -1312,7 +1320,7 @@ async function executeVector(
         vectorId: vector.vectorId,
         planned: true,
         completed: closureComplete,
-        matchedSourcePaths: scopedSources.length,
+        matchedSourcePaths: scopedSourcePaths.length,
         evidenceMapFactCount: verifiedMap.evidenceMap.facts.length,
         evidenceMapUnansweredObligationCount:
           verifiedMap.evidenceMap.unansweredPlanObligations.length,
@@ -1363,7 +1371,7 @@ async function executeVector(
     const code = errorCode(error);
     return failedVectorStageResult({
       vector,
-      matchedSourcePaths: scopedSources.length,
+      matchedSourcePaths: scopedSourcePaths.length,
       limitations: evidencePackage.limitations,
       code,
       stage: activeStage,
@@ -1389,7 +1397,7 @@ async function repairAndRestartVector(input: {
   vector: AttackPlan['vectors'][number];
   candidateAwareDispatchPool: CandidateAwareDispatchPool;
   admittedSourcePaths: readonly string[];
-  scopedSources: readonly SourceDocument[];
+  scopedSourcePaths: readonly string[];
   evidencePackageLimitations: readonly string[];
   evidenceMap: EvidenceMap;
   initialMapObservation?: ModelStageObservation;
@@ -1410,7 +1418,7 @@ async function repairAndRestartVector(input: {
   if (priorNoProgress) {
     return incompleteEvidenceMapResult({
       vector: input.vector,
-      matchedSourcePaths: input.scopedSources.length,
+      matchedSourcePaths: input.scopedSourcePaths.length,
       limitations: [
         ...input.evidencePackageLimitations,
         'The same candidate-blind evidence-map repair gap already completed without a new neutral fact.',
@@ -1424,7 +1432,7 @@ async function repairAndRestartVector(input: {
   if (repairer === undefined) {
     return incompleteEvidenceMapResult({
       vector: input.vector,
-      matchedSourcePaths: input.scopedSources.length,
+      matchedSourcePaths: input.scopedSourcePaths.length,
       limitations: [
         ...input.evidencePackageLimitations,
         'A later audit phase identified missing neutral evidence, but no mapper repair stage is configured.',
@@ -1436,7 +1444,7 @@ async function repairAndRestartVector(input: {
   const repaired = await repairer(
     {
       vector: input.vector,
-      availableSourcePaths: input.scopedSources.map((source) => source.path),
+      availableSourcePaths: [...input.scopedSourcePaths],
       limitations: [...input.evidencePackageLimitations],
       evidenceMap: input.evidenceMap,
       insufficiencies,
@@ -1449,7 +1457,7 @@ async function repairAndRestartVector(input: {
   if (repaired.modelObservation?.status === 'failed') {
     return failedVectorStageResult({
       vector: input.vector,
-      matchedSourcePaths: input.scopedSources.length,
+      matchedSourcePaths: input.scopedSourcePaths.length,
       limitations: input.evidencePackageLimitations,
       code: repaired.modelObservation.errorCode ?? 'provider-failure',
       stage: 'evidence-map-repair',
@@ -1489,7 +1497,7 @@ async function repairAndRestartVector(input: {
     if (!isCheckpointPersistenceError(error)) throw error;
     return failedVectorStageResult({
       vector: input.vector,
-      matchedSourcePaths: input.scopedSources.length,
+      matchedSourcePaths: input.scopedSourcePaths.length,
       limitations: input.evidencePackageLimitations,
       code: 'checkpoint-persistence-failed',
       stage: 'evidence-map-repair',
@@ -1503,7 +1511,7 @@ async function repairAndRestartVector(input: {
   if (appended.appendedFactCount === 0) {
     return incompleteEvidenceMapResult({
       vector: input.vector,
-      matchedSourcePaths: input.scopedSources.length,
+      matchedSourcePaths: input.scopedSourcePaths.length,
       limitations: [
         ...input.evidencePackageLimitations,
         'The candidate-blind mapper found no additional neutral source fact for the same declared evidence gap.',

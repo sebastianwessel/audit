@@ -57,25 +57,21 @@ export const RuntimeConfigurationSchema = z
       .string()
       .trim()
       .min(1)
-      .max(1_024)
       .default(RuntimeConfigurationDefaults.publicArtifactDirectory),
     privateWorkDirectory: z
       .string()
       .trim()
       .min(1)
-      .max(1_024)
       .default(RuntimeConfigurationDefaults.privateWorkDirectory),
     evaluationCorpusRoot: z
       .string()
       .trim()
       .min(1)
-      .max(1_024)
       .default(RuntimeConfigurationDefaults.evaluationCorpusRoot),
     evaluationOutputRoot: z
       .string()
       .trim()
       .min(1)
-      .max(1_024)
       .default(RuntimeConfigurationDefaults.evaluationOutputRoot),
     maxParallelVectors: MaxParallelVectorsSchema.default(
       RuntimeConfigurationDefaults.maxParallelVectors,

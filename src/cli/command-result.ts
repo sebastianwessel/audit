@@ -13,6 +13,7 @@ const CommandArtifactKindSchema = z.enum([
   'report-markdown',
   'guidance-json',
   'guidance-markdown',
+  'guidance-checkpoint',
   'lineage-json',
   'run-manifest',
 ]);

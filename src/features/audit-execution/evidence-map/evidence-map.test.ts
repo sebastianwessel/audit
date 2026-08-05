@@ -15,6 +15,8 @@ import {
   EvidenceMapRepairRequestSchema,
   EvidenceMapRequestSchema,
 } from '../../audit-execution/phase-input/contract.js';
+import { createSourceEvidenceResolver } from '../../audit-execution/source-evidence-resolver.js';
+import { createSourceSnapshot } from '../../target-inventory/source-snapshot.js';
 import {
   EvidenceMapModelInputSchema,
   EvidenceMapRepairModelInputSchema,
@@ -40,7 +42,7 @@ test('fails closed when a tool-guided evidence map completes without scoped sour
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
-    sources: sourcesFor('reviewed.unknown'),
+    sourceEvidence: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -103,7 +105,7 @@ test('maps neutral source facts after inspection when advisory context is hostil
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
-    sources: sourcesFor('reviewed.unknown'),
+    sourceEvidence: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -175,7 +177,7 @@ test('fails closed when the only source-tool attempt is rejected', async () => {
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
-    sources: sourcesFor('reviewed.unknown'),
+    sourceEvidence: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -217,7 +219,7 @@ test('fails closed instead of choosing conflicting map facts from overflow parti
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
-    sources: sourcesFor('a.unknown', 'b.unknown'),
+    sourceEvidence: sourcesFor('a.unknown', 'b.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -259,7 +261,7 @@ test('retries an uninspected tool loop inside the same scope before failing cove
 
   const result = await runEvidenceMapStage({
     modelProvider: provider,
-    sources: sourcesFor('reviewed.unknown'),
+    sourceEvidence: sourcesFor('reviewed.unknown'),
     filesystem: await createJailedReadOnlyFilesystem({ targetRoot }),
     request: EvidenceMapRequestSchema.parse({
       vector: vector(),
@@ -327,13 +329,13 @@ test('repairs a map with only generic gap data and fresh scoped source inspectio
         },
       ],
     }),
-    sources: [
+    sourceEvidence: sourceEvidenceFor([
       {
         path: 'reviewed.unknown',
         content: 'value = request.input;\n',
         languageHint: null,
       },
-    ],
+    ]),
     context: [],
     sessionId: 'evidence-map-repair-stage-01',
     modelName: undefined,
@@ -384,11 +386,22 @@ function vector() {
 }
 
 function sourcesFor(...paths: readonly string[]) {
-  return paths.map((path) => ({
-    path,
-    content: 'value = request.input;\n',
-    languageHint: null,
-  }));
+  return sourceEvidenceFor(
+    paths.map((path) => ({
+      path,
+      content: 'value = request.input;\n',
+      languageHint: null,
+    })),
+  );
+}
+
+function sourceEvidenceFor(
+  sources: readonly { path: string; content: string; languageHint: string | null }[],
+) {
+  return createSourceEvidenceResolver({
+    sourceSnapshot: createSourceSnapshot(sources),
+    sourcePaths: sources.map((source) => source.path),
+  });
 }
 
 class OverflowFirstObjectProvider extends FakeModelProvider {
