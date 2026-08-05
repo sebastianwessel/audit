@@ -32,15 +32,12 @@
 | context | Explicit, allowlisted files that explain project-specific behavior. |
 | plan | Executable plan JSON for an audit; organizational review is external. |
 | draft | Relative private-work path for an editable plan draft. It is accepted only by `plan-draft` and `plan-reseal`. |
-| work | Private local directory for plans, snapshots, checkpoints, locks, and guidance. Never upload it as a CI artifact. |
-| public-output | Publishable directory for source-minimal reports, lineage, and run manifests. Keep it disjoint from the target, context, and private work. |
-| max-parallel-vectors | Optional positive transport-queue capacity for independent plan-vector work and all run-wide verifier/countercheck dispatches. It never limits candidates, evidence, files, or total work. |
 | run-id | Optional stable audit identifier; required together with `resume=true`. |
 | resume | `true` reuses matching checkpoints and the retained immutable source/context snapshot for the supplied run id. It does not re-read the current repository contents. |
 | retry-unfinished | `true` with `resume=true` resumes incomplete, failed, or cancelled work from its smallest exact incomplete boundary while preserving every valid completed predecessor. A matching grounding draft is a boundary even before a verifier checkpoint exists. |
 | previous/current | Relative report JSON paths used by `lineage`; both must be under the selected public artifact root. |
 
-Options are command-specific. Unknown flags, or flags that belong to another command, are rejected before the reviewer loads configuration or opens a repository. Runtime configuration, including provider, model, credential-variable name, verifier route, and concurrency, comes only from the resolved environment configuration and is never a command option.
+Options are command-specific. Unknown flags, including removed `--work` and `--public-output` flags, are rejected before the reviewer loads configuration or opens a repository. Runtime configuration, including provider, model, credential-variable name, private-work root, public-artifact root, verifier route, and concurrency, comes only from the resolved environment configuration and is never a command option.
 
 
 ## Machine-readable command results
@@ -48,7 +45,7 @@ Options are command-specific. Unknown flags, or flags that belong to another com
 Add `--result-format json` to any product command when a script needs the artifact created by the command. The command writes one strict JSON object to stdout instead of human text. It contains the command, terminal status, exit-code meaning, stable IDs, and relative artifact paths only—never source, context, prompts, credentials, raw model output, or Markdown.
 
 ```bash
-bun run start plan --target ./repository --work .audit-work --result-format json
+bun run start plan --target ./repository --result-format json
 ```
 
 Use the returned `artifacts` paths directly in the next command. For example, capture the plan JSON path, pass it to `plan-draft`, then use the returned resealed plan JSON path for `audit`; do not discover private files or parse prose.
@@ -76,8 +73,6 @@ Use the command-specific output for the accepted flags, required inputs, and a s
 ```bash
 bun run start guidance \
   --target ./repository \
-  --work .audit-work \
-  --public-output .audit-artifacts \
   --plan plans/<plan-id>.json \
   --report reports/<report-id>.json
 ```
@@ -97,14 +92,12 @@ To change the planned scope, obligations, or limitations, derive a constrained d
 
 ```bash
 bun run start plan-draft \
-  --work .audit-work \
   --plan plans/<plan-id>.json \
   --draft plan-drafts/review.json
 
 # Edit plan-drafts/review.json in a reviewer or plan-authoring workflow.
 
 bun run start plan-reseal \
-  --work .audit-work \
   --plan plans/<plan-id>.json \
   --draft plan-drafts/review.json
 ```
@@ -139,7 +132,6 @@ Use lineage to track exact, previously reported findings across two audit report
 
 ```bash
 bun run start lineage \
-  --public-output .audit-artifacts \
   --previous reports/report-previous.json \
   --current reports/report-current.json
 ```

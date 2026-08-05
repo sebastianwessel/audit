@@ -6,15 +6,12 @@ test('accepts only the declared option set for each CLI command', () => {
   expect(() =>
     assertValidCommandOptions('plan', {
       target: 'target',
-      work: 'work',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('audit', {
       target: 'target',
       plan: 'plans/plan.json',
-      work: 'work',
-      'public-output': 'public-artifacts',
       resume: 'true',
       'retry-unfinished': 'false',
     }),
@@ -31,34 +28,29 @@ test('accepts only the declared option set for each CLI command', () => {
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('report', {
-      'public-output': 'public-artifacts',
       report: 'reports/audit.json',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('lineage', {
-      'public-output': 'public-artifacts',
       previous: 'reports/previous.json',
       current: 'reports/current.json',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('plan-draft', {
-      work: 'private-work',
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('plan-reseal', {
-      work: 'private-work',
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
     }),
   ).not.toThrow();
   expect(() =>
     assertValidCommandOptions('discard', {
-      work: 'private-work',
       plan: 'plans/plan.json',
       'run-id': 'audit-run-01',
     }),
@@ -73,6 +65,8 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
     'Unknown option --output',
   );
   for (const option of [
+    'work',
+    'public-output',
     'provider',
     'model',
     'api-key-env',
@@ -80,7 +74,10 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
     'max-estimated-cost-usd',
   ]) {
     expect(() =>
-      assertValidCommandOptions('plan', { target: 'target', [option]: 'value' }),
+      assertValidCommandOptions('plan', {
+        target: 'target',
+        [option]: 'value',
+      }),
     ).toThrow(`Unknown option --${option}`);
   }
   expect(() => assertValidCommandOptions('audit', { target: 'target' })).toThrow(
@@ -88,34 +85,22 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
   );
   expect(() =>
     assertValidCommandOptions('report', {
-      'public-output': 'public-artifacts',
       report: 'reports/audit.json',
       provider: 'openai',
     }),
   ).toThrow('Unknown option --provider');
   expect(() =>
     assertValidCommandOptions('lineage', {
-      'public-output': 'public-artifacts',
       previous: 'reports/previous.json',
       current: 'reports/current.json',
       resume: 'true',
     }),
   ).toThrow('Unknown option --resume');
-  expect(() => assertValidCommandOptions('report', { report: 'reports/audit.json' })).toThrow(
-    'Missing required option --public-output',
+  expect(() => assertValidCommandOptions('plan-draft', { plan: 'plans/plan.json' })).toThrow(
+    'Missing required option --draft',
   );
   expect(() =>
-    assertValidCommandOptions('plan-draft', {
-      plan: 'plans/plan.json',
-      draft: 'plan-drafts/review.json',
-    }),
-  ).toThrow('Missing required option --work');
-  expect(() =>
-    assertValidCommandOptions('plan-draft', { work: 'private-work', plan: 'plans/plan.json' }),
-  ).toThrow('Missing required option --draft');
-  expect(() =>
     assertValidCommandOptions('plan-reseal', {
-      work: 'private-work',
       plan: 'plans/plan.json',
       draft: 'plan-drafts/review.json',
       provider: 'openai',
@@ -123,14 +108,12 @@ test('rejects unknown and command-incompatible CLI options before I/O', () => {
   ).toThrow('Unknown option --provider');
   expect(() =>
     assertValidCommandOptions('discard', {
-      work: 'private-work',
       plan: 'plans/plan.json',
     }),
   ).toThrow('Missing required option --run-id');
   expect(() =>
     assertValidCommandOptions('discard', {
       target: 'target',
-      work: 'private-work',
       plan: 'plans/plan.json',
       'run-id': 'audit-run-01',
     }),

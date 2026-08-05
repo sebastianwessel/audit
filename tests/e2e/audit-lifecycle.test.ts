@@ -3,7 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FakeModelProvider } from '@purista/harness/testing';
-import { prepareProductRoots, runAudit } from '../../src/cli/main.js';
+import { prepareConfiguredProductRoots } from '../../src/cli/configured-roots.js';
+import { runAudit } from '../../src/cli/main.js';
 import { AttackPlanSchema, createPlan } from '../../src/features/attack-planning/index.js';
 import {
   AuditRunAttemptSchema,
@@ -64,10 +65,12 @@ test('audit resume uses the retained snapshot after the target changes', async (
       },
     ],
   });
-  const rootsTopology = await prepareProductRoots({
+  const rootsTopology = await prepareConfiguredProductRoots({
+    configuration: {
+      privateWorkDirectory: privateWorkRoot,
+      publicArtifactDirectory: publicArtifactRoot,
+    },
     targetRoot,
-    publicArtifactRoot,
-    privateWorkRoot,
   });
   await writeJsonArtifact(
     rootsTopology.privateWorkRoot,
@@ -196,10 +199,12 @@ test('a manifest publication failure retains private ownership after report file
       },
     ],
   });
-  const rootsTopology = await prepareProductRoots({
+  const rootsTopology = await prepareConfiguredProductRoots({
+    configuration: {
+      privateWorkDirectory: privateWorkRoot,
+      publicArtifactDirectory: publicArtifactRoot,
+    },
     targetRoot,
-    publicArtifactRoot,
-    privateWorkRoot,
   });
   await writeJsonArtifact(
     rootsTopology.privateWorkRoot,

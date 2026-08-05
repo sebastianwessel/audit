@@ -12,13 +12,11 @@ const SharedResultFormatOptionsSchema = z.strictObject({
 const PlanCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
   target: OptionValueSchema,
   context: OptionValueSchema.optional(),
-  work: OptionValueSchema.optional(),
   'target-name': OptionValueSchema.optional(),
 });
 
 const AuditCommandOptionsSchema = PlanCommandOptionsSchema.extend({
   plan: OptionValueSchema,
-  'public-output': OptionValueSchema.optional(),
   'run-id': OptionValueSchema.optional(),
   resume: OptionValueSchema.optional(),
   'retry-unfinished': OptionValueSchema.optional(),
@@ -27,32 +25,27 @@ const AuditCommandOptionsSchema = PlanCommandOptionsSchema.extend({
 const GuidanceCommandOptionsSchema = PlanCommandOptionsSchema.extend({
   plan: OptionValueSchema,
   report: OptionValueSchema,
-  'public-output': OptionValueSchema.optional(),
   'run-id': OptionValueSchema.optional(),
   resume: OptionValueSchema.optional(),
   'retry-unfinished': OptionValueSchema.optional(),
 }).strict();
 
 const ReportCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
-  'public-output': OptionValueSchema,
   report: OptionValueSchema,
 });
 
 const LineageCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
-  'public-output': OptionValueSchema,
   previous: OptionValueSchema,
   current: OptionValueSchema,
 });
 
 const PlanAuthoringCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
-  work: OptionValueSchema,
   plan: OptionValueSchema,
   draft: OptionValueSchema,
 });
 
 /** Discard owns only one validated private-work run; it cannot address other roots. */
 const DiscardCommandOptionsSchema = SharedResultFormatOptionsSchema.extend({
-  work: OptionValueSchema,
   plan: OptionValueSchema,
   'run-id': OptionValueSchema,
 });

@@ -29,25 +29,37 @@ import {
   readJsonArtifact,
   writeJsonArtifact,
 } from '../platform/artifact-store/json-artifact-store.js';
+import { loadRuntimeConfiguration } from '../platform/configuration/environment.js';
 import { createJailedReadOnlyFilesystem } from '../platform/filesystem/index.js';
 import { createStableId, sha256 } from '../shared/contracts/core.js';
 import { AuditRuntimeError } from '../shared/errors/audit-runtime-error.js';
 import { parseHelpRequest, renderCliHelp } from './command-catalog.js';
+import { prepareConfiguredProductRoots } from './configured-roots.js';
 import {
   assertAuditRunDiscardBinding,
   assertAuditRunReuse,
   auditRunOutcome,
   cliFailureExitCode,
   parseCliArguments,
-  prepareProductRoots,
   recoverAuditResumeSourceCapture,
   runCli,
 } from './main.js';
 
+function runtimeForRoots(privateWorkDirectory: string, publicArtifactDirectory: string) {
+  return () =>
+    loadRuntimeConfiguration({
+      environment: {
+        AUDIT_PRIVATE_WORK_DIR: privateWorkDirectory,
+        AUDIT_PUBLIC_ARTIFACT_DIR: publicArtifactDirectory,
+      },
+      loadDotEnv: false,
+    });
+}
+
 test('CLI parsing accepts only explicit command option pairs', () => {
-  expect(parseCliArguments(['plan', '--target', 'fixture', '--work', 'work'])).toEqual({
+  expect(parseCliArguments(['plan', '--target', 'fixture'])).toEqual({
     command: 'plan',
-    options: { target: 'fixture', work: 'work' },
+    options: { target: 'fixture' },
   });
   expect(
     parseCliArguments([
@@ -59,13 +71,14 @@ test('CLI parsing accepts only explicit command option pairs', () => {
     ]),
   ).toEqual({
     command: 'lineage',
-    options: { previous: 'reports/previous.json', current: 'reports/current.json' },
+    options: {
+      previous: 'reports/previous.json',
+      current: 'reports/current.json',
+    },
   });
   expect(
     parseCliArguments([
       'plan-draft',
-      '--work',
-      'private-work',
       '--plan',
       'plans/plan.json',
       '--draft',
@@ -73,7 +86,7 @@ test('CLI parsing accepts only explicit command option pairs', () => {
     ]),
   ).toEqual({
     command: 'plan-draft',
-    options: { work: 'private-work', plan: 'plans/plan.json', draft: 'plan-drafts/review.json' },
+    options: { plan: 'plans/plan.json', draft: 'plan-drafts/review.json' },
   });
   expect(() => parseCliArguments(['plan', '--target'])).toThrow('Options must be unique');
   expect(() => parseCliArguments(['scan'])).toThrow('Expected one of');
@@ -133,20 +146,16 @@ test('discard removes only the exact plan-bound private audit run without a prov
         snapshotState: 'not-retained',
       },
     );
-    await mkdir(join(privateWork, 'checkpoints', secondRunId), { recursive: true });
+    await mkdir(join(privateWork, 'checkpoints', secondRunId), {
+      recursive: true,
+    });
     await writeFile(join(privateWork, 'checkpoints', secondRunId, 'private.json'), '{}\n', 'utf8');
     await writeFile(join(publicArtifacts, 'preserved.json'), '{}\n', 'utf8');
 
     await expect(
-      runCli([
-        'discard',
-        '--work',
-        privateWork,
-        '--plan',
-        `plans/${plan.planId}.json`,
-        '--run-id',
-        runId,
-      ]),
+      runCli(['discard', '--plan', `plans/${plan.planId}.json`, '--run-id', runId], {
+        loadRuntimeConfiguration: runtimeForRoots(privateWork, publicArtifacts),
+      }),
     ).resolves.toBe(0);
 
     expect(await Bun.file(join(privateWork, `runs/${runId}.attempt.json`)).exists()).toBe(false);
@@ -200,20 +209,18 @@ test('discard rejects an active lease, mismatched binding, and out-of-scope root
     );
     expect(plan.planId).not.toBe(otherPlan.planId);
     expect(() =>
-      assertAuditRunDiscardBinding({ runId, plan: otherPlan, attempt: retainedAttempt }),
+      assertAuditRunDiscardBinding({
+        runId,
+        plan: otherPlan,
+        attempt: retainedAttempt,
+      }),
     ).toThrow('does not match');
 
     const activeLease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
     await expect(
-      runCli([
-        'discard',
-        '--work',
-        privateWork,
-        '--plan',
-        `plans/${plan.planId}.json`,
-        '--run-id',
-        runId,
-      ]),
+      runCli(['discard', '--plan', `plans/${plan.planId}.json`, '--run-id', runId], {
+        loadRuntimeConfiguration: runtimeForRoots(privateWork, publicArtifacts),
+      }),
     ).rejects.toMatchObject({ code: 'artifact-lease-unavailable' });
     await expect(access(join(privateWork, 'checkpoints', runId))).resolves.toBeNull();
     await activeLease.release();
@@ -222,7 +229,12 @@ test('discard rejects an active lease, mismatched binding, and out-of-scope root
     if (vector === undefined) throw new Error('Fixture requires one audit vector.');
     const tamperedPlan = AttackPlanSchema.parse({
       ...plan,
-      vectors: [{ ...vector, rationale: 'This schema-valid plan was edited without resealing.' }],
+      vectors: [
+        {
+          ...vector,
+          rationale: 'This schema-valid plan was edited without resealing.',
+        },
+      ],
     });
     await writeJsonArtifact(
       privateWork,
@@ -231,35 +243,21 @@ test('discard rejects an active lease, mismatched binding, and out-of-scope root
       tamperedPlan,
     );
     await expect(
-      runCli([
-        'discard',
-        '--work',
-        privateWork,
-        '--plan',
-        'plans/tampered-plan.json',
-        '--run-id',
-        runId,
-      ]),
+      runCli(['discard', '--plan', 'plans/tampered-plan.json', '--run-id', runId], {
+        loadRuntimeConfiguration: runtimeForRoots(privateWork, publicArtifacts),
+      }),
     ).rejects.toMatchObject({ code: 'artifact-invalid' });
     await expect(access(join(privateWork, 'checkpoints', runId))).resolves.toBeNull();
 
     await expect(
-      runCli([
-        'discard',
-        '--work',
-        privateWork,
-        '--plan',
-        `plans/${otherPlan.planId}.json`,
-        '--run-id',
-        runId,
-      ]),
+      runCli(['discard', '--plan', `plans/${otherPlan.planId}.json`, '--run-id', runId], {
+        loadRuntimeConfiguration: runtimeForRoots(privateWork, publicArtifacts),
+      }),
     ).rejects.toMatchObject({ code: 'artifact-invalid' });
     await expect(access(join(privateWork, 'checkpoints', runId))).resolves.toBeNull();
     await expect(
       runCli([
         'discard',
-        '--work',
-        privateWork,
         '--public-output',
         publicArtifacts,
         '--plan',
@@ -279,6 +277,20 @@ test('CLI rejects an unknown option before loading configuration or opening root
   await expect(
     runCli(['plan', '--target', 'does-not-matter', '--targett', 'typo']),
   ).rejects.toThrow('Unknown option --targett');
+  await expect(
+    runCli(['audit', '--target', 'does-not-matter', '--plan', 'plans/plan.json', '--work', 'x'], {
+      loadRuntimeConfiguration: async () => {
+        throw new Error('Configuration must not load for a removed option.');
+      },
+    }),
+  ).rejects.toThrow('Unknown option --work');
+  await expect(
+    runCli(['report', '--report', 'reports/audit.json', '--public-output', 'x'], {
+      loadRuntimeConfiguration: async () => {
+        throw new Error('Configuration must not load for a removed option.');
+      },
+    }),
+  ).rejects.toThrow('Unknown option --public-output');
 });
 
 test('product CLI validates structured-output compatibility before opening product roots', async () => {
@@ -286,7 +298,7 @@ test('product CLI validates structured-output compatibility before opening produ
 
   expect(source.indexOf('assertAuditWorkflowStructuredOutputCompatibility(')).toBeGreaterThan(-1);
   expect(source.indexOf('assertAuditWorkflowStructuredOutputCompatibility(')).toBeLessThan(
-    source.indexOf('const roots = await prepareProductRoots('),
+    source.indexOf('const roots = await prepareConfiguredProductRoots('),
   );
 });
 
@@ -319,21 +331,27 @@ test('plan authoring commands create a constrained draft and publish a new plan 
     await writeJsonArtifact(work, `plans/${basePlan.planId}.json`, AttackPlanSchema, basePlan);
 
     await expect(
-      runCli([
-        'plan-draft',
-        '--work',
-        work,
-        '--plan',
-        `plans/${basePlan.planId}.json`,
-        '--draft',
-        'plan-drafts/review.json',
-      ]),
+      runCli(
+        [
+          'plan-draft',
+          '--plan',
+          `plans/${basePlan.planId}.json`,
+          '--draft',
+          'plan-drafts/review.json',
+        ],
+        {
+          loadRuntimeConfiguration: runtimeForRoots(work, join(work, 'public-artifacts')),
+        },
+      ),
     ).resolves.toBe(0);
 
     const draft = await readJsonArtifact(work, 'plan-drafts/review.json', AttackPlanDraftSchema);
     const vector = draft.vectors[0];
     if (vector === undefined) throw new Error('Fixture requires one draft vector.');
-    const editedDraft = { ...draft, vectors: [{ ...vector, scopeGlobs: ['private.unknown'] }] };
+    const editedDraft = {
+      ...draft,
+      vectors: [{ ...vector, scopeGlobs: ['private.unknown'] }],
+    };
     await writeJsonArtifact(work, 'plan-drafts/review.json', AttackPlanDraftSchema, editedDraft);
     const resealed = resealAttackPlanDraft({
       basePlan,
@@ -342,15 +360,18 @@ test('plan authoring commands create a constrained draft and publish a new plan 
     });
 
     await expect(
-      runCli([
-        'plan-reseal',
-        '--work',
-        work,
-        '--plan',
-        `plans/${basePlan.planId}.json`,
-        '--draft',
-        'plan-drafts/review.json',
-      ]),
+      runCli(
+        [
+          'plan-reseal',
+          '--plan',
+          `plans/${basePlan.planId}.json`,
+          '--draft',
+          'plan-drafts/review.json',
+        ],
+        {
+          loadRuntimeConfiguration: runtimeForRoots(work, join(work, 'public-artifacts')),
+        },
+      ),
     ).resolves.toBe(0);
 
     await expect(
@@ -360,15 +381,18 @@ test('plan authoring commands create a constrained draft and publish a new plan 
       'read-only review projection',
     );
     await expect(
-      runCli([
-        'plan-draft',
-        '--work',
-        work,
-        '--plan',
-        `plans/${basePlan.planId}.json`,
-        '--draft',
-        'plan-drafts/review.json',
-      ]),
+      runCli(
+        [
+          'plan-draft',
+          '--plan',
+          `plans/${basePlan.planId}.json`,
+          '--draft',
+          'plan-drafts/review.json',
+        ],
+        {
+          loadRuntimeConfiguration: runtimeForRoots(work, join(work, 'public-artifacts')),
+        },
+      ),
     ).rejects.toMatchObject({ code: 'artifact-already-exists' });
   } finally {
     await rm(work, { force: true, recursive: true });
@@ -481,7 +505,11 @@ test('run reuse rejects stale or mismatched recovery identity before dispatch', 
     }),
   ).toThrow('does not match');
   expect(() =>
-    assertAuditRunReuse({ resume: true, plan, priorAttempt: { ...prior, status: 'completed' } }),
+    assertAuditRunReuse({
+      resume: true,
+      plan,
+      priorAttempt: { ...prior, status: 'completed' },
+    }),
   ).toThrow('cannot be resumed');
   expect(() => assertAuditRunReuse({ resume: true, plan, priorAttempt: prior })).not.toThrow();
 });
@@ -525,7 +553,11 @@ test('audit resume promotes a sealed snapshot that survived before attempt-state
         },
       ],
     });
-    await retainTargetSnapshot({ outputRoot: privateWork, runId, capture: captured });
+    await retainTargetSnapshot({
+      outputRoot: privateWork,
+      runId,
+      capture: captured,
+    });
     await writeFile(join(targetRoot, 'source.unknown'), 'changed after crash\n', 'utf8');
     const priorAttempt = AuditRunAttemptSchema.parse({
       schemaVersion: 3,
@@ -559,7 +591,11 @@ test('audit resume promotes a sealed snapshot that survived before attempt-state
       }
       expect(recovered.attempt.snapshotState).toBe('retained');
       expect(await recovered.retainedSnapshot.snapshot.documents(['source.unknown'])).toEqual([
-        { path: 'source.unknown', content: 'sealed before crash\n', languageHint: null },
+        {
+          path: 'source.unknown',
+          content: 'sealed before crash\n',
+          languageHint: null,
+        },
       ]);
       await expect(
         readJsonArtifact(privateWork, `runs/${runId}.attempt.json`, AuditRunAttemptSchema),
@@ -583,21 +619,22 @@ test('guidance refuses concurrent same-run ownership before opening a source cap
     const lease = await acquireArtifactLease(privateWork, `work/leases/${runId}.lock`);
     try {
       await expect(
-        runCli([
-          'guidance',
-          '--target',
-          targetRoot,
-          '--work',
-          privateWork,
-          '--public-output',
-          publicArtifacts,
-          '--plan',
-          'plans/missing.json',
-          '--report',
-          'reports/missing.json',
-          '--run-id',
-          runId,
-        ]),
+        runCli(
+          [
+            'guidance',
+            '--target',
+            targetRoot,
+            '--plan',
+            'plans/missing.json',
+            '--report',
+            'reports/missing.json',
+            '--run-id',
+            runId,
+          ],
+          {
+            loadRuntimeConfiguration: runtimeForRoots(privateWork, publicArtifacts),
+          },
+        ),
       ).rejects.toMatchObject({ code: 'artifact-lease-unavailable' });
       expect(await Bun.file(join(privateWork, 'work', 'snapshots', runId)).exists()).toBe(false);
     } finally {
@@ -628,7 +665,11 @@ test('discard binding requires the exact retained attempt identity', () => {
     'does not match',
   );
   expect(() =>
-    assertAuditRunDiscardBinding({ runId: attempt.runId, plan, attempt: undefined }),
+    assertAuditRunDiscardBinding({
+      runId: attempt.runId,
+      plan,
+      attempt: undefined,
+    }),
   ).toThrow('requires its retained immutable attempt record');
 });
 
@@ -662,10 +703,12 @@ test('product roots reject output overlap before output creation', async () => {
   const target = await mkdtemp(join(tmpdir(), 'audit-cli-overlap-'));
   try {
     await expect(
-      prepareProductRoots({
+      prepareConfiguredProductRoots({
+        configuration: {
+          privateWorkDirectory: join(target, 'private-work'),
+          publicArtifactDirectory: target,
+        },
         targetRoot: target,
-        publicArtifactRoot: target,
-        privateWorkRoot: join(target, 'private-work'),
       }),
     ).rejects.toMatchObject({ code: 'artifact-root-topology-invalid' });
   } finally {
@@ -725,20 +768,25 @@ test('lineage command compares only two jailed report artifacts without a provid
   await writeJsonArtifact(output, 'reports/previous.json', PublicAuditReportSchema, previous);
   await writeJsonArtifact(output, 'reports/current.json', PublicAuditReportSchema, current);
 
+  await expect(
+    runCli(['report', '--report', 'reports/current.json'], {
+      loadRuntimeConfiguration: runtimeForRoots(join(output, 'private-work'), output),
+    }),
+  ).resolves.toBe(0);
+
   expect(
-    await runCli([
-      'lineage',
-      '--public-output',
-      output,
-      '--previous',
-      'reports/previous.json',
-      '--current',
-      'reports/current.json',
-    ]),
+    await runCli(
+      ['lineage', '--previous', 'reports/previous.json', '--current', 'reports/current.json'],
+      {
+        loadRuntimeConfiguration: runtimeForRoots(join(output, 'private-work'), output),
+      },
+    ),
   ).toBe(0);
 
   const lineageId = createStableId('lineage', `${previous.reportId}\0${current.reportId}`);
   expect(
     await readJsonArtifact(output, `lineage/${lineageId}.json`, AuditReportLineageSchema),
-  ).toMatchObject({ counts: { new: 0, persisting: 0, resolved: 0, unknown: 0 } });
+  ).toMatchObject({
+    counts: { new: 0, persisting: 0, resolved: 0, unknown: 0 },
+  });
 });

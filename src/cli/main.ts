@@ -76,11 +76,7 @@ import {
   writeNewJsonArtifact,
   writeNewMarkdownArtifact,
 } from '../platform/artifact-store/json-artifact-store.js';
-import {
-  ensureSafeOutputRoot,
-  type RootTopology,
-  validateRootTopology,
-} from '../platform/artifact-store/root-topology.js';
+import type { RootTopology } from '../platform/artifact-store/root-topology.js';
 import {
   type LoadedRuntimeConfiguration,
   loadRuntimeConfiguration,
@@ -100,6 +96,11 @@ import {
 import { isProductCliCommand, parseHelpRequest, renderCliHelp } from './command-catalog.js';
 import { assertValidCommandOptions, type ProductCliCommand } from './command-options.js';
 import { commandExitMeaning, writeCliCommandResult } from './command-result.js';
+import {
+  prepareConfiguredPrivateWorkRoot,
+  prepareConfiguredProductRoots,
+  prepareConfiguredPublicArtifactRoot,
+} from './configured-roots.js';
 
 export type CliCommand = Readonly<{
   command: ProductCliCommand;
@@ -144,14 +145,33 @@ export async function runCli(
   }
   const parsed = parseCliArguments(argv);
   assertValidCommandOptions(parsed.command, parsed.options);
-  if (parsed.command === 'discard') {
-    return runDiscard(parsed.options, await ensureSafeOutputRoot(required(parsed.options, 'work')));
-  }
-  if (parsed.command === 'plan-draft') return runPlanDraft(parsed.options);
-  if (parsed.command === 'plan-reseal') return runPlanReseal(parsed.options);
-  if (parsed.command === 'report') return runReport(parsed.options);
-  if (parsed.command === 'lineage') return runLineage(parsed.options);
   const runtime = await (dependencies.loadRuntimeConfiguration ?? loadRuntimeConfiguration)();
+  if (parsed.command === 'discard') {
+    return runDiscard(
+      parsed.options,
+      await prepareConfiguredPrivateWorkRoot(runtime.configuration),
+    );
+  }
+  if (parsed.command === 'plan-draft')
+    return runPlanDraft(
+      parsed.options,
+      await prepareConfiguredPrivateWorkRoot(runtime.configuration),
+    );
+  if (parsed.command === 'plan-reseal')
+    return runPlanReseal(
+      parsed.options,
+      await prepareConfiguredPrivateWorkRoot(runtime.configuration),
+    );
+  if (parsed.command === 'report')
+    return runReport(
+      parsed.options,
+      await prepareConfiguredPublicArtifactRoot(runtime.configuration),
+    );
+  if (parsed.command === 'lineage')
+    return runLineage(
+      parsed.options,
+      await prepareConfiguredPublicArtifactRoot(runtime.configuration),
+    );
   if (runtime.configuration.verificationMode === 'independent-route') {
     throw usage(
       'The independent verifier route is evaluation-only and cannot run product commands.',
@@ -160,12 +180,10 @@ export async function runCli(
   assertAuditWorkflowStructuredOutputCompatibility(
     ProviderNameSchema.parse(providerName(runtime.configuration)),
   );
-  const roots = await prepareProductRoots({
+  const roots = await prepareConfiguredProductRoots({
+    configuration: runtime.configuration,
     targetRoot: required(parsed.options, 'target'),
     contextRoot: parsed.options.context,
-    publicArtifactRoot:
-      parsed.options['public-output'] ?? runtime.configuration.publicArtifactDirectory,
-    privateWorkRoot: parsed.options.work ?? runtime.configuration.privateWorkDirectory,
   });
   if (parsed.command === 'plan')
     return runPlan(
@@ -326,7 +344,10 @@ async function runGuidance(
         );
       }
       if (captureState === 'unsealed') {
-        await discardUnsealedPrivateSourceCapture({ outputRoot: privateWork, captureId: runId });
+        await discardUnsealedPrivateSourceCapture({
+          outputRoot: privateWork,
+          captureId: runId,
+        });
       }
     }
     const guidanceArtifactPath = `guidance/${createDeveloperGuidanceId(report.reportId, runId)}.json`;
@@ -362,7 +383,10 @@ async function runGuidance(
           },
           artifacts: [
             { kind: 'guidance-json', path: guidanceArtifactPath },
-            { kind: 'guidance-markdown', path: `guidance/${existingGuidance.guidanceId}.md` },
+            {
+              kind: 'guidance-markdown',
+              path: `guidance/${existingGuidance.guidanceId}.md`,
+            },
           ],
         },
         `Reused completed non-gating developer guidance ${guidanceArtifactPath}.\n`,
@@ -442,7 +466,10 @@ async function runGuidance(
         },
         artifacts: [
           { kind: 'guidance-json', path: guidanceArtifactPath },
-          { kind: 'guidance-markdown', path: `guidance/${created.guidance.guidanceId}.md` },
+          {
+            kind: 'guidance-markdown',
+            path: `guidance/${created.guidance.guidanceId}.md`,
+          },
         ],
       },
       `Created non-gating developer guidance guidance/${created.guidance.guidanceId}.json and guidance/${created.guidance.guidanceId}.md for ${created.guidance.items.length} accepted findings.\n`,
@@ -479,7 +506,10 @@ async function runPlan(
     targetDisplayName: options['target-name'] ?? basename(targetRoot),
     createdAt: startedAt,
     sessionId: runId,
-    sourceCapture: await createPrivateSourceCapture({ outputRoot: privateWork, captureId: runId }),
+    sourceCapture: await createPrivateSourceCapture({
+      outputRoot: privateWork,
+      captureId: runId,
+    }),
   });
   await writeNewJsonArtifact(
     privateWork,
@@ -532,8 +562,10 @@ async function runPlan(
 }
 
 /** Creates a constrained editable draft without opening a target or calling a provider. */
-async function runPlanDraft(options: Readonly<Record<string, string>>): Promise<number> {
-  const privateWork = await ensureSafeOutputRoot(required(options, 'work'));
+async function runPlanDraft(
+  options: Readonly<Record<string, string>>,
+  privateWork: string,
+): Promise<number> {
   const plan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
   const draft = createAttackPlanDraft(plan);
   const draftPath = required(options, 'draft');
@@ -555,15 +587,21 @@ async function runPlanDraft(options: Readonly<Record<string, string>>): Promise<
 }
 
 /** Validates a constrained edit and publishes a new immutable executable plan pair. */
-async function runPlanReseal(options: Readonly<Record<string, string>>): Promise<number> {
-  const privateWork = await ensureSafeOutputRoot(required(options, 'work'));
+async function runPlanReseal(
+  options: Readonly<Record<string, string>>,
+  privateWork: string,
+): Promise<number> {
   const basePlan = await readJsonArtifact(privateWork, required(options, 'plan'), AttackPlanSchema);
   const draft = await readJsonArtifact(
     privateWork,
     required(options, 'draft'),
     AttackPlanDraftSchema,
   );
-  const plan = resealAttackPlanDraft({ basePlan, draft, resealedAt: new Date().toISOString() });
+  const plan = resealAttackPlanDraft({
+    basePlan,
+    draft,
+    resealedAt: new Date().toISOString(),
+  });
   await writeNewJsonArtifact(privateWork, `plans/${plan.planId}.json`, AttackPlanSchema, plan);
   await writeNewMarkdownArtifact(
     privateWork,
@@ -621,7 +659,12 @@ export async function runAudit(
       priorAttempt !== undefined &&
       auditAttemptRequiresRetainedSnapshot(priorAttempt.snapshotState);
     const resumedCapture = resume
-      ? await recoverAuditResumeSourceCapture({ privateWork, runId, plan, priorAttempt })
+      ? await recoverAuditResumeSourceCapture({
+          privateWork,
+          runId,
+          plan,
+          priorAttempt,
+        })
       : undefined;
     if (resumedCapture !== undefined) {
       priorAttempt = resumedCapture.attempt;
@@ -688,7 +731,10 @@ export async function runAudit(
             contextDigest: plan.contextDigest,
           })
         : undefined);
-    const persistenceSession = await persistence.loadSession({ resume, retryUnfinished });
+    const persistenceSession = await persistence.loadSession({
+      resume,
+      retryUnfinished,
+    });
     const service = createReviewService(provider, selectedModel, {
       maxParallelVectors: maxParallelVectors(runtime),
       modelPricing: selectedModelPricing(runtime),
@@ -717,7 +763,11 @@ export async function runAudit(
             }),
           }),
       onSnapshotCaptured: async (capture) => {
-        const retained = await retainTargetSnapshot({ outputRoot: privateWork, runId, capture });
+        const retained = await retainTargetSnapshot({
+          outputRoot: privateWork,
+          runId,
+          capture,
+        });
         snapshotRetained = true;
         await writeAuditRunAttempt(privateWork, {
           schemaVersion: 3,
@@ -823,10 +873,20 @@ export async function runAudit(
         status: terminal.outcome === 'completed' ? 'completed' : 'partial',
         exitCode: terminal.exitCode,
         exitMeaning: commandExitMeaning('audit', terminal.exitCode),
-        identifiers: { runId, planId: plan.planId, reportId: publicReport.reportId },
+        identifiers: {
+          runId,
+          planId: plan.planId,
+          reportId: publicReport.reportId,
+        },
         artifacts: [
-          { kind: 'report-json', path: `reports/${publicReport.reportId}.json` },
-          { kind: 'report-markdown', path: `reports/${publicReport.reportId}.md` },
+          {
+            kind: 'report-json',
+            path: `reports/${publicReport.reportId}.json`,
+          },
+          {
+            kind: 'report-markdown',
+            path: `reports/${publicReport.reportId}.md`,
+          },
           { kind: 'run-manifest', path: `runs/${runId}.json` },
         ],
       },
@@ -863,9 +923,11 @@ export async function runAudit(
   }
 }
 
-async function runReport(options: Readonly<Record<string, string>>): Promise<number> {
+async function runReport(
+  options: Readonly<Record<string, string>>,
+  publicArtifacts: string,
+): Promise<number> {
   const startedAt = new Date().toISOString();
-  const publicArtifacts = await ensureSafeOutputRoot(required(options, 'public-output'));
   const report = await readJsonArtifact(
     publicArtifacts,
     required(options, 'report'),
@@ -905,8 +967,10 @@ async function runReport(options: Readonly<Record<string, string>>): Promise<num
   return terminal.exitCode;
 }
 
-async function runLineage(options: Readonly<Record<string, string>>): Promise<number> {
-  const publicArtifacts = await ensureSafeOutputRoot(required(options, 'public-output'));
+async function runLineage(
+  options: Readonly<Record<string, string>>,
+  publicArtifacts: string,
+): Promise<number> {
   const previous = await readJsonArtifact(
     publicArtifacts,
     required(options, 'previous'),
@@ -970,28 +1034,6 @@ function selectedModelPricing(runtime: RuntimeConfiguration) {
 
 function maxParallelVectors(runtime: RuntimeConfiguration): number {
   return runtime.maxParallelVectors;
-}
-
-export async function prepareProductRoots(input: {
-  targetRoot: string;
-  contextRoot?: string;
-  publicArtifactRoot: string;
-  privateWorkRoot: string;
-}): Promise<RootTopology> {
-  const initial = await validateRootTopology({
-    targetRoot: input.targetRoot,
-    contextRoot: input.contextRoot,
-    publicArtifactRoot: input.publicArtifactRoot,
-    privateWorkRoot: input.privateWorkRoot,
-  });
-  await ensureSafeOutputRoot(initial.publicArtifactRoot);
-  await ensureSafeOutputRoot(initial.privateWorkRoot);
-  return validateRootTopology({
-    targetRoot: initial.targetRoot,
-    contextRoot: initial.contextRoot,
-    publicArtifactRoot: initial.publicArtifactRoot,
-    privateWorkRoot: initial.privateWorkRoot,
-  });
 }
 
 async function writeRunManifest(output: string, manifest: AuditRunManifest): Promise<void> {
@@ -1100,7 +1142,10 @@ async function resumeCompletedAuditAttempt(input: {
       },
       artifacts: [
         { kind: 'report-json', path: `reports/${publicReport.reportId}.json` },
-        { kind: 'report-markdown', path: `reports/${publicReport.reportId}.md` },
+        {
+          kind: 'report-markdown',
+          path: `reports/${publicReport.reportId}.md`,
+        },
         { kind: 'run-manifest', path: `runs/${input.attempt.runId}.json` },
       ],
     },

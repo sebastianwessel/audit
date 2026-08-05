@@ -37,7 +37,7 @@ Both inputs must validate as the current `PublicAuditReportSchema`; earlier repo
 
 ## CLI and recovery
 
-`audit lineage --previous <report.json> --current <report.json> [--public-output <public-artifact-root>]` requires relative JSON paths in the selected public artifact root. It writes `lineage/<lineage-id>.json` atomically and prints the Markdown projection. It returns zero for a valid comparison regardless of the number of new, resolved, persisting, or unknown entries; CI policy belongs to a later separately specified gate. The operation is deterministic and replayable; rerunning the same report pair overwrites the same validated artifact atomically. It has no target state, provider state, checkpoint, or network dependency.
+`audit lineage --previous <report.json> --current <report.json>` requires relative JSON paths in the configured public artifact root. It writes `lineage/<lineage-id>.json` atomically and prints the Markdown projection. It returns zero for a valid comparison regardless of the number of new, resolved, persisting, or unknown entries; CI policy belongs to a later separately specified gate. The operation is deterministic and replayable; rerunning the same report pair overwrites the same validated artifact atomically. It loads runtime configuration only to resolve the public root; it has no target state, provider state, credential requirement, checkpoint, or network dependency.
 
 ## Acceptance
 

@@ -22,29 +22,18 @@ test('rejects overlapping audit roots before creating output or opening target e
   await writeFile(sourcePath, 'source remains untouched\n', 'utf8');
 
   await expect(
-    runCli(
-      [
-        'audit',
-        '--target',
-        targetRoot,
-        '--public-output',
-        targetRoot,
-        '--work',
-        privateWorkRoot,
-        '--plan',
-        'plans/not-opened.json',
-      ],
-      {
-        loadRuntimeConfiguration: () =>
-          loadRuntimeConfiguration({
-            environment: {
-              AUDIT_PROVIDER: 'openai',
-              AUDIT_MODEL: 'fixture-model',
-            },
-            loadDotEnv: false,
-          }),
-      },
-    ),
+    runCli(['audit', '--target', targetRoot, '--plan', 'plans/not-opened.json'], {
+      loadRuntimeConfiguration: () =>
+        loadRuntimeConfiguration({
+          environment: {
+            AUDIT_PROVIDER: 'openai',
+            AUDIT_MODEL: 'fixture-model',
+            AUDIT_PUBLIC_ARTIFACT_DIR: targetRoot,
+            AUDIT_PRIVATE_WORK_DIR: privateWorkRoot,
+          },
+          loadDotEnv: false,
+        }),
+    }),
   ).rejects.toMatchObject({ code: 'artifact-root-topology-invalid' });
 
   await expect(access(privateWorkRoot)).rejects.toThrow();

@@ -17,19 +17,15 @@ const descriptions = {
 } satisfies Record<ProductCliCommand, string>;
 
 const examples = {
-  plan: 'audit plan --target ./repository --work .audit-work',
-  'plan-draft':
-    'audit plan-draft --work .audit-work --plan plans/<plan-id>.json --draft plan-drafts/review.json',
-  'plan-reseal':
-    'audit plan-reseal --work .audit-work --plan plans/<plan-id>.json --draft plan-drafts/review.json',
-  audit:
-    'audit audit --target ./repository --work .audit-work --public-output .audit-artifacts --plan plans/<plan-id>.json',
+  plan: 'audit plan --target ./repository',
+  'plan-draft': 'audit plan-draft --plan plans/<plan-id>.json --draft plan-drafts/review.json',
+  'plan-reseal': 'audit plan-reseal --plan plans/<plan-id>.json --draft plan-drafts/review.json',
+  audit: 'audit audit --target ./repository --plan plans/<plan-id>.json',
   guidance:
-    'audit guidance --target ./repository --work .audit-work --public-output .audit-artifacts --plan plans/<plan-id>.json --report reports/<report-id>.json',
-  discard: 'audit discard --work .audit-work --plan plans/<plan-id>.json --run-id audit-<run-id>',
-  report: 'audit report --public-output .audit-artifacts --report reports/<report-id>.json',
-  lineage:
-    'audit lineage --public-output .audit-artifacts --previous reports/<previous>.json --current reports/<current>.json',
+    'audit guidance --target ./repository --plan plans/<plan-id>.json --report reports/<report-id>.json',
+  discard: 'audit discard --plan plans/<plan-id>.json --run-id audit-<run-id>',
+  report: 'audit report --report reports/<report-id>.json',
+  lineage: 'audit lineage --previous reports/<previous>.json --current reports/<current>.json',
 } satisfies Record<ProductCliCommand, string>;
 
 export function isProductCliCommand(value: string): value is ProductCliCommand {
