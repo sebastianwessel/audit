@@ -1001,6 +1001,12 @@ async function executeVector(
       candidates: selectedGroundings.candidates,
       rejectedCount: 0,
     };
+    if (selectedGroundings.rejectedCount > 0) {
+      throw new AuditRuntimeError(
+        'artifact-invalid',
+        'Candidate grounding returned an outcome that cannot be bound to the approved seed basis.',
+      );
+    }
     const hypothesisGroundingFunnel =
       reusedGroundingDraft !== undefined
         ? reusedGroundingDraft.hypothesisGroundingFunnel
@@ -1009,7 +1015,6 @@ async function executeVector(
             discoveryBindingRejectedCount: verifiedSeeds.rejectedCount,
             discoveryIntegrityRejections,
             groundingNullCount: selectedGroundings.nullCount,
-            groundingBindingRejectedCount: selectedGroundings.rejectedCount,
             submittedCandidateCount: traceBoundCandidates.candidates.length,
           };
     const initiallyVerified = verifyModelFindings<UnverifiedAuditCandidate | VerifiableHypothesis>(

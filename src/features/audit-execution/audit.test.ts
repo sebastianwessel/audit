@@ -1575,7 +1575,6 @@ test('grounds every discovery seed with seed-owned vector and obligation binding
   expect(derived.coverage[0]?.hypothesisGroundingFunnel).toMatchObject({
     discoveredSeedCount: 1,
     discoveryBindingRejectedCount: 0,
-    groundingBindingRejectedCount: 0,
     submittedCandidateCount: 1,
   });
   expect(derived.coverage[0]?.admissionFunnel).toMatchObject({
@@ -1798,10 +1797,12 @@ test('rejects an invalid selected map location before candidate admission', asyn
     },
     verify: acceptVerifier,
   });
-  expect(report.coverage[0]?.hypothesisGroundingFunnel).toMatchObject({
-    groundingBindingRejectedCount: 1,
-    submittedCandidateCount: 0,
+  expect(report.coverage[0]).toMatchObject({
+    completed: false,
+    outcome: 'failed',
+    errorCode: 'artifact-invalid',
   });
+  expect(report.findings).toHaveLength(0);
 });
 
 test('requires verifier reconciliation of every relevant mapped control before persisting', async () => {

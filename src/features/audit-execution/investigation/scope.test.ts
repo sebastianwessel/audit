@@ -39,9 +39,10 @@ test('selects only approved glob scope without using language hints as a filter'
 });
 
 test('selects the approved manifest without materializing source documents', () => {
-  expect(selectScopedSourcePaths(vector, sources.map((source) => source.path))).toEqual([
-    'src/deep/input.txt',
-    'src/root.txt',
-    'config/review.yaml',
-  ]);
+  expect(
+    selectScopedSourcePaths(
+      vector,
+      sources.map((source) => source.path),
+    ),
+  ).toEqual(['src/deep/input.txt', 'src/root.txt', 'config/review.yaml']);
 });

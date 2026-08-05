@@ -159,8 +159,8 @@ export function renderRealWorldEvaluationReport(
     '',
     'Source-free accounting of where non-reportable discovery hypotheses did or did not become canonical candidates.',
     '',
-    '| Discovered seeds | Discovery binding rejected | Grounding null | Grounding binding rejected | Submitted candidates |',
-    '| ---: | ---: | ---: | ---: | ---: |',
+    '| Discovered seeds | Discovery binding rejected | Grounding null | Submitted candidates |',
+    '| ---: | ---: | ---: | ---: |',
     formatHypothesisGroundingFunnel(run, 'completed'),
     '',
     '### Completed-trial discovery binding rejection categories',
@@ -195,8 +195,8 @@ export function renderRealWorldEvaluationReport(
     '',
     '### Incomplete-trial hypothesis grounding funnel',
     '',
-    '| Discovered seeds | Discovery binding rejected | Grounding null | Grounding binding rejected | Submitted candidates |',
-    '| ---: | ---: | ---: | ---: | ---: |',
+    '| Discovered seeds | Discovery binding rejected | Grounding null | Submitted candidates |',
+    '| ---: | ---: | ---: | ---: |',
     formatHypothesisGroundingFunnel(run, 'incomplete'),
     '',
     '### Incomplete-trial discovery binding rejection categories',
@@ -516,10 +516,9 @@ function formatHypothesisGroundingFunnel(
   const funnels = trialsForFunnel(run, status).flatMap((trial) =>
     trial.hypothesisGroundingFunnel === undefined ? [] : [trial.hypothesisGroundingFunnel],
   );
-  if (funnels.length === 0)
-    return '| unavailable | unavailable | unavailable | unavailable | unavailable |';
+  if (funnels.length === 0) return '| unavailable | unavailable | unavailable | unavailable |';
   const funnel = aggregateHypothesisGroundingFunnels(funnels);
-  return `| ${funnel.discoveredSeedCount} | ${funnel.discoveryBindingRejectedCount} | ${funnel.groundingNullCount} | ${funnel.groundingBindingRejectedCount} | ${funnel.submittedCandidateCount} |`;
+  return `| ${funnel.discoveredSeedCount} | ${funnel.discoveryBindingRejectedCount} | ${funnel.groundingNullCount} | ${funnel.submittedCandidateCount} |`;
 }
 
 function formatCandidateIntegrityRejections(

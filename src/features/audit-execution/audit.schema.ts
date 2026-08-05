@@ -131,16 +131,12 @@ export const HypothesisGroundingFunnelSchema = z
       z.number().int().nonnegative(),
     ),
     groundingNullCount: z.number().int().nonnegative(),
-    groundingBindingRejectedCount: z.number().int().nonnegative(),
     submittedCandidateCount: z.number().int().nonnegative(),
   })
   .superRefine((value, context) => {
     if (
       value.discoveredSeedCount !==
-      value.discoveryBindingRejectedCount +
-        value.groundingNullCount +
-        value.groundingBindingRejectedCount +
-        value.submittedCandidateCount
+      value.discoveryBindingRejectedCount + value.groundingNullCount + value.submittedCandidateCount
     ) {
       context.addIssue({
         code: 'custom',

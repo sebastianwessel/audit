@@ -48,7 +48,6 @@ export function emptyHypothesisGroundingFunnel(): HypothesisGroundingFunnel {
       ),
     ),
     groundingNullCount: 0,
-    groundingBindingRejectedCount: 0,
     submittedCandidateCount: 0,
   });
 }
@@ -192,8 +191,6 @@ export function aggregateHypothesisGroundingFunnels(
           funnel.discoveryIntegrityRejections,
         ]),
         groundingNullCount: aggregate.groundingNullCount + funnel.groundingNullCount,
-        groundingBindingRejectedCount:
-          aggregate.groundingBindingRejectedCount + funnel.groundingBindingRejectedCount,
         submittedCandidateCount: aggregate.submittedCandidateCount + funnel.submittedCandidateCount,
       }),
     emptyHypothesisGroundingFunnel(),

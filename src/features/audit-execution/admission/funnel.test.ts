@@ -89,7 +89,6 @@ test('conserves discovery validation and grounding outcomes separately', () => {
         'model-source-posture-reference-invalid': 0,
       },
       groundingNullCount: 1,
-      groundingBindingRejectedCount: 0,
       submittedCandidateCount: 1,
     },
     emptyHypothesisGroundingFunnel(),
