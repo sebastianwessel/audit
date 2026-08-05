@@ -12,8 +12,13 @@ import {
   AuditRuntimeError,
   isRetryableAuditRuntimeErrorCode,
 } from '../shared/errors/audit-runtime-error.js';
-import { isProductCliCommand, parseHelpRequest, renderCliHelp } from './command-catalog.js';
-import { assertValidCommandOptions, type ProductCliCommand } from './command-options.js';
+import { parseHelpRequest, renderCliHelp } from './command-catalog.js';
+import {
+  assertValidCommandOptions,
+  isProductCliCommand,
+  type ProductCliCommand,
+  productCliCommands,
+} from './command-options.js';
 import { runAudit, runDiscard } from './commands/audit/index.js';
 import { runGuidance } from './commands/guidance/index.js';
 import { runLock } from './commands/lock/index.js';
@@ -44,9 +49,7 @@ type CliRuntimeDependencies = Readonly<{
 export function parseCliArguments(argv: readonly string[]): CliCommand {
   const command = argv[0];
   if (command === undefined || !isProductCliCommand(command)) {
-    throw usage(
-      'Expected one of: plan, plan-draft, plan-reseal, audit, guidance, discard, lock, report, lineage.',
-    );
+    throw usage(`Expected one of: ${productCliCommands.join(', ')}.`);
   }
   const options: Record<string, string> = {};
   for (let index = 1; index < argv.length; index += 2) {

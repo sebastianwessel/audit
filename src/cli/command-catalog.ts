@@ -1,5 +1,6 @@
 import {
   commandOptionNames,
+  isProductCliCommand,
   type ProductCliCommand,
   productCliCommands,
   requiredCommandOptionNames,
@@ -98,10 +99,6 @@ const optionDescriptions = {
     'result-format': 'Use `json` for a machine-readable command result.',
   },
 } satisfies Record<ProductCliCommand, Readonly<Record<string, string>>>;
-
-export function isProductCliCommand(value: string): value is ProductCliCommand {
-  return productCliCommands.includes(value as ProductCliCommand);
-}
 
 function commandUsage(command: ProductCliCommand): string {
   const required = requiredCommandOptionNames(command).map((option) => `--${option} <value>`);

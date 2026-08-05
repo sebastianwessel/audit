@@ -3,6 +3,21 @@ import { z } from 'zod';
 import { AuditRuntimeError } from '../shared/errors/audit-runtime-error.js';
 import { ProductLeaseOperationSchema } from './product-lease.js';
 
+/** Canonical command identities for validation, help, and machine-readable results. */
+export const productCliCommands = [
+  'plan',
+  'plan-draft',
+  'plan-reseal',
+  'audit',
+  'guidance',
+  'report',
+  'lineage',
+  'discard',
+  'lock',
+] as const;
+
+export type ProductCliCommand = (typeof productCliCommands)[number];
+
 const OptionValueSchema = z.string();
 const ResultFormatOptionSchema = z.literal('json').optional();
 
@@ -153,10 +168,7 @@ const CommandOptionsSchemas = {
   'plan-reseal': PlanResealCommandOptionsSchema,
   discard: DiscardCommandOptionsSchema,
   lock: LockCommandOptionsSchema,
-} as const;
-
-export type ProductCliCommand = keyof typeof CommandOptionsSchemas;
-export const productCliCommands = Object.keys(CommandOptionsSchemas) as ProductCliCommand[];
+} satisfies Record<ProductCliCommand, z.ZodType>;
 
 export function commandOptionNames(command: ProductCliCommand): readonly string[] {
   return Object.keys(CommandOptionsSchemas[command].shape).sort((left, right) =>
@@ -169,6 +181,10 @@ export function requiredCommandOptionNames(command: ProductCliCommand): readonly
     .filter(([, schema]) => !schema.isOptional())
     .map(([name]) => name)
     .sort((left, right) => left.localeCompare(right));
+}
+
+export function isProductCliCommand(value: string): value is ProductCliCommand {
+  return productCliCommands.some((command) => command === value);
 }
 
 /** Rejects unknown or command-incompatible options before configuration or I/O. */

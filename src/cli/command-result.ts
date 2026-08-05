@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { IdentifierSchema, RelativePathSchema } from '../shared/contracts/core.js';
-import type { ProductCliCommand } from './command-options.js';
+import { type ProductCliCommand, productCliCommands } from './command-options.js';
 import { ProductLeaseInspectionSchema } from './product-lease.js';
 
 export const CliResultFormatSchema = z.literal('json');
@@ -38,17 +38,7 @@ const CommandExitMeaningSchema = z.enum([
 export const CliCommandResultSchema = z
   .strictObject({
     schemaVersion: z.literal(1),
-    command: z.enum([
-      'plan',
-      'plan-draft',
-      'plan-reseal',
-      'audit',
-      'guidance',
-      'discard',
-      'lock',
-      'report',
-      'lineage',
-    ]),
+    command: z.enum(productCliCommands),
     status: CommandResultStatusSchema,
     exitCode: z.union([z.literal(0), z.literal(1), z.literal(3)]),
     exitMeaning: CommandExitMeaningSchema,
