@@ -64,6 +64,52 @@ export type AuditCommandDependencies = Readonly<{
   model: string;
 }>;
 
+type AuditRunAttemptIdentity = Pick<
+  AuditRunAttempt,
+  'runId' | 'planId' | 'planDigest' | 'targetFingerprint' | 'startedAt'
+>;
+type AuditRunAttemptLifecycle = Omit<
+  AuditRunAttempt,
+  keyof AuditRunAttemptIdentity | 'schemaVersion'
+>;
+
+/** Builds each lifecycle write from one immutable run identity and validates the exact artifact contract. */
+export function createAuditRunAttempt(
+  input: Readonly<{
+    identity: AuditRunAttemptIdentity;
+    lifecycle: AuditRunAttemptLifecycle;
+  }>,
+): AuditRunAttempt {
+  return AuditRunAttemptSchema.parse({
+    schemaVersion: 3,
+    ...input.identity,
+    ...input.lifecycle,
+  });
+}
+
+function transitionAuditRunAttempt(
+  attempt: AuditRunAttempt,
+  changes: Partial<AuditRunAttemptLifecycle>,
+): AuditRunAttempt {
+  return createAuditRunAttempt({
+    identity: {
+      runId: attempt.runId,
+      planId: attempt.planId,
+      planDigest: attempt.planDigest,
+      targetFingerprint: attempt.targetFingerprint,
+      startedAt: attempt.startedAt,
+    },
+    lifecycle: {
+      finishedAt: attempt.finishedAt,
+      status: attempt.status,
+      publicReport: attempt.publicReport,
+      publicationState: attempt.publicationState,
+      snapshotState: attempt.snapshotState,
+      ...changes,
+    },
+  });
+}
+
 /** Discards only an exact stopped run after exclusive ownership and binding checks. */
 export async function runDiscard(
   options: Readonly<Record<string, string>>,
@@ -147,6 +193,13 @@ export async function runAudit(
     metadata: createSimpleProductLeaseMetadata({ operation: 'audit', runId }),
   });
   const attemptStartedAt = startedAt;
+  const attemptIdentity = {
+    runId,
+    planId: plan.planId,
+    planDigest: plan.planDigest,
+    targetFingerprint: plan.targetFingerprint,
+    startedAt: attemptStartedAt,
+  } satisfies AuditRunAttemptIdentity;
   let terminalAttemptCommitted = false;
   let attemptLifecyclePersisted = false;
   let publicationIntentCommitted = false;
@@ -190,19 +243,19 @@ export async function runAudit(
         publicReport: priorAttempt.publicReport,
       });
     }
-    await writeAuditRunAttempt(privateWork, {
-      schemaVersion: 3,
-      runId,
-      planId: plan.planId,
-      planDigest: plan.planDigest,
-      targetFingerprint: plan.targetFingerprint,
-      startedAt: attemptStartedAt,
-      finishedAt: null,
-      status: 'starting',
-      publicReport: null,
-      publicationState: 'not-prepared',
-      snapshotState: priorAttempt?.snapshotState === 'retained' ? 'retained' : 'not-retained',
-    });
+    await writeAuditRunAttempt(
+      privateWork,
+      createAuditRunAttempt({
+        identity: attemptIdentity,
+        lifecycle: {
+          finishedAt: null,
+          status: 'starting',
+          publicReport: null,
+          publicationState: 'not-prepared',
+          snapshotState: priorAttempt?.snapshotState === 'retained' ? 'retained' : 'not-retained',
+        },
+      }),
+    );
     attemptLifecyclePersisted = true;
     snapshotRetained = priorAttempt?.snapshotState === 'retained';
     const selectedModel = dependencies.model;
@@ -270,19 +323,19 @@ export async function runAudit(
           capture,
         });
         snapshotRetained = true;
-        await writeAuditRunAttempt(privateWork, {
-          schemaVersion: 3,
-          runId,
-          planId: plan.planId,
-          planDigest: plan.planDigest,
-          targetFingerprint: plan.targetFingerprint,
-          startedAt: attemptStartedAt,
-          finishedAt: null,
-          status: 'starting',
-          publicReport: null,
-          publicationState: 'not-prepared',
-          snapshotState: 'retained',
-        });
+        await writeAuditRunAttempt(
+          privateWork,
+          createAuditRunAttempt({
+            identity: attemptIdentity,
+            lifecycle: {
+              finishedAt: null,
+              status: 'starting',
+              publicReport: null,
+              publicationState: 'not-prepared',
+              snapshotState: 'retained',
+            },
+          }),
+        );
         return retained;
       },
       ...persistenceSession.callbacks,
@@ -299,19 +352,19 @@ export async function runAudit(
       reportId: publicReport.reportId,
       reportDigest: sha256(canonicalJson(publicReport)),
     };
-    await writeAuditRunAttempt(privateWork, {
-      schemaVersion: 3,
-      runId,
-      planId: plan.planId,
-      planDigest: plan.planDigest,
-      targetFingerprint: plan.targetFingerprint,
-      startedAt: attemptStartedAt,
-      finishedAt: null,
-      status: 'starting',
-      publicReport: preparedPublication,
-      publicationState: 'prepared',
-      snapshotState: 'retained',
-    });
+    await writeAuditRunAttempt(
+      privateWork,
+      createAuditRunAttempt({
+        identity: attemptIdentity,
+        lifecycle: {
+          finishedAt: null,
+          status: 'starting',
+          publicReport: preparedPublication,
+          publicationState: 'prepared',
+          snapshotState: 'retained',
+        },
+      }),
+    );
     publicationIntentCommitted = true;
     await writeAuditReportArtifacts({
       publicArtifacts,
@@ -333,19 +386,16 @@ export async function runAudit(
       modelObservation: audited.modelObservation,
     });
     const terminal = classifyAuditTerminal(durableReport);
-    const terminalAttempt: AuditRunAttempt = {
-      schemaVersion: 3,
-      runId,
-      planId: plan.planId,
-      planDigest: plan.planDigest,
-      targetFingerprint: plan.targetFingerprint,
-      startedAt: attemptStartedAt,
-      finishedAt: new Date().toISOString(),
-      status: terminal.outcome === 'completed' ? 'completed' : 'partial',
-      publicReport: preparedPublication,
-      publicationState: 'published',
-      snapshotState: terminal.outcome === 'completed' ? 'release-pending' : 'retained',
-    };
+    const terminalAttempt = createAuditRunAttempt({
+      identity: attemptIdentity,
+      lifecycle: {
+        finishedAt: new Date().toISOString(),
+        status: terminal.outcome === 'completed' ? 'completed' : 'partial',
+        publicReport: preparedPublication,
+        publicationState: 'published',
+        snapshotState: terminal.outcome === 'completed' ? 'release-pending' : 'retained',
+      },
+    });
     await writeAuditRunAttempt(privateWork, terminalAttempt);
     terminalAttemptCommitted = true;
     if (terminal.outcome === 'completed') {
@@ -355,15 +405,15 @@ export async function runAudit(
           runId,
           targetFingerprint: plan.targetFingerprint,
         });
-        await writeAuditRunAttempt(privateWork, {
-          ...terminalAttempt,
-          snapshotState: 'released',
-        });
+        await writeAuditRunAttempt(
+          privateWork,
+          transitionAuditRunAttempt(terminalAttempt, { snapshotState: 'released' }),
+        );
       } catch {
-        await writeAuditRunAttempt(privateWork, {
-          ...terminalAttempt,
-          snapshotState: 'release-failed',
-        });
+        await writeAuditRunAttempt(
+          privateWork,
+          transitionAuditRunAttempt(terminalAttempt, { snapshotState: 'release-failed' }),
+        );
       }
     }
     writeCliCommandResult(
@@ -404,19 +454,19 @@ export async function runAudit(
           auditAttemptRequiresRetainedSnapshot(priorAttempt.snapshotState)
         ))
     ) {
-      await writeAuditRunAttempt(privateWork, {
-        schemaVersion: 3,
-        runId,
-        planId: plan.planId,
-        planDigest: plan.planDigest,
-        targetFingerprint: plan.targetFingerprint,
-        startedAt: attemptStartedAt,
-        finishedAt: new Date().toISOString(),
-        status: 'failed',
-        publicReport: preparedPublication,
-        publicationState: publicationIntentCommitted ? 'prepared' : 'not-prepared',
-        snapshotState: snapshotRetained ? 'retained' : 'not-retained',
-      });
+      await writeAuditRunAttempt(
+        privateWork,
+        createAuditRunAttempt({
+          identity: attemptIdentity,
+          lifecycle: {
+            finishedAt: new Date().toISOString(),
+            status: 'failed',
+            publicReport: preparedPublication,
+            publicationState: publicationIntentCommitted ? 'prepared' : 'not-prepared',
+            snapshotState: snapshotRetained ? 'retained' : 'not-retained',
+          },
+        }),
+      );
     }
     throw error;
   } finally {
@@ -499,15 +549,15 @@ async function resumeCompletedAuditAttempt(input: {
         runId: input.attempt.runId,
         targetFingerprint: input.attempt.targetFingerprint,
       });
-      await writeAuditRunAttempt(input.privateWork, {
-        ...input.attempt,
-        snapshotState: 'released',
-      });
+      await writeAuditRunAttempt(
+        input.privateWork,
+        transitionAuditRunAttempt(input.attempt, { snapshotState: 'released' }),
+      );
     } catch {
-      await writeAuditRunAttempt(input.privateWork, {
-        ...input.attempt,
-        snapshotState: 'release-failed',
-      });
+      await writeAuditRunAttempt(
+        input.privateWork,
+        transitionAuditRunAttempt(input.attempt, { snapshotState: 'release-failed' }),
+      );
     }
   }
   const exitCode = auditRunOutcome(publicReport) === 'completed' ? 0 : 3;
@@ -632,10 +682,7 @@ export async function recoverAuditResumeSourceCapture(input: {
       targetFingerprint: input.plan.targetFingerprint,
       contextDigest: input.plan.contextDigest,
     });
-    const attempt = AuditRunAttemptSchema.parse({
-      ...input.priorAttempt,
-      snapshotState: 'retained',
-    });
+    const attempt = transitionAuditRunAttempt(input.priorAttempt, { snapshotState: 'retained' });
     await writeAuditRunAttempt(input.privateWork, attempt);
     return { attempt, retainedSnapshot };
   }

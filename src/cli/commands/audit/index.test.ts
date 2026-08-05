@@ -26,8 +26,48 @@ import {
   assertAuditRunDiscardBinding,
   assertAuditRunReuse,
   auditRunOutcome,
+  createAuditRunAttempt,
   recoverAuditResumeSourceCapture,
 } from './index.js';
+
+test('audit attempt construction owns immutable identity and validates lifecycle state', () => {
+  const attempt = createAuditRunAttempt({
+    identity: {
+      runId: 'audit-attempt-construction-01',
+      planId: 'plan-attempt-construction-01',
+      planDigest: 'a'.repeat(64),
+      targetFingerprint: 'b'.repeat(64),
+      startedAt: '2026-08-05T12:00:00.000Z',
+    },
+    lifecycle: {
+      finishedAt: null,
+      status: 'starting',
+      publicReport: null,
+      publicationState: 'not-prepared',
+      snapshotState: 'not-retained',
+    },
+  });
+  expect(attempt.schemaVersion).toBe(3);
+  expect(attempt.status).toBe('starting');
+  expect(() =>
+    createAuditRunAttempt({
+      identity: {
+        runId: 'audit-attempt-construction-02',
+        planId: 'plan-attempt-construction-02',
+        planDigest: 'c'.repeat(64),
+        targetFingerprint: 'd'.repeat(64),
+        startedAt: '2026-08-05T12:00:00.000Z',
+      },
+      lifecycle: {
+        finishedAt: null,
+        status: 'completed',
+        publicReport: null,
+        publicationState: 'not-prepared',
+        snapshotState: 'not-retained',
+      },
+    }),
+  ).toThrow('completion timestamp');
+});
 
 test('audit run status never labels incomplete vector coverage as completed', () => {
   const incompleteCoverage = {
