@@ -24,7 +24,7 @@
     "typescript"
   ],
   "bin": {
-    "audit": "./dist/main.js"
+    "audit": "dist/main.js"
   },
   "files": [
     "dist",
