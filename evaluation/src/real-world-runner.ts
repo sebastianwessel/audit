@@ -37,10 +37,8 @@ import {
   createAuditResumeState,
 } from '../../src/features/audit-execution/checkpoints.js';
 import {
-  type ModelCostCeiling,
   type ModelPricing,
   type ModelRunObservation,
-  type ModelStageObservation,
   summarizeModelStages,
 } from '../../src/features/model-operations/model-operations.js';
 import {
@@ -102,7 +100,6 @@ import type {
 } from './plan-semantic-adjudication.schema.js';
 import { planSemanticAgentProtocolFingerprint } from './plan-semantic-agent.instructions.js';
 import type { SemanticPlanEvaluatorIdentity } from './plan-semantic-identity.schema.js';
-import { evaluatorCheckpointModelStages } from './real-world-artifacts.js';
 import {
   normalizedFindingKeys,
   normalizedPlanKeys,
@@ -127,7 +124,6 @@ export type CorpusEvaluationInput = Readonly<{
   mode: 'deterministic' | 'provider';
   executionBudget: HarnessExecutionConfiguration;
   maxParallelVectors: number;
-  maxEstimatedCostUsd?: number;
   modelPricing?: ModelPricing;
   modelCacheRoutingKey?: string;
   priorTrials?: readonly EvaluationTrial[];
@@ -157,8 +153,6 @@ export type EvaluationPlanSemanticEvaluatorPort = Readonly<{
     plan: AttackPlan;
     answerKey: CorpusAnswerKey;
     retryUnfinished: boolean;
-    /** The exact same observed-cost guard used by product planning and audit. */
-    modelCostCeiling: ModelCostCeiling | undefined;
   }) => Promise<PlanSemanticEvaluatorOperation>;
 }>;
 
@@ -290,12 +284,6 @@ export async function runCorpusEvaluation(
     maxParallelVectors,
     harnessExecution: input.executionBudget,
     modelPricing: input.modelPricing,
-    ...(input.maxEstimatedCostUsd === undefined
-      ? {}
-      : {
-          maxEstimatedCostUsd: input.maxEstimatedCostUsd,
-          priorModelStages: priorModelStages(input.priorTrials ?? []),
-        }),
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     ...(input.independentVerifierRoute === undefined
@@ -437,7 +425,6 @@ export async function runCorpusEvaluation(
     semanticPlanEvaluator,
     executionBudget: input.executionBudget,
     maxParallelVectors,
-    modelCostCeilingState: service.modelCostCeilingState(),
     promptProtocolFingerprint: input.promptProtocolFingerprint,
     startedAt: input.startedAt,
     finishedAt,
@@ -501,10 +488,6 @@ function findingCoverageFor(
   return 'mixed';
 }
 
-function priorModelStages(trials: readonly EvaluationTrial[]): readonly ModelStageObservation[] {
-  return trials.flatMap((trial) => trial.modelObservation?.stages ?? []);
-}
-
 async function runTrial(
   input: CorpusEvaluationInput & {
     service: ReturnType<typeof createReviewService>;
@@ -563,7 +546,6 @@ async function runTrial(
             targetFingerprint: inspected.targetFingerprint,
             contextDigest: inspected.contextDigest,
           });
-    input.service.recordPriorModelStages(reusablePlan?.modelObservation.stages ?? []);
     const created =
       reusablePlan === undefined && generatedPlan
         ? await input.service.createPlan({
@@ -632,7 +614,6 @@ async function runTrial(
         findingKeys: [],
         durationMs: Math.round(performance.now() - started),
         errorCode: null,
-        modelCostCeilingState: input.service.modelCostCeilingState(),
         modelObservation: summarizeTrialModelObservation({
           planningObservation,
           auditObservation,
@@ -730,7 +711,6 @@ async function runTrial(
             : [],
         ),
       );
-      input.service.recordPriorModelStages(evaluatorCheckpointModelStages(reusable));
     }
     await saveExpectedEvidenceTrace();
     const audited = await input.service.audit({
@@ -927,7 +907,6 @@ async function runTrial(
       planKeys,
       durationMs: Math.round(performance.now() - started),
       errorCode: completed ? null : trialCoverageErrorCode(audited.report.coverage),
-      modelCostCeilingState: input.service.modelCostCeilingState(),
       modelObservation: summarizeTrialModelObservation({
         planningObservation,
         auditObservation,
@@ -969,7 +948,6 @@ async function runTrial(
       reviewRequiredKeys: auditProjection?.reviewRequiredKeys ?? [],
       durationMs: Math.round(performance.now() - started),
       errorCode: errorCode(error),
-      modelCostCeilingState: input.service.modelCostCeilingState(),
       modelObservation: summarizeTrialModelObservation({
         planningObservation,
         auditObservation,
@@ -1053,7 +1031,6 @@ async function measureSemanticPlan(input: {
       plan: input.plan,
       answerKey: input.input.answerKey,
       retryUnfinished: input.input.retryUnfinished ?? false,
-      modelCostCeiling: input.input.service.modelCostCeiling(),
     });
     if (operation.status === 'completed') {
       return {

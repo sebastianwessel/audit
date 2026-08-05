@@ -1,9 +1,5 @@
 import type { ModelProvider } from '@purista/harness';
 import { z } from 'zod';
-import {
-  ModelCostCeilingStateSchema,
-  ModelCostCeilingUsdSchema,
-} from '../../src/features/model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../../src/features/model-operations/model-pricing-catalogue.js';
 import { reviewWorkflowPromptProtocolFingerprint } from '../../src/features/review-workflow/prompt-protocol.js';
 import {
@@ -109,7 +105,6 @@ const ProviderEvaluationOptionsSchema = ProviderEvaluationArgumentsSchema.extend
   model: ModelIdentifierSchema,
   corpus: z.string().trim().min(1),
   output: z.string().trim().min(1),
-  'max-estimated-cost-usd': ModelCostCeilingUsdSchema.optional(),
   executionBudget: HarnessExecutionConfigurationSchema,
   runId: IdentifierSchema,
   resume: z.boolean(),
@@ -218,7 +213,6 @@ export function parseProviderEvaluationArguments(
       runtime?.evaluationOutputRoot ??
       RuntimeConfigurationDefaults.evaluationOutputRoot,
     baseline: parsedArguments.data.baseline,
-    'max-estimated-cost-usd': runtime?.maxEstimatedCostUsd,
     executionBudget: {
       modelTimeoutMs: parsedArguments.data['model-timeout-ms'],
       runTimeoutMs: parsedArguments.data['run-timeout-ms'],
@@ -451,7 +445,6 @@ export async function runProviderEvaluation(input: {
       semanticPlanEvaluator,
       executionBudget: options.executionBudget,
       maxParallelVectors: input.runtime.maxParallelVectors,
-      modelCostCeilingState: initialModelCostCeilingState(options['max-estimated-cost-usd']),
       status: 'created',
       failure: null,
       startedAt,
@@ -586,9 +579,6 @@ export async function runProviderEvaluation(input: {
       mode: 'provider',
       executionBudget: options.executionBudget,
       maxParallelVectors: input.runtime.maxParallelVectors,
-      ...(options['max-estimated-cost-usd'] === undefined
-        ? {}
-        : { maxEstimatedCostUsd: options['max-estimated-cost-usd'] }),
       modelPricing: prepared.primaryModelPricing,
       modelCacheRoutingKey,
       verificationMode,
@@ -621,7 +611,7 @@ export async function runProviderEvaluation(input: {
         ? {}
         : {
             semanticPlanEvaluator: {
-              evaluate: ({ binding, plan, answerKey, retryUnfinished, modelCostCeiling }) =>
+              evaluate: ({ binding, plan, answerKey, retryUnfinished }) =>
                 runPlanSemanticEvaluationOperation({
                   outputRoot: options.output,
                   checkpointPath: evaluationPlanSemanticCheckpointPath(
@@ -633,7 +623,6 @@ export async function runProviderEvaluation(input: {
                   answerKey,
                   retry: retryUnfinished,
                   now: () => new Date().toISOString(),
-                  modelCostCeiling,
                   invokeEvaluator: () =>
                     evaluateGeneratedPlanSemantics({
                       provider: options.provider,
@@ -651,7 +640,6 @@ export async function runProviderEvaluation(input: {
                         ? {}
                         : { evaluatorFailureDiagnosticSink: semanticPlanFailureDiagnosticSink }),
                       ...(modelCacheRoutingKey === undefined ? {} : { modelCacheRoutingKey }),
-                      ...(modelCostCeiling === undefined ? {} : { modelCostCeiling }),
                     }),
                 }),
             },
@@ -667,7 +655,6 @@ export async function runProviderEvaluation(input: {
         checkpoint = {
           ...checkpoint,
           updatedAt: new Date().toISOString(),
-          modelCostCeilingState: trial.modelCostCeilingState ?? checkpoint.modelCostCeilingState,
           trials: [
             ...checkpoint.trials.filter(
               (entry) =>
@@ -693,7 +680,6 @@ export async function runProviderEvaluation(input: {
       status: 'finalizing',
       failure: null,
       updatedAt: new Date().toISOString(),
-      modelCostCeilingState: run.modelCostCeilingState,
       finalization: {
         run,
         report,
@@ -1476,14 +1462,6 @@ function lockUsage(message: string): AuditRuntimeError {
     'invalid-input',
     `${message} Usage: bun run eval:provider:lock:inspect --output <evaluation-runs> --run-id <id> | bun run eval:provider:lock:release --output <evaluation-runs> --run-id <id> --attempt-id <id> --checkpoint-fingerprint <sha256>.`,
   );
-}
-
-function initialModelCostCeilingState(configuredUsd: number | undefined) {
-  return ModelCostCeilingStateSchema.parse({
-    configuredUsd: configuredUsd ?? null,
-    accumulatedEstimatedCostUsd: configuredUsd === undefined ? null : 0,
-    reached: false,
-  });
 }
 
 if (import.meta.main) {

@@ -13,7 +13,6 @@ import {
   createProviderUsageRecorder,
   type EvaluatorFailureDiagnosticSink,
   hasSuccessfulScopedSourceInspection,
-  type ModelCostCeiling,
   type ModelPricing,
   type ModelRoute,
   type ModelStage,
@@ -149,7 +148,6 @@ export async function runScopedModelStage<Result, RawOutput = Result>(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   /**
    * Tool-guided, source-deciding phases may require an actual scoped source
@@ -193,8 +191,6 @@ export async function runScopedModelStage<Result, RawOutput = Result>(input: {
 }): Promise<ScopedModelStageCompleted<Result> | ScopedModelStageFailed> {
   const trace = createModelStageTraceRecorder({ pricing: input.modelPricing });
   const recorder = createProviderUsageRecorder(input.modelProvider, {
-    ...(input.modelCostCeiling === undefined ? {} : { costCeiling: input.modelCostCeiling }),
-    pricing: input.modelPricing,
     onResponse: trace.recordModelResponse,
   });
   const toolUsages: ToolUsage[] = [];

@@ -7,7 +7,6 @@ import {
 } from '../../shared/contracts/model-identity.js';
 import { RecommendedPrioritySchema } from '../developer-guidance/index.js';
 import {
-  ModelCostCeilingStateSchema,
   ModelRunObservationSchema,
   ModelStageObservationSchema,
 } from '../model-operations/model-operations.schema.js';
@@ -107,7 +106,6 @@ export const DeveloperGuidanceReportSchema = z
     generatedAt: IsoDateTimeSchema,
     items: z.array(DeveloperGuidanceItemSchema),
     modelObservation: ModelRunObservationSchema,
-    modelCostCeilingState: ModelCostCeilingStateSchema.optional(),
   })
   .superRefine((value, context) => {
     const ids = value.items.map((item) => item.findingId);

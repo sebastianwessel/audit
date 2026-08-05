@@ -40,7 +40,7 @@
 | retry-unfinished | `true` with `resume=true` resumes incomplete, failed, or cancelled work from its smallest exact incomplete boundary while preserving every valid completed predecessor. A matching grounding draft is a boundary even before a verifier checkpoint exists. |
 | previous/current | Relative report JSON paths used by `lineage`; both must be under the selected public artifact root. |
 
-Options are command-specific. Unknown flags, or flags that belong to another command, are rejected before the reviewer loads configuration or opens a repository. Runtime configuration, including provider, model, credential-variable name, verifier route, concurrency, and observed-cost guard, comes only from the resolved environment configuration and is never a command option.
+Options are command-specific. Unknown flags, or flags that belong to another command, are rejected before the reviewer loads configuration or opens a repository. Runtime configuration, including provider, model, credential-variable name, verifier route, and concurrency, comes only from the resolved environment configuration and is never a command option.
 
 `eval:corpus` is a short alias for `eval:corpus:integration`; both run the same deterministic integration check.
 
@@ -130,7 +130,6 @@ Copy `.env.example` to the project-root `.env`, then set `OPENAI_API_KEY`. The e
 | `AUDIT_EVALUATION_CORPUS_ROOT` | `evaluation/data/corpora` | Default evaluator-only corpus root. |
 | `AUDIT_EVALUATION_OUTPUT_ROOT` | `evaluation/runs` | Default evaluator-only output root. |
 | `AUDIT_MAX_PARALLEL_VECTORS` | `1` | Positive independent-vector queue capacity; also the run-wide verifier/countercheck dispatch ceiling. It controls in-flight work only. |
-| `AUDIT_MAX_ESTIMATED_COST_USD` | unset | Optional observed-cost dispatch ceiling; it is not an exact billing cap. |
 | `AUDIT_VERIFICATION_MODE` | `same-route` | `independent-route` is available only to provider evaluation. |
 
 For `independent-route`, also set `AUDIT_VERIFIER_PROVIDER`, `AUDIT_VERIFIER_MODEL`, and `AUDIT_VERIFIER_API_KEY_ENV`. The verifier pair must differ from the primary provider/model pair. Prices never belong in `.env`; the product uses its bundled exact-model catalogue.

@@ -9,7 +9,6 @@ import { createVerificationEvidenceSelectionBasis } from '../../audit-execution/
 import { materializeVerificationResult } from '../../audit-execution/verification/materialize.js';
 import {
   hasSuccessfulScopedSourceInspection,
-  type ModelCostCeiling,
   type ModelPricing,
   type ModelStageObservation,
 } from '../../model-operations/model-operations.js';
@@ -43,7 +42,6 @@ export async function runVerificationStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   route?: ModelRoute;
   overflowTopology?: ScopedModelStageOverflowTopologyBase;
@@ -66,7 +64,6 @@ export async function runVerificationStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     onCompletedModelObservation: input.onCompletedModelObservation,

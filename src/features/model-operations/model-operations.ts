@@ -14,10 +14,6 @@ import { errorCauseChain } from '../../shared/errors/cause-chain.js';
 import {
   type EvaluatorFailureDiagnostic,
   EvaluatorFailureDiagnosticSchema,
-  type ModelCostCeilingState,
-  ModelCostCeilingStateSchema,
-  type ModelCostCeilingUsd,
-  ModelCostCeilingUsdSchema,
   ModelCostSummarySchema,
   type ModelPricing,
   ModelPricingSchema,
@@ -38,8 +34,6 @@ import {
 
 export type {
   EvaluatorFailureDiagnostic,
-  ModelCostCeilingState,
-  ModelCostCeilingUsd,
   ModelPricing,
   ModelRequestObservation,
   ModelRoute,
@@ -182,20 +176,10 @@ export type ModelStageTraceRecorder = Readonly<{
   events: () => readonly ModelStageTraceEvent[];
 }>;
 
-export type ModelCostCeiling = Readonly<{
-  beforeRequest: () => void;
-  recordResponse: (usage: ModelUsage, pricing: ModelPricing) => void;
-  /** Registers exact persisted stage observations recovered after process interruption. */
-  recordPriorStages: (stages: readonly ModelStageObservation[]) => void;
-  state: () => ModelCostCeilingState;
-}>;
-
 /** Captures numeric provider usage without retaining request or response content. */
 export function createProviderUsageRecorder(
   provider: ModelProvider,
   options: Readonly<{
-    costCeiling?: ModelCostCeiling;
-    pricing?: ModelPricing;
     onResponse?: (request: ProviderRequestUsage) => void;
   }> = {},
 ): ProviderUsageRecorder {
@@ -244,11 +228,9 @@ export function createProviderUsageRecorder(
       ? {}
       : {
           text: async (request) => {
-            options.costCeiling?.beforeRequest();
             const started = performance.now();
             const response = await text(request);
             record(performance.now() - started, response.usage);
-            recordCostCeiling(options, response.usage);
             return response;
           },
         }),
@@ -258,11 +240,9 @@ export function createProviderUsageRecorder(
           object: async <T extends JsonValue = JsonValue>(
             request: ObjectRequest<T>,
           ): Promise<ObjectResponse<T>> => {
-            options.costCeiling?.beforeRequest();
             const started = performance.now();
             const response = await object(request);
             record(performance.now() - started, response.usage);
-            recordCostCeiling(options, response.usage);
             return response;
           },
         }),
@@ -322,101 +302,6 @@ export function createModelStageTraceRecorder(input: {
     },
     events: () => events.map((event) => ({ ...event })),
   });
-}
-
-/**
- * Builds the shared observed-cost dispatch guard for a plan or audit run.
- * Provider usage arrives only after a response, so a crossing response is
- * retained and only later requests are stopped.
- */
-export function createModelCostCeiling(input: {
-  configuredUsd: ModelCostCeilingUsd;
-  pricing: ModelPricing;
-  priorStages?: readonly ModelStageObservation[];
-}): ModelCostCeiling {
-  const configuredUsd = ModelCostCeilingUsdSchema.parse(input.configuredUsd);
-  if (summarizeModelCost(emptyModelUsage(), input.pricing).estimatedCostUsd === null) {
-    throw costUnavailable();
-  }
-  const knownStages = new Set<string>();
-  let accumulated = 0;
-  const recordPriorStages = (stages: readonly ModelStageObservation[]): void => {
-    for (const stage of stages) {
-      const parsed = ModelStageObservationSchema.parse(stage);
-      const identity = JSON.stringify(parsed);
-      if (knownStages.has(identity)) continue;
-      if (parsed.cost.estimatedCostUsd === null) throw costUnavailable();
-      knownStages.add(identity);
-      accumulated = roundUsd(accumulated + parsed.cost.estimatedCostUsd);
-    }
-  };
-  recordPriorStages(input.priorStages ?? []);
-  return Object.freeze({
-    beforeRequest: () => {
-      if (accumulated >= configuredUsd) {
-        throw new AuditRuntimeError(
-          'model-cost-ceiling-reached',
-          'The observed model-cost ceiling was reached before another request could start.',
-        );
-      }
-    },
-    recordResponse: (usage, pricing) => {
-      const cost = summarizeModelCost(usage, pricing);
-      if (cost.estimatedCostUsd === null) throw costUnavailable();
-      accumulated = roundUsd(accumulated + cost.estimatedCostUsd);
-    },
-    recordPriorStages,
-    state: () =>
-      ModelCostCeilingStateSchema.parse({
-        configuredUsd,
-        accumulatedEstimatedCostUsd: accumulated,
-        reached: accumulated >= configuredUsd,
-      }),
-  });
-}
-
-function emptyModelUsage(): ModelUsage {
-  return ModelUsageSchema.parse({
-    modelCallCount: 0,
-    inputTokens: 0,
-    outputTokens: 0,
-    cachedInputTokens: 0,
-    reasoningTokens: 0,
-  });
-}
-
-function recordCostCeiling(
-  options: Readonly<{ costCeiling?: ModelCostCeiling; pricing?: ModelPricing }>,
-  usage: {
-    inputTokens: number;
-    outputTokens: number;
-    cachedInputTokens?: number;
-    reasoningTokens?: number;
-  },
-): void {
-  if (options.costCeiling === undefined) return;
-  if (options.pricing === undefined) throw costUnavailable();
-  options.costCeiling.recordResponse(
-    ModelUsageSchema.parse({
-      modelCallCount: 1,
-      inputTokens: usage.inputTokens,
-      outputTokens: usage.outputTokens,
-      cachedInputTokens: usage.cachedInputTokens ?? 0,
-      reasoningTokens: usage.reasoningTokens ?? 0,
-    }),
-    options.pricing,
-  );
-}
-
-function costUnavailable(): AuditRuntimeError {
-  return new AuditRuntimeError(
-    'model-cost-unavailable',
-    'A model-cost ceiling requires known exact-model catalogue pricing.',
-  );
-}
-
-function roundUsd(value: number): number {
-  return Math.round(value * 1_000_000) / 1_000_000;
 }
 
 export function summarizeModelCost(usage: ModelUsage, pricing: ModelPricing) {

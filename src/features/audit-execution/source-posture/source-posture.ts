@@ -10,7 +10,6 @@ import type { SourcePosture } from '../../audit-execution/source-posture/contrac
 import { SourcePostureSchema } from '../../audit-execution/source-posture/contract.js';
 import { verifySourcePosture } from '../../audit-execution/source-posture/verify.js';
 import type {
-  ModelCostCeiling,
   ModelPricing,
   ModelStageObservation,
 } from '../../model-operations/model-operations.js';
@@ -41,7 +40,6 @@ export async function runSourcePostureStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   overflowTopology?: ScopedModelStageOverflowTopologyBase &
     Readonly<{
@@ -103,7 +101,6 @@ export async function runSourcePostureStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     onCompletedModelObservation: input.onCompletedModelObservation,

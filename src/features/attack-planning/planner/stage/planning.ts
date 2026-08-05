@@ -1,7 +1,7 @@
 import type { ModelProvider } from '@purista/harness';
 import type { HarnessExecutionConfiguration } from '../../../../platform/harness/audit-harness.js';
 import { AuditRuntimeError } from '../../../../shared/errors/audit-runtime-error.js';
-import type { ModelCostCeiling, ModelPricing } from '../../../model-operations/index.js';
+import type { ModelPricing } from '../../../model-operations/index.js';
 import {
   type EvaluatorFailureDiagnosticSink,
   projectScopedModelOutput,
@@ -27,7 +27,6 @@ export async function runPlanningStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
 }) {
@@ -44,7 +43,6 @@ export async function runPlanningStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     requireScopedSourceInspection: true,

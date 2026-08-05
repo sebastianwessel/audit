@@ -16,25 +16,25 @@ import {
   validationRetryGuidanceForError,
 } from './retry-guidance.js';
 
-test('retries one failed stage invocation and preserves the successful result', async () => {
+test('does not duplicate transient provider retry owned by the harness', async () => {
   let attempts = 0;
   const recovered: string[] = [];
-  const result = await invokeWithStageRetry(
-    {
-      runTimeoutMs: 30_000,
-      modelTimeoutMs: 20_000,
-      modelRetry: 'default',
-    },
-    async () => {
-      attempts += 1;
-      if (attempts === 1) throw new Error('temporary provider failure');
-      return 'completed';
-    },
-    { onRecoverableFailure: () => recovered.push('failed-attempt') },
-  );
-  expect(result).toBe('completed');
-  expect(attempts).toBe(2);
-  expect(recovered).toEqual(['failed-attempt']);
+  await expect(
+    invokeWithStageRetry(
+      {
+        runTimeoutMs: 30_000,
+        modelTimeoutMs: 20_000,
+        modelRetry: 'default',
+      },
+      async () => {
+        attempts += 1;
+        throw new Error('temporary provider failure');
+      },
+      { onRecoverableFailure: () => recovered.push('failed-attempt') },
+    ),
+  ).rejects.toThrow('temporary provider failure');
+  expect(attempts).toBe(1);
+  expect(recovered).toEqual([]);
 });
 
 test('normalizes only stable audit errors', () => {

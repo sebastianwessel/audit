@@ -123,7 +123,6 @@ export async function adjudicateIsolatedStage(input: {
   const started = performance.now();
   const trace = createModelStageTraceRecorder({ pricing: input.modelPricing });
   const recorder = createProviderUsageRecorder(input.modelProvider, {
-    pricing: input.modelPricing,
     onResponse: trace.recordModelResponse,
   });
   const harness = createStageIsolatedAdjudicationHarness({

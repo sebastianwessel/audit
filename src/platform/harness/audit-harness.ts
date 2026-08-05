@@ -127,13 +127,14 @@ export function assertAuditWorkflowStructuredOutputCompatibility(provider: strin
 }
 
 /**
- * The scoped-stage lifecycle owns the one permitted fresh same-scope retry.
- * Keep the provider attempt one-shot so a provider default cannot multiply it.
+ * The harness owns transient provider retries, including Retry-After and
+ * provider-neutral backoff. The application only repairs semantic output and
+ * missing-inspection failures because those need new model guidance.
  */
 export function harnessProviderRetry(
   modelRetry: HarnessExecutionConfiguration['modelRetry'],
-): false | Readonly<{ maxAttempts: 1 }> {
-  return modelRetry === 'disabled' ? false : { maxAttempts: 1 };
+): boolean {
+  return modelRetry === 'default';
 }
 
 export function createAuditHarness(

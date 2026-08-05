@@ -965,9 +965,9 @@ export async function loadReusableAuditCandidateGroundingRecoveryLeaves(input: {
 }
 
 /**
- * Retains observed child-call cost only while no validated phase successor has
- * already retained the same work. This is shared by product and evaluation
- * resume paths so their cost ceilings cannot drift.
+ * Retains observed child-call telemetry only while no validated phase successor
+ * has already retained the same work. This is shared by product and evaluation
+ * resume paths so resumed observations remain exact.
  */
 export function reusableContextOverflowModelStages(input: {
   ledgers: readonly AuditContextOverflowLedger[];

@@ -19,9 +19,9 @@ export type StageRetryAttempt = Readonly<{
 }>;
 
 /**
- * Coordinates exact-scope retry without exposing rejected content. Transport
- * retry follows the configured normal policy; validation repair continues only
- * while each static schema signature is new.
+ * Coordinates semantic same-scope repair without exposing rejected content.
+ * The Harness owns transient provider retry, backoff, and Retry-After handling;
+ * this lifecycle retries only output repair and required source inspection.
  */
 export async function invokeWithStageRetry<Result>(
   execution: HarnessExecutionConfiguration,
@@ -29,9 +29,9 @@ export async function invokeWithStageRetry<Result>(
   options: Readonly<{ onRecoverableFailure?: (error: unknown) => void }> = {},
 ): Promise<Result> {
   const seenValidationSignatures = new Set<string>();
+  let sourceInspectionRetried = false;
   let guidance: ModelRetryGuidance = { kind: 'initial' };
   let ordinal = 0;
-  let normalRetryUsed = false;
   for (;;) {
     ordinal += 1;
     try {
@@ -53,22 +53,14 @@ export async function invokeWithStageRetry<Result>(
       }
       const inspectionGuidance = sourceInspectionRetryGuidance(error);
       if (inspectionGuidance !== undefined) {
-        if (execution.modelRetry !== 'default' || normalRetryUsed) throw error;
-        normalRetryUsed = true;
+        if (execution.modelRetry !== 'default') throw error;
+        if (sourceInspectionRetried) throw error;
+        sourceInspectionRetried = true;
         options.onRecoverableFailure?.(error);
         guidance = inspectionGuidance;
         continue;
       }
-      if (
-        execution.modelRetry !== 'default' ||
-        normalRetryUsed ||
-        isNonRetryableModelFailure(error)
-      ) {
-        throw error;
-      }
-      options.onRecoverableFailure?.(error);
-      normalRetryUsed = true;
-      guidance = { kind: 'initial' };
+      throw error;
     }
   }
 }
@@ -117,11 +109,6 @@ function normalizedModelErrorCode(reason: unknown): AuditErrorCode {
 /** Timeout and cancellation are terminal stop signals, never application retry candidates. */
 function isProviderStop(error: unknown): boolean {
   return isHarnessError(error) && (error.category === 'cancelled' || error.category === 'timeout');
-}
-
-/** A harness-declared non-retryable model failure must not receive a blind second dispatch. */
-function isNonRetryableModelFailure(error: unknown): boolean {
-  return isHarnessError(error) && error.category === 'model' && !error.retriable;
 }
 
 /**

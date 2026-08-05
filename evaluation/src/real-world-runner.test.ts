@@ -55,11 +55,6 @@ test('runs the pinned mixed-language seed through the normal plan and audit work
     promptProtocolFingerprint: reviewWorkflowPromptProtocolFingerprint,
   });
   expect(run.maxParallelVectors).toBe(2);
-  expect(run.modelCostCeilingState).toEqual({
-    configuredUsd: null,
-    accumulatedEstimatedCostUsd: null,
-    reached: false,
-  });
   expect(run.diagnosticGatePassed).toBe(false);
   expect(run.evidenceQualification).toBe('development-calibration');
   expect(run.trials).toHaveLength(6);
@@ -121,7 +116,6 @@ test('runs the pinned mixed-language seed through the normal plan and audit work
   expect(report).toContain('File-tool usage');
   expect(report).toContain('Completed-trial finding admission funnel');
   expect(report).toContain('Vector concurrency: 2');
-  expect(report).toContain('Cost guard: disabled');
   expect(report).toContain('| 0 | 0 | 0 | 0/0/0 | 0 | 0 | 0 | 0 | 0 |');
   const hotspotSection =
     report.split('### Cost and latency hotspots')[1]?.split('### Provider requests')[0] ?? '';
@@ -889,7 +883,6 @@ test('retains failed investigation telemetry and exact observed cost without sco
     mode: 'deterministic',
     executionBudget: HarnessExecutionConfigurationSchema.parse({ modelRetry: 'disabled' }),
     maxParallelVectors: 1,
-    maxEstimatedCostUsd: 1,
     modelPricing: {
       inputPerMillion: 1,
       outputPerMillion: 1,
@@ -924,11 +917,6 @@ test('retains failed investigation telemetry and exact observed cost without sco
   if (retainedCost === null || retainedCost === undefined) {
     throw new Error('Failed-investigation telemetry must retain a known aggregate cost.');
   }
-  expect(run.modelCostCeilingState).toEqual({
-    configuredUsd: 1,
-    accumulatedEstimatedCostUsd: retainedCost,
-    reached: false,
-  });
   expect(
     run.trials.reduce(
       (total, trial) => total + (trial.modelObservation?.cost.estimatedCostUsd ?? 0),
@@ -948,15 +936,6 @@ test('retains failed investigation telemetry and exact observed cost without sco
           ...aggregate,
           stages: aggregate.stages.slice(1),
         },
-      },
-    }).success,
-  ).toBe(false);
-  expect(
-    RealWorldEvaluationRunSchema.safeParse({
-      ...run,
-      modelCostCeilingState: {
-        ...run.modelCostCeilingState,
-        accumulatedEstimatedCostUsd: retainedCost + 0.000001,
       },
     }).success,
   ).toBe(false);

@@ -4,7 +4,6 @@ import {
   combineModelUsage,
   combineToolUsage,
   createEvaluatorFailureDiagnostic,
-  createModelCostCeiling,
   createModelStageTraceRecorder,
   mergeModelStageObservations,
   observeModelRun,
@@ -243,68 +242,6 @@ describe('model operations', () => {
         { inputPerMillion: 1, outputPerMillion: 1 },
       ),
     ).toThrow('bundled catalogue');
-  });
-
-  test('retains the crossing response and blocks the next model request', () => {
-    const ceiling = createModelCostCeiling({
-      configuredUsd: 0.000002,
-      pricing: { inputPerMillion: 1, outputPerMillion: 1, source: 'catalogue' },
-    });
-    ceiling.beforeRequest();
-    ceiling.recordResponse(
-      {
-        modelCallCount: 1,
-        inputTokens: 1,
-        outputTokens: 2,
-        cachedInputTokens: 0,
-        reasoningTokens: 0,
-      },
-      { inputPerMillion: 1, outputPerMillion: 1, source: 'catalogue' },
-    );
-    expect(ceiling.state()).toEqual({
-      configuredUsd: 0.000002,
-      accumulatedEstimatedCostUsd: 0.000003,
-      reached: true,
-    });
-    expect(() => ceiling.beforeRequest()).toThrow('model-cost ceiling');
-  });
-
-  test('rejects a cost ceiling when pricing cannot produce an estimate', () => {
-    expect(() => createModelCostCeiling({ configuredUsd: 1, pricing: {} })).toThrow(
-      'known exact-model catalogue pricing',
-    );
-  });
-
-  test('adds an orphaned checkpoint stage once before resumed dispatch', () => {
-    const stage = observeModelStage({
-      stage: 'planning',
-      route: 'primary',
-      stageId: 'checkpointed-plan',
-      status: 'completed',
-      durationMs: 1,
-      errorCode: null,
-      requests: [
-        {
-          durationMs: 1,
-          usage: {
-            modelCallCount: 1,
-            inputTokens: 1,
-            outputTokens: 1,
-            cachedInputTokens: 0,
-            reasoningTokens: 0,
-          },
-        },
-      ],
-      pricing: { inputPerMillion: 1, outputPerMillion: 1, source: 'catalogue' },
-      cacheRoutingEnabled: false,
-    });
-    const ceiling = createModelCostCeiling({
-      configuredUsd: 0.000002,
-      pricing: { inputPerMillion: 1, outputPerMillion: 1, source: 'catalogue' },
-    });
-    ceiling.recordPriorStages([stage, stage]);
-    expect(ceiling.state().accumulatedEstimatedCostUsd).toBe(0.000002);
-    expect(() => ceiling.beforeRequest()).toThrow('model-cost ceiling');
   });
 
   test('combines numeric observations without content', () => {

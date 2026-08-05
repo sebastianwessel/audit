@@ -43,3 +43,14 @@ test('is idempotent for an already redacted credential marker', () => {
   const marker = 'password = [REDACTED_SECRET]';
   expect(redactArtifactText(marker)).toBe(marker);
 });
+
+test('preserves structured identifiers while redacting labelled local telephone numbers', () => {
+  const result = redactArtifactText(
+    'CVE-2018-16492 affects version 1.7.13; telephone: 030 1234 5678.',
+  );
+
+  expect(result).toContain('CVE-2018-16492');
+  expect(result).toContain('1.7.13');
+  expect(result).not.toContain('030 1234 5678');
+  expect(result).toContain('telephone: [REDACTED_PHONE]');
+});

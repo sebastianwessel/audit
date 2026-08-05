@@ -6,7 +6,6 @@ import type { JsonValue } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createPlan as createDraftPlan } from '../attack-planning/index.js';
 import { modelStagesForAudit } from '../audit-execution/model-stage-observations.js';
-import { createModelCostCeiling } from '../model-operations/model-operations.js';
 import { createReviewService } from './service.js';
 
 function enqueueEvidenceMap(provider: FakeModelProvider, path: string): void {
@@ -268,7 +267,11 @@ test('retries one failed agent invocation without expanding the approved audit s
     generatedAt: '2026-07-29T12:02:00.000Z',
     sessionId: 'retry-audit-01',
   });
-  expect(audited.report.coverage[0]).toMatchObject({ outcome: 'completed', findingCount: 0 });
+  expect(audited.report.coverage[0]).toMatchObject({
+    outcome: 'incomplete',
+    errorCode: 'obligation-closure-incomplete',
+    findingCount: 0,
+  });
   expect(provider.requests).toHaveLength(9);
 });
 
@@ -652,23 +655,4 @@ test('routes a map-bound candidate through scoped inspection to an independent v
   );
   expect(provider.requests).toHaveLength(10);
   expect(verifierProvider.requests).toHaveLength(2);
-});
-
-test('uses a caller-owned cost guard with any positive queue capacity and rejects competing configuration', () => {
-  const ceiling = createModelCostCeiling({
-    configuredUsd: 1,
-    pricing: { inputPerMillion: 1, outputPerMillion: 1, source: 'catalogue' },
-  });
-  const service = createReviewService(new FakeModelProvider(), undefined, {
-    modelCostCeiling: ceiling,
-    maxParallelVectors: 128,
-  });
-  expect(service.modelCostCeiling()).toBe(ceiling);
-  expect(service.modelCostCeilingState()).toEqual(ceiling.state());
-  expect(() =>
-    createReviewService(new FakeModelProvider(), undefined, {
-      modelCostCeiling: ceiling,
-      maxEstimatedCostUsd: 1,
-    }),
-  ).toThrow('either a shared model-cost ceiling or a configured ceiling');
 });

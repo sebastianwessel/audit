@@ -11,7 +11,6 @@ import {
   VectorCoverageSchema,
 } from '../../src/features/audit-execution/audit.schema.js';
 import {
-  ModelCostCeilingStateSchema,
   ModelRunObservationSchema,
   ModelStageErrorCodeSchema,
   ModelStageObservationSchema,
@@ -839,8 +838,6 @@ export const EvaluationTrialSchema = z
     retainedUnscored: RetainedUnscoredOutcomeSchema.optional(),
     durationMs: z.int().nonnegative(),
     errorCode: ModelStageErrorCodeSchema.nullable(),
-    /** Exact source-free state of the shared dispatch guard after this trial. */
-    modelCostCeilingState: ModelCostCeilingStateSchema.optional(),
     /** Source-free audited vector state; required whenever an audit returned. */
     vectorCoverage: z.array(VectorCoverageSchema).min(1).optional(),
     modelObservation: ModelRunObservationSchema.nullable().optional(),
@@ -1115,8 +1112,6 @@ export const RealWorldEvaluationRunSchema = z
     semanticPlanEvaluator: SemanticPlanEvaluatorIdentitySchema.nullable(),
     executionBudget: HarnessExecutionConfigurationSchema,
     maxParallelVectors: MaxParallelVectorsSchema,
-    /** Exact shared dispatch-guard state when the evaluation stopped. */
-    modelCostCeilingState: ModelCostCeilingStateSchema,
     promptProtocolFingerprint: Sha256Schema,
     startedAt: IsoDateTimeSchema,
     finishedAt: IsoDateTimeSchema,
@@ -1344,9 +1339,8 @@ export const RealWorldEvaluationRunSchema = z
 
 /**
  * Makes every published evaluation reconstructible from its persisted,
- * source-free trial observations. The shared cost guard may only account for
- * the same retained ledger; a response that cannot be reconstructed is not
- * eligible for scoring, comparison, or publication.
+ * source-free trial observations. A response that cannot be reconstructed is
+ * not eligible for scoring, comparison, or publication.
  */
 function validateRetainedModelObservationLedger(
   run: z.output<typeof RealWorldEvaluationRunSchema>,
@@ -1394,16 +1388,6 @@ function validateRetainedModelObservationLedger(
       code: 'custom',
       path: ['reliability', 'modelObservation', 'cost', 'estimatedCostUsd'],
       message: 'Evaluation aggregate cost must equal the retained trial-stage ledger.',
-    });
-  }
-  if (
-    run.modelCostCeilingState.configuredUsd !== null &&
-    run.modelCostCeilingState.accumulatedEstimatedCostUsd !== retainedCost
-  ) {
-    context.addIssue({
-      code: 'custom',
-      path: ['modelCostCeilingState', 'accumulatedEstimatedCostUsd'],
-      message: 'The enabled evaluation cost guard must equal the retained trial-stage ledger.',
     });
   }
 }
@@ -1608,7 +1592,6 @@ export const ProviderEvaluationCheckpointSchema = z
     semanticPlanEvaluator: SemanticPlanEvaluatorIdentitySchema.nullable(),
     executionBudget: HarnessExecutionConfigurationSchema,
     maxParallelVectors: MaxParallelVectorsSchema,
-    modelCostCeilingState: ModelCostCeilingStateSchema,
     status: ProviderEvaluationLifecycleStatusSchema,
     failure: ProviderEvaluationFailureSchema.nullable(),
     startedAt: IsoDateTimeSchema,

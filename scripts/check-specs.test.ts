@@ -159,19 +159,6 @@ test('canonical capability and requirement owner tables reject duplicate definit
   ).toEqual([]);
 });
 
-test('cost-ceiling guidance preserves shared concurrent queue semantics', async () => {
-  expect(
-    await Bun.file('specs/03-architecture/11-resumable-model-cost-ceiling.md').text(),
-  ).toContain('Several in-flight requests can cross the value');
-  for (const path of [
-    'specs/03-architecture/01-system-architecture.md',
-    'specs/07-research/04-codex-security-reference.md',
-    'docs/05-expert/providers-and-limits.md',
-  ]) {
-    expect(await Bun.file(path).text()).not.toContain('serial vector execution');
-  }
-});
-
 test('the canonical persisted artifact version registry agrees with strict contracts', async () => {
   const registry = await Bun.file('specs/04-contracts/01-artifact-contracts.md').text();
   expect(registry).toContain(CanonicalPersistedArtifactVersionMarker);

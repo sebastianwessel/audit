@@ -10,7 +10,14 @@ const credentialUri = /\b([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gu;
 const cloudOrProviderToken =
   /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b|\b(?:sk|rk|xox[baprs])-[A-Za-z0-9_-]{16,}\b/gu;
 const emailAddress = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/giu;
-const phoneNumber = /\b(?:\+?\d[\d .()-]{7,}\d)\b/gu;
+/**
+ * Generic artifacts also carry CVEs, versions, tickets, and stable identifiers.
+ * Redact only an explicit international number or a labelled local number so a
+ * defensive PII pass cannot corrupt those structured identifiers.
+ */
+const internationalPhoneNumber = /\+\d[\d .()-]{7,}\d\b/gu;
+const labelledPhoneNumber =
+  /\b((?:phone|telephone|tel|mobile)\s*[:=]\s*)(?:\+?\d[\d .()-]{7,}\d)\b/giu;
 const accountNumber = /\b(?:\d[ -]?){13,19}\b/gu;
 
 /**
@@ -40,7 +47,8 @@ function redactSensitiveLiterals(value: string): string {
     .replace(cloudOrProviderToken, '[REDACTED_TOKEN]')
     .replace(emailAddress, '[REDACTED_EMAIL]')
     .replace(accountNumber, '[REDACTED_ACCOUNT]')
-    .replace(phoneNumber, '[REDACTED_PHONE]');
+    .replace(internationalPhoneNumber, '[REDACTED_PHONE]')
+    .replace(labelledPhoneNumber, (_match, prefix: string) => `${prefix}[REDACTED_PHONE]`);
 }
 
 function isUnsafeControlCharacter(character: string): boolean {

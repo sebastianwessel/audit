@@ -171,9 +171,8 @@ export type ProviderEvaluationLockInspection = z.infer<
 
 /**
  * Reconstructs every exact source-free observation retained in evaluator work
- * checkpoints. The shared cost guard deduplicates byte-identical observations,
- * which covers overlapping predecessor and terminal artifacts without losing
- * paid work after an interrupted process.
+ * checkpoints. Deduplication covers overlapping predecessor and terminal
+ * artifacts without losing paid-work telemetry after an interrupted process.
  */
 export function evaluatorCheckpointModelStages(input: {
   observedVectorResults: readonly AuditVectorResult[];

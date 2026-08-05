@@ -105,22 +105,6 @@ test('uses the bundled exact catalogue price without local price configuration',
   });
 });
 
-test('loads an optional observed-cost ceiling without accepting a price override', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'audit-env-cost-ceiling-'));
-  await writeFile(
-    join(root, '.env'),
-    [
-      'AUDIT_PROVIDER=openai',
-      'AUDIT_MODEL=gpt-5.3-codex',
-      'AUDIT_MAX_ESTIMATED_COST_USD=1.50',
-    ].join('\n'),
-    'utf8',
-  );
-  const loaded = await loadRuntimeConfiguration({ cwd: root, environment: {} });
-  expect(loaded.configuration.maxEstimatedCostUsd).toBe(1.5);
-  expect(loaded.configuration.modelPricing.source).toBe('catalogue');
-});
-
 test('loads a complete independent verifier route without retaining the credential value in configuration', async () => {
   const root = await mkdtemp(join(tmpdir(), 'audit-env-independent-route-'));
   await writeFile(

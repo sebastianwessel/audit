@@ -6,7 +6,7 @@ Before starting, confirm:
 - the plan has been reviewed or edited according to your team's process;
 - private work and public artifacts go to separate directories;
 - provider and model settings are intentional;
-- the chosen vector concurrency and optional observed-cost ceiling are intentional.
+- the chosen vector concurrency is intentional.
 
 If the use case has context documents, confirm they describe the intended surrounding system, deployment, setup, data classification, or controls and that they are explicitly allowlisted. Context helps explain code but does not replace source evidence.
 

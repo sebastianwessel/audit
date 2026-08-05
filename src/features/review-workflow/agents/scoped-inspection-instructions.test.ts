@@ -55,34 +55,33 @@ test('gives every live model stage the same content-free retry guidance', () => 
   }
 });
 
-test('keeps speculative planning suggestions outside executable audit vectors', () => {
+test('keeps unsupported planning suggestions outside executable audit vectors', () => {
   expect(planningAgentInstructions).toContain(
     'Put only target-specific, materially security-relevant',
   );
-  expect(planningAgentInstructions).toContain('put it in additionalObservations instead');
+  expect(planningAgentInstructions).toContain(
+    'put the concern in additionalObservations instead of creating executable work',
+  );
 });
 
-test('keeps generated executable obligations closable without weakening context-gap safety', () => {
+test('keeps generated executable obligations source-local and closable', () => {
   expect(planningAgentInstructions).toContain(
     'truthful source-backed terminal outcome inside its scope',
   );
   expect(planningAgentInstructions).toContain('do not split one source behavior');
-  expect(planningAgentInstructions).toContain('depends on unavailable surrounding context');
-  expect(planningAgentInstructions).not.toContain(
-    'Make source-local behavior and context-dependent consequence/reachability separate obligations',
-  );
-  expect(verificationAgentInstructions).toContain('context-required');
-  expect(verificationAgentInstructions).toContain(
-    'source-visible behavior without that consequence',
+  expect(planningAgentInstructions).toContain(
+    'absence of that context must not make the source-local review item speculative',
   );
 });
 
-test('requires plans and verifier decisions to establish the exact security consequence', () => {
+test('requires plans to name a source-local condition without inventing impact', () => {
   expect(planningAgentInstructions).toContain(
-    'source condition and the protected security consequence',
+    'source-local unsafe condition and the protected consequence that may follow',
   );
-  expect(candidateGroundingAgentInstructions).toContain('rather than an adjacent code pattern');
-  expect(verificationAgentInstructions).toContain('missing generic guard, an adjacent risk');
+  expect(candidateGroundingAgentInstructions).toContain(
+    'source-local operation and unsafe-condition relationship',
+  );
+  expect(verificationAgentInstructions).toContain('source-local relationship itself');
   expect(sourcePostureAgentInstructions).toContain(
     'generic missing guard or adjacent source pattern',
   );

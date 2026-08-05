@@ -2,10 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { z } from 'zod';
 
-import {
-  ModelCostCeilingUsdSchema,
-  ModelPricingSchema,
-} from '../../features/model-operations/model-operations.schema.js';
+import { ModelPricingSchema } from '../../features/model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../../features/model-operations/model-pricing-catalogue.js';
 import {
   DefaultMaxParallelVectors,
@@ -83,7 +80,6 @@ export const RuntimeConfigurationSchema = z
     maxParallelVectors: MaxParallelVectorsSchema.default(
       RuntimeConfigurationDefaults.maxParallelVectors,
     ),
-    maxEstimatedCostUsd: ModelCostCeilingUsdSchema.optional(),
     modelPricing: ModelPricingSchema,
     verificationMode: VerificationModeSchema.default(RuntimeConfigurationDefaults.verificationMode),
     independentVerifierRoute: IndependentVerifierRouteSchema.optional(),
@@ -161,7 +157,6 @@ export async function loadRuntimeConfiguration(
       evaluationCorpusRoot: optionalValue(environment, 'AUDIT_EVALUATION_CORPUS_ROOT'),
       evaluationOutputRoot: optionalValue(environment, 'AUDIT_EVALUATION_OUTPUT_ROOT'),
       maxParallelVectors: optionalInteger(environment, 'AUDIT_MAX_PARALLEL_VECTORS'),
-      maxEstimatedCostUsd: optionalDecimal(environment, 'AUDIT_MAX_ESTIMATED_COST_USD'),
       modelPricing: catalogueModelPricing({ provider, model }),
       verificationMode,
       ...(verificationMode === 'independent-route'
@@ -242,15 +237,6 @@ function optionalInteger(environment: EnvironmentSource, key: string): number | 
   if (value === undefined) return undefined;
   if (!/^\d+$/u.test(value)) throw new TypeError(`${key} must be a positive integer.`);
   return Number(value);
-}
-
-function optionalDecimal(environment: EnvironmentSource, key: string): number | undefined {
-  const value = optionalValue(environment, key);
-  if (value === undefined) return undefined;
-  if (!/^(?:0|[1-9]\d*)(?:\.\d+)?$/u.test(value)) {
-    throw new TypeError(`${key} must be a positive decimal.`);
-  }
-  return ModelCostCeilingUsdSchema.parse(Number(value));
 }
 
 function isMissingFile(error: unknown): boolean {

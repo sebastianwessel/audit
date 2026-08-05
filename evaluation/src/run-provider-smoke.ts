@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { createPlan } from '../../src/features/attack-planning/index.js';
 import { createAuditResumeState } from '../../src/features/audit-execution/checkpoints.js';
 import { emptyVerificationTerminalLaneCounts } from '../../src/features/audit-execution/verification/contract.js';
-import { ModelCostCeilingUsdSchema } from '../../src/features/model-operations/model-operations.schema.js';
 import { catalogueModelPricing } from '../../src/features/model-operations/model-pricing-catalogue.js';
 import {
   evidenceMapProtocolFingerprint,
@@ -55,7 +54,6 @@ import {
 import {
   acquireProviderEvaluationLock,
   createEvaluationAuditCheckpointStore,
-  evaluatorCheckpointModelStages,
   readProviderSmokeCheckpoint,
   writeProviderSmokeCheckpoint,
 } from './real-world-artifacts.js';
@@ -78,7 +76,6 @@ const ProviderSmokeOptionsSchema = ProviderSmokeArgumentsSchema.extend({
   model: ModelIdentifierSchema,
   corpus: z.string().trim().min(1),
   output: z.string().trim().min(1),
-  'max-estimated-cost-usd': ModelCostCeilingUsdSchema.optional(),
   executionBudget: HarnessExecutionConfigurationSchema,
   runId: IdentifierSchema,
   resume: z.boolean(),
@@ -117,7 +114,6 @@ export function parseProviderSmokeArguments(
       parsedArguments.data.output ??
       runtime?.evaluationOutputRoot ??
       RuntimeConfigurationDefaults.evaluationOutputRoot,
-    'max-estimated-cost-usd': runtime?.maxEstimatedCostUsd,
     executionBudget: {
       modelTimeoutMs: parsedArguments.data['model-timeout-ms'],
       runTimeoutMs: parsedArguments.data['run-timeout-ms'],
@@ -181,9 +177,6 @@ export async function runProviderSmoke(input: {
     const service = createReviewService(modelProvider, input.options.model, {
       maxParallelVectors: DefaultMaxParallelVectors,
       harnessExecution: input.options.executionBudget,
-      ...(input.options['max-estimated-cost-usd'] === undefined
-        ? {}
-        : { maxEstimatedCostUsd: input.options['max-estimated-cost-usd'] }),
       modelPricing: pricing,
       modelCacheRoutingKey: providerCacheRoutingKey({
         provider: input.options.provider,
@@ -282,9 +275,6 @@ export async function runProviderSmoke(input: {
             retryUnfinished: input.options.retryUnfinished,
           })
         : undefined;
-      if (reusable !== undefined) {
-        service.recordPriorModelStages(evaluatorCheckpointModelStages(reusable));
-      }
       const audited = await service.audit({
         targetRoot: smoke.targetRoot,
         contextRoot: smoke.contextRoot,

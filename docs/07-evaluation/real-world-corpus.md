@@ -125,7 +125,7 @@ It uses an in-process scripted fixture and a language-unknown source file to exe
 
 `eval:stage-semantic` is a separate, explicit evaluator-only entrypoint for a sealed stage pack. It never falls back to `eval:stages`; any semantic-stage result is an internal `single-ai-assisted-development-review`, not a release, baseline, provider-selection, CI, or product-admission signal.
 
-For one paid integration diagnostic after that check passes, use the separate smoke command. It accepts exactly one development case and one source variant, always uses its evaluator-owned reviewed plan, and validates the selected source checksum without opening an answer key. You may configure an observed-cost guard when an operational stop condition is useful; it is never required and does not limit evidence, tools, or output:
+For one paid integration diagnostic after that check passes, use the separate smoke command. It accepts exactly one development case and one source variant, always uses its evaluator-owned reviewed plan, and validates the selected source checksum without opening an answer key:
 
 ```bash
 bun run eval:smoke --case ossf-cve-2018-16492 --variant vulnerable
@@ -145,7 +145,7 @@ Use an explicit run id to recover a stopped smoke without repeating a completed 
 bun run eval:smoke --case ossf-cve-2018-16492 --variant vulnerable --run-id smoke-01 --resume true --retry-unfinished true
 ```
 
-The ceiling is a shared observed-cost dispatch guard, not a prepaid charge or a promised billing cap. The request that crosses it is retained in the artifact; later dispatches are refused. A resumed smoke registers each exact retained stage observation once before it can issue new requests, including work from an incomplete, failed, or cancelled vector that it will re-run rather than reuse.
+The smoke records source-free token usage and bundled-catalogue cost estimates. On resume, it registers each exact retained stage observation once so aggregate telemetry does not double-count work from an incomplete, failed, or cancelled vector.
 
 ```bash
 bun run eval:provider --repetitions 1 --plan-profile audit-reviewed-plan
@@ -154,7 +154,7 @@ bun run eval:provider --repetitions 1 --plan-profile audit-reviewed-plan
 This mode never enables shell access, target execution, network access, writes, or access outside the vector scope. Compare models only when pack, profile, tool policy, prompts, and provider configuration are recorded together.
 
 
-The provider, model, verification route, concurrency, and optional observed-cost guard come only from `.env`; one-off comparison runs use a separate `.env` configuration, not command overrides. Model and run deadlines default to disabled (`0`), so a complete audit is never stopped by an undocumented short timer. If your CI needs an explicit operational stop, choose non-zero values; the model deadline is applied by both the review runtime and provider transport, and a reached deadline becomes a visible cancelled trial that can resume only explicitly. When both values are positive, run timeout must be at least model timeout. By default, a failed agent invocation gets one fresh same-input retry while keeping the original vector scope; a normalized context-window error instead uses deterministic scope recovery. A continuing provider problem remains a failed trial.
+The provider, model, verification route, and concurrency come only from `.env`; one-off comparison runs use a separate `.env` configuration, not command overrides. Model and run deadlines default to disabled (`0`), so a complete audit is never stopped by an undocumented short timer. If your CI needs an explicit operational stop, choose non-zero values; the model deadline is applied by both the review runtime and provider transport, and a reached deadline becomes a visible cancelled trial that can resume only explicitly. When both values are positive, run timeout must be at least model timeout. By default, the harness applies its configured same-input retry policy while keeping the original vector scope; a normalized context-window error instead uses deterministic scope recovery. A continuing provider problem remains a failed trial.
 
 The report separates its **workflow finding gate** from its **evidence qualification**. A passing workflow gate only says that this recorded run met its finding/safety criteria; it cannot by itself establish model quality. New runs derive `diagnostic`, `development-pilot`, or `private-holdout` from the selected split and independently reviewed corpus state. A private-holdout claim additionally needs a steward-signed, source-free attestation for the physically separate holdout pack. Pass its JSON envelope and public key only when running that split:
 

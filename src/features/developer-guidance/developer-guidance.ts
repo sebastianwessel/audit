@@ -1,7 +1,7 @@
 import type { ModelProvider } from '@purista/harness';
 
 import type { HarnessExecutionConfiguration } from '../../platform/harness/audit-harness.js';
-import type { ModelCostCeiling, ModelPricing } from '../model-operations/index.js';
+import type { ModelPricing } from '../model-operations/index.js';
 import {
   runScopedModelStage,
   scopedInspectionRequirement,
@@ -23,7 +23,6 @@ export async function runDeveloperGuidanceStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
 }) {
   return runScopedModelStage<DeveloperGuidanceModelOutput>({
@@ -39,7 +38,6 @@ export async function runDeveloperGuidanceStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     requireScopedSourceInspection: true,
     // Guidance contains model-authored prose that may never enter a durable

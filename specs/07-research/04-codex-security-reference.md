@@ -27,7 +27,7 @@ The reference's coverage-aware comparison emphasizes an existing Audit invariant
 
 ## Adopted operational follow-up
 
-The reference's end-to-end model-cost ceiling informed CAP-081. Audit now uses the same product-appropriate principle: it records catalogue-priced observed usage, retains requests that cross a configured ceiling, and prevents later requests from starting. Concurrent in-flight requests share the same guard; they may cross the value before usage is recorded, but queued audit work is never omitted. It records the reached state without source or prompt content and resumes from completed checkpoints using prior stage observations. `plan`, `audit`, and opt-in provider evaluation expose the same ceiling; a stopped run remains incomplete and cannot pass a quality gate. The implementation deliberately does not accept environment price overrides or claim that catalogue estimates equal a provider invoice.
+Audit retains catalogue-priced observed usage as source-free telemetry. It does not accept environment price overrides, does not claim that estimates equal provider invoices, and never uses cost to stop dispatch or limit audit work. Resume deduplicates retained stage observations so reported usage stays exact.
 
 ## Skills and prompt decision
 

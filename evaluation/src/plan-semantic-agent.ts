@@ -5,7 +5,6 @@ import {
   createProviderUsageRecorder,
   type EvaluatorFailureDiagnosticSink,
   emptyToolUsage,
-  type ModelCostCeiling,
   type ModelPricing,
   observeModelStage,
   writeEvaluatorFailureDiagnostic,
@@ -134,16 +133,12 @@ export async function evaluateGeneratedPlanSemantics(input: {
   reviewer: string;
   reviewedAt: string;
   modelPricing: ModelPricing;
-  /** Optional shared run-wide observed-cost dispatch guard. */
-  modelCostCeiling?: ModelCostCeiling;
   modelCacheRoutingKey?: string;
   evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
 }): Promise<PlanSemanticEvaluatorOperation> {
   const started = performance.now();
   const trace = createModelStageTraceRecorder({ pricing: input.modelPricing });
   const recorder = createProviderUsageRecorder(input.modelProvider, {
-    ...(input.modelCostCeiling === undefined ? {} : { costCeiling: input.modelCostCeiling }),
-    pricing: input.modelPricing,
     onResponse: trace.recordModelResponse,
   });
   try {

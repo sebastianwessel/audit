@@ -16,7 +16,6 @@ import {
   mergeUniqueIdentifiers,
 } from '../../audit-execution/source-posture/provenance.js';
 import type {
-  ModelCostCeiling,
   ModelPricing,
   ModelStageObservation,
 } from '../../model-operations/model-operations.js';
@@ -42,7 +41,6 @@ export async function runInvestigationStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   overflowTopology?: ScopedModelStageOverflowTopologyBase;
   evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
@@ -61,7 +59,6 @@ export async function runInvestigationStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     onCompletedModelObservation: input.onCompletedModelObservation,

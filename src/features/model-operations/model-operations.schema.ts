@@ -74,46 +74,6 @@ export const ModelCostSummarySchema = z.strictObject({
   source: ModelCostSourceSchema,
 });
 
-/** Operator-selected dispatch ceiling, never a model-price override. */
-export const ModelCostCeilingUsdSchema = z.number().finite().positive();
-
-/** Source-free state of one run-wide observed-cost dispatch guard. */
-export const ModelCostCeilingStateSchema = z
-  .strictObject({
-    configuredUsd: ModelCostCeilingUsdSchema.nullable(),
-    accumulatedEstimatedCostUsd: z.number().finite().nonnegative().nullable(),
-    reached: z.boolean(),
-  })
-  .superRefine((value, context) => {
-    if (value.configuredUsd === null) {
-      if (value.accumulatedEstimatedCostUsd !== null || value.reached) {
-        context.addIssue({
-          code: 'custom',
-          message: 'A disabled cost ceiling cannot have observed state.',
-        });
-      }
-      return;
-    }
-    if (value.accumulatedEstimatedCostUsd === null) {
-      context.addIssue({
-        code: 'custom',
-        path: ['accumulatedEstimatedCostUsd'],
-        message: 'An enabled cost ceiling requires a known observed estimate.',
-      });
-    }
-    if (
-      value.reached &&
-      (value.accumulatedEstimatedCostUsd === null ||
-        value.accumulatedEstimatedCostUsd < value.configuredUsd)
-    ) {
-      context.addIssue({
-        code: 'custom',
-        path: ['reached'],
-        message: 'A reached ceiling requires observed cost at or above the configured value.',
-      });
-    }
-  });
-
 /** One successful provider response. This never contains provider identifiers or content. */
 export const ModelRequestObservationSchema = z
   .strictObject({
@@ -411,8 +371,6 @@ export type ModelPricing = z.infer<typeof ModelPricingSchema>;
 export type ModelCostSource = z.infer<typeof ModelCostSourceSchema>;
 export type ModelRoute = z.infer<typeof ModelRouteSchema>;
 export type ModelCostSummary = z.infer<typeof ModelCostSummarySchema>;
-export type ModelCostCeilingUsd = z.infer<typeof ModelCostCeilingUsdSchema>;
-export type ModelCostCeilingState = z.infer<typeof ModelCostCeilingStateSchema>;
 export type ModelRequestObservation = z.infer<typeof ModelRequestObservationSchema>;
 export type ModelStageTraceEvent = z.infer<typeof ModelStageTraceEventSchema>;
 export type ToolUsage = z.infer<typeof ToolUsageSchema>;

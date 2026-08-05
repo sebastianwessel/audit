@@ -1,5 +1,4 @@
 import type { AttackPlan } from '../../src/features/attack-planning/index.js';
-import type { ModelCostCeiling } from '../../src/features/model-operations/model-operations.js';
 import {
   readOptionalJsonArtifact,
   writeJsonArtifact,
@@ -33,8 +32,6 @@ export async function runPlanSemanticEvaluationOperation(input: {
   answerKey: CorpusAnswerKey;
   retry: boolean;
   now: () => string;
-  /** Registers an exact recovered evaluator observation before later dispatch. */
-  modelCostCeiling?: ModelCostCeiling;
   invokeEvaluator: () => Promise<PlanSemanticEvaluatorOperation>;
 }): Promise<PlanSemanticEvaluatorOperation> {
   const binding = PlanSemanticAdjudicationBindingSchema.parse(input.binding);
@@ -48,7 +45,6 @@ export async function runPlanSemanticEvaluationOperation(input: {
   if (checkpoint !== undefined) {
     assertCheckpointBinding(checkpoint, binding);
     if (checkpoint.status === 'completed') {
-      input.modelCostCeiling?.recordPriorStages([checkpoint.evaluation.modelObservation]);
       return {
         status: 'completed',
         evaluation: validateEvaluation(checkpoint.evaluation, binding, input.plan, input.answerKey),

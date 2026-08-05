@@ -44,7 +44,6 @@ import {
   combineToolUsage,
   type EvaluatorFailureDiagnosticSink,
   emptyToolUsage,
-  type ModelCostCeiling,
   type ModelPricing,
   type ModelStageObservation,
   summarizeModelStages,
@@ -215,7 +214,6 @@ export type StageIsolatedEvaluationRunInput = Readonly<{
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   canonicalInput: StageIsolatedCanonicalInput;
   semanticEvaluator: StageIsolatedSemanticEvaluator;
@@ -343,7 +341,6 @@ async function runPlanning(
       harnessExecution: input.harnessExecution,
       modelCacheRoutingKey: input.modelCacheRoutingKey,
       modelPricing: input.modelPricing,
-      ...(input.modelCostCeiling === undefined ? {} : { modelCostCeiling: input.modelCostCeiling }),
       cacheRoutingEnabled: input.cacheRoutingEnabled,
     });
     if (result.status === 'failed') {
@@ -392,7 +389,6 @@ async function runEvidenceMapping(
       harnessExecution: input.harnessExecution,
       modelCacheRoutingKey: input.modelCacheRoutingKey,
       modelPricing: input.modelPricing,
-      ...(input.modelCostCeiling === undefined ? {} : { modelCostCeiling: input.modelCostCeiling }),
       cacheRoutingEnabled: input.cacheRoutingEnabled,
     });
     if (result.status === 'failed') {
@@ -458,7 +454,6 @@ async function runSourcePosture(
       harnessExecution: input.harnessExecution,
       modelCacheRoutingKey: input.modelCacheRoutingKey,
       modelPricing: input.modelPricing,
-      ...(input.modelCostCeiling === undefined ? {} : { modelCostCeiling: input.modelCostCeiling }),
       cacheRoutingEnabled: input.cacheRoutingEnabled,
     });
     if (result.status === 'failed') {
@@ -517,7 +512,6 @@ async function runInvestigationGrounding(
       harnessExecution: input.harnessExecution,
       modelCacheRoutingKey: input.modelCacheRoutingKey,
       modelPricing: input.modelPricing,
-      ...(input.modelCostCeiling === undefined ? {} : { modelCostCeiling: input.modelCostCeiling }),
       cacheRoutingEnabled: input.cacheRoutingEnabled,
     });
     observations.push(result.modelObservation);
@@ -552,7 +546,6 @@ async function runInvestigationGrounding(
       harnessExecution: input.harnessExecution,
       modelCacheRoutingKey: input.modelCacheRoutingKey,
       modelPricing: input.modelPricing,
-      ...(input.modelCostCeiling === undefined ? {} : { modelCostCeiling: input.modelCostCeiling }),
       cacheRoutingEnabled: input.cacheRoutingEnabled,
     });
     observations.push(result.modelObservation);
@@ -612,7 +605,6 @@ async function runVerification(
       harnessExecution: input.harnessExecution,
       modelCacheRoutingKey: input.modelCacheRoutingKey,
       modelPricing: input.modelPricing,
-      ...(input.modelCostCeiling === undefined ? {} : { modelCostCeiling: input.modelCostCeiling }),
       cacheRoutingEnabled: input.cacheRoutingEnabled,
     });
     if (result.modelObservation.status === 'failed') {
@@ -657,7 +649,6 @@ async function runFullReviewedPlanAudit(
     throw new StageIsolatedInputBindingError();
   }
   const canonical = StageIsolatedFullReviewedPlanAuditCanonicalInputSchema.parse(canonicalInput);
-  const configuredCostCeiling = input.modelCostCeiling?.state().configuredUsd;
   const service = createReviewService(input.modelProvider, input.modelName, {
     maxParallelVectors: DefaultMaxParallelVectors,
     harnessExecution: input.harnessExecution,
@@ -665,9 +656,6 @@ async function runFullReviewedPlanAudit(
     ...(input.modelCacheRoutingKey === undefined
       ? {}
       : { modelCacheRoutingKey: input.modelCacheRoutingKey }),
-    ...(configuredCostCeiling === null || configuredCostCeiling === undefined
-      ? {}
-      : { maxEstimatedCostUsd: configuredCostCeiling }),
   });
   try {
     const audited = await service.audit({

@@ -14,7 +14,6 @@ import type { HypothesisSeed } from '../../audit-execution/investigation/contrac
 import type { SourceDocument } from '../../audit-execution/phase-input/contract.js';
 import type { SourcePosture } from '../../audit-execution/source-posture/contract.js';
 import type {
-  ModelCostCeiling,
   ModelPricing,
   ModelStageObservation,
 } from '../../model-operations/model-operations.js';
@@ -52,7 +51,6 @@ export async function runCandidateGroundingStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   overflowTopology?: ScopedModelStageOverflowTopologyBase &
     Readonly<{
@@ -126,7 +124,6 @@ export async function runCandidateGroundingStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     onCompletedModelObservation: input.onCompletedModelObservation,

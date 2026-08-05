@@ -18,7 +18,7 @@ Use the platform configuration loader for local `.env` values. Do not add anothe
 
 Do not accept model prices from `.env` or CLI flags. `src/features/model-operations/` owns the generated exact-model price catalogue and its explicit contributor refresh command; product commands never fetch pricing.
 
-An optional `.env` or CLI model-cost ceiling is a shared observed-cost dispatch guard, not a source/context/tool/output cap. It must retain the response that crosses it and reject only later requests with `model-cost-ceiling-reached`; never claim exact provider billing control or duplicate the ledger in a stage.
+Model usage and catalogue-derived cost are source-free telemetry, never a dispatch, source, context, tool, output, or audit-work limit. Deduplicate retained observations only for reporting so resumed work cannot double-count telemetry.
 
 Planning, evidence mapping, investigation, verification, and isolated countercheck agent contracts/instructions are feature-owned under `src/features/review-workflow/agents/`. Mapping must complete before a map-bound hypothesis is considered. Its model-facing facts carry only a strict identifier, neutral role, statement, obligation references, and `{path,startLine}` selections; canonical provenance derives snippets, kinds, ranges, and redaction. Its checkpoint and fingerprint prevent unsafe reuse after protocol drift. Live stages own workflow calls and stage policy; `stages/scoped-model-stage.ts` single-owns only scope, tool budget, sessions, retry lifecycle, and the content-free ledger. Keep provider mounting, tool registration, and sandbox configuration in the platform harness. Model usage/cost is recorded per stage and aggregated only from those content-free records.
 

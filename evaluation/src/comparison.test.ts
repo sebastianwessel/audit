@@ -43,11 +43,6 @@ function generatedRun(runId: string) {
     semanticPlanEvaluator,
     executionBudget: { modelTimeoutMs: 20_000, runTimeoutMs: 30_000, modelRetry: 'default' },
     maxParallelVectors: 1,
-    modelCostCeilingState: {
-      configuredUsd: null,
-      accumulatedEstimatedCostUsd: null,
-      reached: false,
-    },
     promptProtocolFingerprint: 'b'.repeat(64),
     startedAt: '2026-08-04T12:00:00.000Z',
     finishedAt: '2026-08-04T12:00:01.000Z',

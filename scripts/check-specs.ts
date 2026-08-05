@@ -117,23 +117,6 @@ for (const [path, prefix] of [
   }
 }
 
-const costCeilingConcurrencyOwner = 'specs/03-architecture/11-resumable-model-cost-ceiling.md';
-const costCeilingOwnerText = await Bun.file(costCeilingConcurrencyOwner).text();
-if (!costCeilingOwnerText.includes('Several in-flight requests can cross the value')) {
-  throw new Error(
-    `Missing shared concurrent cost-ceiling contract: ${costCeilingConcurrencyOwner}`,
-  );
-}
-for (const path of [
-  'specs/03-architecture/01-system-architecture.md',
-  'specs/07-research/04-codex-security-reference.md',
-  'docs/05-expert/providers-and-limits.md',
-] as const) {
-  if ((await Bun.file(path).text()).includes('serial vector execution')) {
-    throw new Error(`Cost-ceiling guidance must not require serial vector execution: ${path}`);
-  }
-}
-
 const canonicalVersionRegistryPath = 'specs/04-contracts/01-artifact-contracts.md';
 const canonicalVersionRegistry = await Bun.file(canonicalVersionRegistryPath).text();
 if (!canonicalVersionRegistry.includes(CanonicalPersistedArtifactVersionMarker)) {

@@ -12,7 +12,6 @@ import {
 import { verifyEvidenceMap } from '../../audit-execution/evidence-map/verify.js';
 import type { EvidenceMapRequest } from '../../audit-execution/phase-input/contract.js';
 import type {
-  ModelCostCeiling,
   ModelPricing,
   ModelStageObservation,
 } from '../../model-operations/model-operations.js';
@@ -44,7 +43,6 @@ export async function runEvidenceMapStage(input: {
   harnessExecution: HarnessExecutionConfiguration;
   modelCacheRoutingKey: string | undefined;
   modelPricing: ModelPricing;
-  modelCostCeiling?: ModelCostCeiling;
   cacheRoutingEnabled: boolean;
   overflowTopology?: ScopedModelStageOverflowTopologyBase &
     Readonly<{
@@ -104,7 +102,6 @@ export async function runEvidenceMapStage(input: {
     harnessExecution: input.harnessExecution,
     modelCacheRoutingKey: input.modelCacheRoutingKey,
     modelPricing: input.modelPricing,
-    modelCostCeiling: input.modelCostCeiling,
     cacheRoutingEnabled: input.cacheRoutingEnabled,
     evaluatorFailureDiagnosticSink: input.evaluatorFailureDiagnosticSink,
     onCompletedModelObservation: input.onCompletedModelObservation,

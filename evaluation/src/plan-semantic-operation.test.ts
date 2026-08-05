@@ -5,7 +5,6 @@ import { join } from 'node:path';
 import { OperationCancelledError } from '@purista/harness';
 import { FakeModelProvider } from '@purista/harness/testing';
 import { createPlan } from '../../src/features/attack-planning/index.js';
-import type { ModelStageObservation } from '../../src/features/model-operations/model-operations.js';
 import { catalogueModelPricing } from '../../src/features/model-operations/model-pricing-catalogue.js';
 import {
   readJsonArtifact,
@@ -164,25 +163,6 @@ test('requires explicit retry for a running checkpoint, then reuses completion b
   });
 
   let providerConstructionCount = 0;
-  let costGuardBeforeRequestCount = 0;
-  let costGuardRecordedResponseCount = 0;
-  let costGuardRecoveredStageCount = 0;
-  const modelCostCeiling = {
-    beforeRequest: () => {
-      costGuardBeforeRequestCount += 1;
-    },
-    recordResponse: () => {
-      costGuardRecordedResponseCount += 1;
-    },
-    recordPriorStages: (stages: readonly ModelStageObservation[]) => {
-      costGuardRecoveredStageCount += stages.length;
-    },
-    state: () => ({
-      configuredUsd: 1,
-      accumulatedEstimatedCostUsd: 0,
-      reached: false,
-    }),
-  };
   const invoke = async () => {
     providerConstructionCount += 1;
     const provider = completedFakeProvider();
@@ -198,7 +178,6 @@ test('requires explicit retry for a running checkpoint, then reuses completion b
       reviewer: 'semantic-operation-evaluator',
       reviewedAt: '2026-08-03T16:01:00.000Z',
       modelPricing: catalogueModelPricing({ provider: 'openai', model: 'gpt-5.6-terra' }),
-      modelCostCeiling,
     });
   };
   const baseInput = {
@@ -208,7 +187,6 @@ test('requires explicit retry for a running checkpoint, then reuses completion b
     plan,
     answerKey,
     now: () => '2026-08-03T16:01:00.000Z',
-    modelCostCeiling,
     invokeEvaluator: invoke,
   };
 
@@ -224,8 +202,6 @@ test('requires explicit retry for a running checkpoint, then reuses completion b
     evaluation: { score: { scenarioRecall: 1, relevantVectorPrecision: 1 } },
   });
   expect(providerConstructionCount).toBe(1);
-  expect(costGuardBeforeRequestCount).toBe(1);
-  expect(costGuardRecordedResponseCount).toBe(1);
 
   await expect(
     runPlanSemanticEvaluationOperation({
@@ -238,7 +214,6 @@ test('requires explicit retry for a running checkpoint, then reuses completion b
     }),
   ).resolves.toMatchObject({ status: 'completed' });
   expect(providerConstructionCount).toBe(1);
-  expect(costGuardRecoveredStageCount).toBe(1);
   expect(await Bun.file(join(outputRoot, checkpointPath)).exists()).toBe(true);
   expect(
     await Bun.file(

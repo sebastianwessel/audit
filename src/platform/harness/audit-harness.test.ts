@@ -203,7 +203,7 @@ test('has no default execution deadline and accepts an explicit long operational
 });
 
 test('keeps provider calls one-shot because the scoped lifecycle owns retry', () => {
-  expect(harnessProviderRetry('default')).toEqual({ maxAttempts: 1 });
+  expect(harnessProviderRetry('default')).toBeTrue();
   expect(harnessProviderRetry('disabled')).toBeFalse();
 });
 

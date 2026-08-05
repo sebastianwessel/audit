@@ -67,13 +67,8 @@ import {
 } from '../developer-guidance/identity.js';
 import { runDeveloperGuidanceStage } from '../developer-guidance/stage/index.js';
 import {
-  createModelCostCeiling,
-  type ModelCostCeiling,
-  type ModelCostCeilingState,
-  type ModelCostCeilingUsd,
   type ModelPricing,
   type ModelRunObservation,
-  type ModelStageObservation,
   summarizeModelStages,
 } from '../model-operations/model-operations.js';
 import {
@@ -93,16 +88,10 @@ import type { EvaluatorFailureDiagnosticSink } from './stages/scoped-model-stage
 
 export type ReviewService = Readonly<{
   inspectTarget: (input: ReviewTargetInput) => Promise<TargetInventory>;
-  recordPriorModelStages: (stages: readonly ModelStageObservation[]) => void;
-  /** Shared evaluator-owned dispatch guard, when a later isolated stage must use it. */
-  modelCostCeiling: () => ModelCostCeiling | undefined;
-  /** Current source-free run-wide dispatch-guard state, including disabled state. */
-  modelCostCeilingState: () => ModelCostCeilingState;
   createPlan: (input: ReviewTargetInput & { createdAt: string; sessionId: string }) => Promise<{
     inventory: TargetInventory;
     plan: AttackPlan;
     modelObservation: ModelRunObservation;
-    modelCostCeilingState?: ModelCostCeilingState;
   }>;
   createDeveloperGuidance: (
     input: ReviewTargetInput & {
@@ -120,7 +109,6 @@ export type ReviewService = Readonly<{
     inventory: TargetInventory;
     guidance: DeveloperGuidanceReport;
     modelObservation: ModelRunObservation;
-    modelCostCeilingState?: ModelCostCeilingState;
   }>;
   audit: (
     input: ReviewTargetInput & {
@@ -172,7 +160,6 @@ export type ReviewService = Readonly<{
     inventory: TargetInventory;
     report: AuditReport;
     modelObservation: ModelRunObservation;
-    modelCostCeilingState?: ModelCostCeilingState;
   }>;
 }>;
 
@@ -188,14 +175,6 @@ export type ReviewServiceOptions = Readonly<{
   modelPricing?: ModelPricing;
   modelCacheRoutingKey?: string;
   independentVerifierRoute?: ResolvedVerificationRoute;
-  maxEstimatedCostUsd?: ModelCostCeilingUsd;
-  /**
-   * Evaluation workflows can supply their one shared observed-cost guard when
-   * a later evaluator stage must account for the same provider budget.
-   * Supplying both forms would create two inconsistent accounting domains.
-   */
-  modelCostCeiling?: ModelCostCeiling;
-  priorModelStages?: readonly ModelStageObservation[];
   /** Evaluator-only best-effort diagnostics; product callers must leave this absent. */
   evaluatorFailureDiagnosticSink?: EvaluatorFailureDiagnosticSink;
 }>;
@@ -247,33 +226,10 @@ export function createReviewService(
     options.harnessExecution ?? {},
   );
   const modelPricing: ModelPricing = options.modelPricing ?? {};
-  if (options.modelCostCeiling !== undefined && options.maxEstimatedCostUsd !== undefined) {
-    throw new AuditRuntimeError(
-      'invalid-input',
-      'A review service accepts either a shared model-cost ceiling or a configured ceiling, not both.',
-    );
-  }
-  const modelCostCeiling =
-    options.modelCostCeiling ??
-    (options.maxEstimatedCostUsd === undefined
-      ? undefined
-      : createModelCostCeiling({
-          configuredUsd: options.maxEstimatedCostUsd,
-          pricing: modelPricing,
-          priorStages: options.priorModelStages,
-        }));
   const cacheRoutingEnabled = options.modelCacheRoutingKey !== undefined;
   const verificationRoute = options.independentVerifierRoute;
   return Object.freeze({
     inspectTarget: async (input) => inventoryTarget(await createFilesystem(input)),
-    recordPriorModelStages: (stages) => modelCostCeiling?.recordPriorStages(stages),
-    modelCostCeiling: () => modelCostCeiling,
-    modelCostCeilingState: () =>
-      modelCostCeiling?.state() ?? {
-        configuredUsd: null,
-        accumulatedEstimatedCostUsd: null,
-        reached: false,
-      },
     createPlan: async (input) => {
       const { inventory, snapshot: sourceSnapshot } = await captureTargetInventory(
         await createFilesystem(input),
@@ -295,7 +251,6 @@ export function createReviewService(
         harnessExecution,
         modelCacheRoutingKey: options.modelCacheRoutingKey,
         modelPricing,
-        modelCostCeiling,
         cacheRoutingEnabled,
         evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
       });
@@ -310,9 +265,6 @@ export function createReviewService(
         inventory,
         plan: planning.output,
         modelObservation: summarizeModelStages([planning.modelObservation], modelPricing),
-        ...(modelCostCeiling === undefined
-          ? {}
-          : { modelCostCeilingState: modelCostCeiling.state() }),
       };
     },
     createDeveloperGuidance: async (input) => {
@@ -400,7 +352,6 @@ export function createReviewService(
           harnessExecution,
           modelCacheRoutingKey: options.modelCacheRoutingKey,
           modelPricing,
-          modelCostCeiling,
           cacheRoutingEnabled,
         });
         const item: DeveloperGuidanceItem =
@@ -453,17 +404,11 @@ export function createReviewService(
           attempts.map((attempt) => attempt.modelObservation),
           modelPricing,
         ),
-        ...(modelCostCeiling === undefined
-          ? {}
-          : { modelCostCeilingState: modelCostCeiling.state() }),
       });
       return {
         inventory,
         guidance,
         modelObservation: guidance.modelObservation,
-        ...(modelCostCeiling === undefined
-          ? {}
-          : { modelCostCeilingState: modelCostCeiling.state() }),
       };
     },
     audit: async (input) => {
@@ -562,7 +507,6 @@ export function createReviewService(
             harnessExecution,
             modelCacheRoutingKey: options.modelCacheRoutingKey,
             modelPricing,
-            modelCostCeiling,
             cacheRoutingEnabled,
             evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
             onCompletedModelObservation: stageContext?.onCompletedModelObservation,
@@ -651,7 +595,6 @@ export function createReviewService(
             harnessExecution,
             modelCacheRoutingKey: options.modelCacheRoutingKey,
             modelPricing,
-            modelCostCeiling,
             cacheRoutingEnabled,
             evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
             onCompletedModelObservation: stageContext?.onCompletedModelObservation,
@@ -727,7 +670,6 @@ export function createReviewService(
             harnessExecution,
             modelCacheRoutingKey: options.modelCacheRoutingKey,
             modelPricing,
-            modelCostCeiling,
             cacheRoutingEnabled,
             evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
             onCompletedModelObservation: stageContext?.onCompletedModelObservation,
@@ -755,7 +697,6 @@ export function createReviewService(
             harnessExecution,
             modelCacheRoutingKey: options.modelCacheRoutingKey,
             modelPricing,
-            modelCostCeiling,
             cacheRoutingEnabled,
             evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
             onCompletedModelObservation: stageContext?.onCompletedModelObservation,
@@ -837,7 +778,6 @@ export function createReviewService(
             harnessExecution,
             modelCacheRoutingKey: options.modelCacheRoutingKey,
             modelPricing,
-            modelCostCeiling,
             cacheRoutingEnabled,
             evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
             onCompletedModelObservation: stageContext?.onCompletedModelObservation,
@@ -883,7 +823,6 @@ export function createReviewService(
             modelCacheRoutingKey:
               verificationRoute?.modelCacheRoutingKey ?? options.modelCacheRoutingKey,
             modelPricing: verificationRoute?.modelPricing ?? modelPricing,
-            modelCostCeiling,
             cacheRoutingEnabled: verificationRoute?.cacheRoutingEnabled ?? cacheRoutingEnabled,
             evaluatorFailureDiagnosticSink: options.evaluatorFailureDiagnosticSink,
             onCompletedModelObservation: candidateContext?.onCompletedModelObservation,
@@ -897,9 +836,6 @@ export function createReviewService(
         inventory,
         report,
         modelObservation: summarizeModelStages(modelStages, modelPricing),
-        ...(modelCostCeiling === undefined
-          ? {}
-          : { modelCostCeilingState: modelCostCeiling.state() }),
       };
     },
   });

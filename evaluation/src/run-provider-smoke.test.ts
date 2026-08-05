@@ -34,12 +34,11 @@ const runtime = {
   evaluationCorpusRoot: 'evaluation/data/corpora',
   evaluationOutputRoot: 'custom-runs',
   maxParallelVectors: 1,
-  maxEstimatedCostUsd: 2,
   modelPricing: {},
   verificationMode: 'same-route' as const,
 };
 
-test('accepts exactly one development case and variant with an optional observed-cost ceiling', () => {
+test('accepts exactly one development case and variant', () => {
   expect(
     parseProviderSmokeArguments(
       ['--case', 'ossf-cve-2018-16492', '--variant', 'vulnerable'],
@@ -52,21 +51,14 @@ test('accepts exactly one development case and variant with an optional observed
     variant: 'vulnerable',
     corpus: 'evaluation/data/corpora',
     output: 'custom-runs',
-    'max-estimated-cost-usd': 2,
     executionBudget: { modelTimeoutMs: 0, runTimeoutMs: 0, modelRetry: 'default' },
   });
 });
 
-test('rejects a smoke without the required one-case inputs but accepts no observed-cost ceiling', () => {
+test('rejects a smoke without the required one-case inputs', () => {
   expect(() => parseProviderSmokeArguments(['--variant', 'vulnerable'], runtime)).toThrow(
     'Invalid provider smoke options',
   );
-  expect(
-    parseProviderSmokeArguments(['--case', 'ossf-cve-2018-16492', '--variant', 'vulnerable'], {
-      ...runtime,
-      maxEstimatedCostUsd: undefined,
-    })['max-estimated-cost-usd'],
-  ).toBeUndefined();
 });
 
 test('rejects retired runtime-configuration flags', () => {

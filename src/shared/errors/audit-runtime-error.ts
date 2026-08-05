@@ -18,8 +18,6 @@ export const AuditRuntimeErrorCodeSchema = z.enum([
   'provider-cancelled',
   'provider-context-overflow',
   'agent-loop-budget-exceeded',
-  'model-cost-unavailable',
-  'model-cost-ceiling-reached',
   'coverage-incomplete',
   'validation-repair-no-progress',
   'finding-identity-conflict',

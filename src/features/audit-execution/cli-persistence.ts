@@ -505,7 +505,7 @@ function contextOverflowLedgerKey(input: { vectorId: string; phase: string }): s
   return `${input.vectorId}\0${input.phase}`;
 }
 
-/** Retains each reusable stage exactly once before a resumed cost ceiling dispatches work. */
+/** Retains each reusable stage exactly once when resuming audit dispatch. */
 function resumedModelStages(input: {
   priorVectorResults: readonly AuditVectorResult[];
   priorCandidateGroundingDrafts: readonly AuditCandidateGroundingDraft[];

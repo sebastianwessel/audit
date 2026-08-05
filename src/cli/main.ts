@@ -39,7 +39,6 @@ import {
 import {
   createDeveloperGuidanceCheckpointBinding,
   createDeveloperGuidanceId,
-  developerGuidanceModelStages,
   hasExactDeveloperGuidanceCheckpointBinding,
 } from '../features/developer-guidance/identity.js';
 import { developerGuidanceProtocolFingerprint } from '../features/developer-guidance/index.js';
@@ -347,8 +346,6 @@ async function runGuidance(
   const provider = createProvider(runtime.configuration, runtime.environment);
   const service = createReviewService(provider, selectedModel, {
     modelPricing: selectedModelPricing(runtime.configuration),
-    maxEstimatedCostUsd: maxEstimatedCostUsd(runtime.configuration),
-    priorModelStages: developerGuidanceModelStages(recoveredCheckpoint),
     modelCacheRoutingKey: providerCacheRoutingKey({
       provider: ProviderNameSchema.parse(selectedProvider),
       model: selectedModel,
@@ -429,7 +426,6 @@ async function runPlan(
   const service = createReviewService(provider, selectedModel, {
     maxParallelVectors: maxParallelVectors(runtime),
     modelPricing: selectedModelPricing(runtime),
-    maxEstimatedCostUsd: maxEstimatedCostUsd(runtime),
     modelCacheRoutingKey: providerCacheRoutingKey({
       provider: ProviderNameSchema.parse(providerName(runtime)),
       model: selectedModel,
@@ -471,9 +467,6 @@ async function runPlan(
       findingCount: 0,
     },
     modelObservation: created.modelObservation,
-    ...(created.modelCostCeilingState === undefined
-      ? {}
-      : { modelCostCeilingState: created.modelCostCeilingState }),
   });
   writeCliCommandResult(
     options,
@@ -640,8 +633,6 @@ export async function runAudit(
     const service = createReviewService(provider, selectedModel, {
       maxParallelVectors: maxParallelVectors(runtime),
       modelPricing: selectedModelPricing(runtime),
-      maxEstimatedCostUsd: maxEstimatedCostUsd(runtime),
-      priorModelStages: persistenceSession.priorModelStages,
       modelCacheRoutingKey: providerCacheRoutingKey({
         provider: ProviderNameSchema.parse(selectedProvider),
         model: selectedModel,
@@ -721,9 +712,6 @@ export async function runAudit(
       outcome: auditRunOutcome(publicReport),
       counters: reportCounters(publicReport),
       modelObservation: audited.modelObservation,
-      ...(audited.modelCostCeilingState === undefined
-        ? {}
-        : { modelCostCeilingState: audited.modelCostCeilingState }),
     });
     const terminal = classifyAuditTerminal(durableReport);
     const terminalAttempt: AuditRunAttempt = {
@@ -906,10 +894,6 @@ function selectedModelPricing(runtime: RuntimeConfiguration) {
 
 function maxParallelVectors(runtime: RuntimeConfiguration): number {
   return runtime.maxParallelVectors;
-}
-
-function maxEstimatedCostUsd(runtime: RuntimeConfiguration): number | undefined {
-  return runtime.maxEstimatedCostUsd;
 }
 
 export async function prepareProductRoots(input: {

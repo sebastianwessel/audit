@@ -187,7 +187,7 @@ test('recovers a provider-signalled context overflow through the real scoped sta
   ]);
 });
 
-test('retries a transient stage invocation without expanding its approved scope', async () => {
+test('does not duplicate transient provider retries outside the Harness', async () => {
   const targetRoot = await createTarget();
   const calls: string[][] = [];
   const result = await runScopedModelStage<string>({
@@ -213,14 +213,11 @@ test('retries a transient stage invocation without expanding its approved scope'
   });
 
   expect(result).toMatchObject({
-    status: 'completed',
-    output: 'recovered',
-    modelObservation: { recoveredErrorCodes: ['provider-failure'] },
+    status: 'failed',
+    errorCode: 'provider-failure',
+    modelObservation: { recoveredErrorCodes: [] },
   });
-  expect(calls).toEqual([
-    ['a.unknown', 'b.unknown'],
-    ['a.unknown', 'b.unknown'],
-  ]);
+  expect(calls).toEqual([['a.unknown', 'b.unknown']]);
 });
 
 test('retains only the normalized provider reason in failed stage telemetry', async () => {

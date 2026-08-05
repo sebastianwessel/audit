@@ -161,6 +161,12 @@ function deriveTerminalDisposition(input: {
   if (input.investigationState === 'no-source-backed-candidate' && input.candidateCount > 0) {
     return 'incomplete';
   }
+  if (
+    input.investigationState === 'no-source-backed-candidate' &&
+    input.postureConclusion !== 'risk-contradicted'
+  ) {
+    return 'incomplete';
+  }
   if (input.incompleteCandidateCount > 0) return 'incomplete';
   if (input.admittedFindingCount > 0) return 'finding-admitted';
   if (input.reviewRequiredCount > 0) return 'review-required';

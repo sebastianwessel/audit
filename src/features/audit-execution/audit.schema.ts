@@ -11,7 +11,6 @@ import {
 } from '../../shared/errors/audit-runtime-error.js';
 import type { ModelStageObservation } from '../model-operations/model-operations.schema.js';
 import {
-  ModelCostCeilingStateSchema,
   ModelRunObservationSchema,
   ModelStageErrorCodeSchema,
   ModelStageIdSchema,
@@ -890,7 +889,6 @@ export const AuditRunManifestSchema = z.strictObject({
     findingCount: z.number().int().nonnegative(),
   }),
   modelObservation: ModelRunObservationSchema.optional(),
-  modelCostCeilingState: ModelCostCeilingStateSchema.optional(),
 });
 
 /** Content-free lifecycle record for the exclusive audit owner. */

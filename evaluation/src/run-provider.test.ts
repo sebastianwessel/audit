@@ -61,7 +61,6 @@ const providerCheckpoint = ProviderEvaluationCheckpointSchema.parse({
     modelRetry: 'default',
   },
   maxParallelVectors: 1,
-  modelCostCeilingState: { configuredUsd: null, accumulatedEstimatedCostUsd: null, reached: false },
   status: 'running',
   failure: null,
   startedAt: '2026-08-03T12:00:00.000Z',
@@ -914,12 +913,6 @@ test('accepts one evaluator-owned case selector for a bounded provider probe', (
     caseIdFilter: 'ossf-cve-2018-16492',
     planProfile: 'audit-reviewed-plan',
   });
-});
-
-test('uses the environment-configured observed-cost ceiling for provider evaluation', () => {
-  expect(
-    parseProviderEvaluationArguments([], configuredRuntime({ maxEstimatedCostUsd: 2.5 })),
-  ).toMatchObject({ 'max-estimated-cost-usd': 2.5 });
 });
 
 test('rejects retired runtime-configuration flags', () => {

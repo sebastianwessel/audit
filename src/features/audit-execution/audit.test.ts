@@ -1201,7 +1201,7 @@ test('reuses a validated evidence map and continues at the earliest unfinished p
     verify: acceptVerifier,
   });
   expect(mappedCalls).toBe(1);
-  expect(resumed.coverage[0]?.outcome).toBe('completed');
+  expect(resumed.coverage[0]?.outcome).toBe('incomplete');
 });
 
 test('persists a source-grounded hypothesis only after independent verifier acceptance', async () => {
